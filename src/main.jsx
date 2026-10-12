@@ -42,7 +42,8 @@ function Patients(){
  async function save(e){
   e.preventDefault();setMessage('');
   const cpf=form.cpf.replace(/\D/g,'');if(!validCPF(cpf)){setMessage('CPF inválido. Confira os 11 dígitos.');return;}
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(form.email.trim())){setMessage('Informe um e-mail válido, com @ e domínio (exemplo: nome@exemplo.com).');return;}\n  const cep=form.cep.replace(/\D/g,'');if(cep&&cep.length!==8){setMessage('CEP deve ter 8 dígitos.');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(form.email.trim())){setMessage('Informe um e-mail válido, com @ e domínio (exemplo: nome@exemplo.com).');return;}
+  const cep=form.cep.replace(/\D/g,'');if(cep&&cep.length!==8){setMessage('CEP deve ter 8 dígitos.');return;}
   setWorking(true);
   const values={...form,nome:form.nome.trim(),cpf,cep:cep||null,uf:form.uf.trim().toUpperCase()};
   for(const k of Object.keys(values)){if(typeof values[k]==='string'&&!values[k].trim())values[k]=null;}
