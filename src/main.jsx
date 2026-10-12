@@ -55,25 +55,35 @@ function Patients(){
  }
  const field=(key,label,props={})=><label key={key}>{label}<input value={form[key]} onChange={e=>set(key,e.target.value)} {...props}/></label>;
  const shown=items.filter(p=>[p.nome,p.cpf,p.email].some(v=>(v||'').toLowerCase().includes(search.toLowerCase())));
- return <section><p><strong>Ambiente de testes.</strong> Use somente dados fictícios. Não registre informações reais de pacientes.</p>
- <form onSubmit={save}><h3>{editing?'Editar paciente de teste':'Cadastrar paciente de teste'}</h3>
- <div className="patient-grid">
- {field('nome','Nome completo',{required:true,maxLength:150})}
- {field('nascimento','Nascimento',{type:'date'})}
- {field('cpf','CPF',{required:true,maxLength:14,placeholder:'000.000.000-00',inputMode:'numeric'})}
- {field('telefone','Telefone / WhatsApp',{required:true,maxLength:15,inputMode:'tel',placeholder:'(45) 99999-9999'})}
- {field('email','E-mail',{type:'email',required:true,maxLength:254,placeholder:'nome@exemplo.com',pattern:'[^\\s@]+@[^\\s@]+\\.[^\\s@.]+'})}
- <div className="cep-row">{field('cep','CEP',{maxLength:9,inputMode:'numeric',placeholder:'00000-000'})}<button type="button" onClick={lookupCEP} disabled={cepBusy}>{cepBusy?'Buscando...':'Buscar CEP'}</button></div>
- {field('logradouro','Rua / Avenida',{maxLength:200})}
- {field('numero','Número',{maxLength:20})}
- {field('complemento','Complemento',{maxLength:100})}
- {field('bairro','Bairro',{maxLength:100})}
- {field('cidade','Cidade',{maxLength:100})}
- {field('uf','Estado (UF)',{maxLength:2})}
- </div><button className="active" disabled={working||!form.nome.trim()||!form.cpf.trim()||!form.telefone.trim()||!form.email.trim()}>{working?'Salvando...':editing?'Salvar alterações':'Cadastrar'}</button> {editing&&<button type="button" onClick={reset}>Cancelar edição</button>}</form>
- {message&&<p role="status">{message}</p>}
- <h3>Pacientes visíveis para seu perfil</h3><label>Buscar por nome, CPF ou e-mail<input value={search} onChange={e=>setSearch(e.target.value)}/></label> <button onClick={load} disabled={working}>Atualizar lista</button>
- {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul className="patient-list">{shown.map(p=><li className="patient-card" key={p.id}><div className="patient-card-head"><strong>{p.nome}</strong><button type="button" onClick={()=>edit(p)}>Editar</button></div><div className="patient-details"><div><span>Nascimento</span><strong>{dateBR(p.nascimento)}</strong></div><div><span>Telefone</span><strong>{p.telefone||'Não informado'}</strong></div><div><span>E-mail</span><strong>{p.email||'Não informado'}</strong></div></div></li>)}</ul>}
+ return <section className="patients-page">
+ <div className="page-intro"><div><p className="eyebrow">GESTÃO DE PACIENTES</p><p className="muted">Ambiente de testes. Use somente dados fictícios. Não registre informações reais de pacientes.</p></div><span className="intro-motto">CUIDADO · ORGANIZAÇÃO · EXCELÊNCIA</span></div>
+ <form onSubmit={save} className="premium-panel registration-panel">
+  <div className="panel-title"><span className="title-icon" aria-hidden="true">♙</span><div><h3>{editing?'Editar paciente de teste':'Cadastrar paciente de teste'}</h3><p>Preencha as informações para {editing?'atualizar o cadastro':'cadastrar um novo paciente'}.</p></div></div>
+  <div className="form-section"><h4><span aria-hidden="true">◈</span> Dados pessoais</h4><div className="patient-grid personal-grid">
+   {field('nome','Nome completo',{required:true,maxLength:150,placeholder:'Digite o nome completo do paciente'})}
+   {field('nascimento','Nascimento',{type:'date'})}
+   {field('cpf','CPF',{required:true,maxLength:14,placeholder:'000.000.000-00',inputMode:'numeric'})}
+  </div></div>
+  <div className="form-section"><h4><span aria-hidden="true">✧</span> Contato</h4><div className="patient-grid contact-grid">
+   {field('telefone','Telefone / WhatsApp',{required:true,maxLength:15,inputMode:'tel',placeholder:'(45) 99999-9999'})}
+   {field('email','E-mail',{type:'email',required:true,maxLength:254,placeholder:'nome@exemplo.com'})}
+  </div></div>
+  <div className="form-section"><h4><span aria-hidden="true">⌖</span> Endereço</h4><div className="patient-grid address-grid">
+   <div className="cep-row">{field('cep','CEP',{maxLength:9,inputMode:'numeric',placeholder:'00000-000'})}<button type="button" className="outline-gold" onClick={lookupCEP} disabled={cepBusy}>{cepBusy?'Buscando...':'Buscar CEP'}</button></div>
+   {field('logradouro','Rua / Avenida',{maxLength:200,placeholder:'Digite o endereço'})}
+   {field('numero','Número',{maxLength:20,placeholder:'Nº'})}
+   {field('complemento','Complemento',{maxLength:100,placeholder:'Opcional'})}
+   {field('bairro','Bairro',{maxLength:100,placeholder:'Digite o bairro'})}
+   {field('cidade','Cidade',{maxLength:100,placeholder:'Digite a cidade'})}
+   {field('uf','Estado (UF)',{maxLength:2,placeholder:'UF'})}
+  </div></div>
+  <div className="form-actions"><button type="button" onClick={reset} className="outline-gold">{editing?'Cancelar edição':'Limpar campos'}</button><button className="gold-button" disabled={working||!form.nome.trim()||!form.cpf.trim()||!form.telefone.trim()||!form.email.trim()}>{working?'Salvando...':editing?'Salvar alterações':'Cadastrar'}</button></div>
+ </form>
+ {message&&<p className="form-message" role="status">{message}</p>}
+ <div className="premium-panel directory-panel"><div className="panel-title"><span className="title-icon" aria-hidden="true">♧</span><div><h3>Pacientes visíveis para seu perfil</h3><p>Busque por nome, CPF ou e-mail para encontrar cadastros.</p></div></div>
+ <div className="search-row"><label className="search-label"><span className="sr-only">Buscar por nome, CPF ou e-mail</span><input aria-label="Buscar por nome, CPF ou e-mail" placeholder="⌕  Buscar por nome, CPF ou e-mail..." value={search} onChange={e=>setSearch(e.target.value)}/></label><button type="button" className="outline-gold" onClick={load} disabled={working}>↻ &nbsp; Atualizar lista</button></div>
+ {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul className="patient-list">{shown.map(p=><li className="patient-card" key={p.id}><div className="patient-avatar" aria-hidden="true">♙</div><div className="patient-card-content"><div className="patient-card-head"><strong>{p.nome}</strong><button type="button" className="outline-gold" onClick={()=>edit(p)}>✎ &nbsp; Editar</button></div><div className="patient-details"><div><span>Nascimento</span><strong>{dateBR(p.nascimento)}</strong></div><div><span>Telefone</span><strong>{p.telefone||'Não informado'}</strong></div><div><span>E-mail</span><strong>{p.email||'Não informado'}</strong></div></div></div></li>)}</ul>}
+ </div>
  </section>;
 }
 function App(){
@@ -98,11 +108,11 @@ function App(){
  async function login(e){e.preventDefault();if(!supabase)return;setBusy(true);setError('');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)setError('E-mail ou senha inválidos, ou acesso indisponível.');setBusy(false);}
  async function logout(){setError('');await supabase.auth.signOut();setProfile(null);setSession(null);}
  const permitted=profile?.ativo&&access[profile.perfil]||[];
- return <main><header><h1>Dr. Bruno Clavijo</h1><small>Gestão médica | Acesso restrito</small></header>
+ return <main><header><div className="brand-emblem" aria-hidden="true">✦</div><div><h1>Majestic Santé Institute</h1><small>Gestão médica | Acesso restrito</small></div></header>
  {!supabase?<div className="warning">Configuração pendente: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel e publique novamente.</div>:
  loading?<article><p>Verificando acesso...</p></article>:
  !session?<article className="login"><h2>Entrar no sistema</h2><form onSubmit={login}><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="active" disabled={busy}>{busy?'Entrando...':'Entrar'}</button></form>{error&&<p className="error" role="alert">{error}</p>}</article>:
- <><div className="session"><span>{profile?.nome||session.user.email} {profile?.ativo?'| '+profile.perfil:''}</span><button onClick={logout}>Sair</button></div>
+ <><div className="session"><span className="session-user"><span className="user-avatar" aria-hidden="true">BC</span><span>{profile?.nome||session.user.email}<small>{profile?.ativo?profile.perfil:'Acesso restrito'}</small></span></span><button onClick={logout}>Sair</button></div>
  {!profile?.ativo||!access[profile?.perfil]?<article><h2>Acesso não liberado</h2><p>Seu usuário não possui um perfil ativo e autorizado. Solicite a configuração ao administrador.</p>{error&&<p className="error">{error}</p>}</article>:
  <><nav>{permitted.map(m=><button key={m} className={tab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{tab}</h2>{tab==='Pacientes'?<Patients/>:<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}{tab==='Visão geral'&&<div className="cards">{permitted.filter(x=>x!=='Visão geral').map(x=><div key={x}><strong>{x}</strong><p>Em preparação</p></div>)}</div>}</article></>}
  </>}
