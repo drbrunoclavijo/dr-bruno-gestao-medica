@@ -17,6 +17,7 @@ function validCPF(value){
 }
 function formatCPF(value){const n=String(value||'').replace(/\D/g,'').slice(0,11);return n.replace(/^(\d{3})(\d)/,'$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})(\d{1,2})$/,'$1-$2');}
 function formatPhone(value){const n=String(value||'').replace(/\D/g,'').slice(0,11);if(!n)return '';if(n.length<3)return '('+n;const d='('+n.slice(0,2)+') ';const rest=n.slice(2);if(rest.length<=4)return d+rest;const split=rest.length>8?5:4;return d+rest.slice(0,split)+(rest.length>split?'-'+rest.slice(split):'');}
+function dateBR(value){if(!value)return 'Não informado';const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:value;}
 function Patients(){
  const [items,setItems]=useState([]),[form,setForm]=useState(emptyPatient),[editing,setEditing]=useState(null),[message,setMessage]=useState(''),[working,setWorking]=useState(false),[search,setSearch]=useState(''),[cepBusy,setCepBusy]=useState(false);
  const set=(field,value)=>setForm(old=>({...old,[field]:field==='cpf'?formatCPF(value):field==='telefone'?formatPhone(value):value}));
@@ -72,7 +73,7 @@ function Patients(){
  </div><button className="active" disabled={working||!form.nome.trim()||!form.cpf.trim()||!form.telefone.trim()||!form.email.trim()}>{working?'Salvando...':editing?'Salvar alterações':'Cadastrar'}</button> {editing&&<button type="button" onClick={reset}>Cancelar edição</button>}</form>
  {message&&<p role="status">{message}</p>}
  <h3>Pacientes visíveis para seu perfil</h3><label>Buscar por nome, CPF ou e-mail<input value={search} onChange={e=>setSearch(e.target.value)}/></label> <button onClick={load} disabled={working}>Atualizar lista</button>
- {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul>{shown.map(p=><li key={p.id}><strong>{p.nome}</strong> {p.nascimento||''} {p.telefone||''} {p.email||''} <button type="button" onClick={()=>edit(p)}>Editar</button></li>)}</ul>}
+ {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul className="patient-list">{shown.map(p=><li className="patient-card" key={p.id}><div className="patient-card-head"><strong>{p.nome}</strong><button type="button" onClick={()=>edit(p)}>Editar</button></div><div className="patient-details"><div><span>Nascimento</span><strong>{dateBR(p.nascimento)}</strong></div><div><span>Telefone</span><strong>{p.telefone||'Não informado'}</strong></div><div><span>E-mail</span><strong>{p.email||'Não informado'}</strong></div></div></li>)}</ul>}
  </section>;
 }
 function App(){
