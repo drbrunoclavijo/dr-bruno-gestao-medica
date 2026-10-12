@@ -8,27 +8,68 @@ const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase=url&&key?createClient(url,key):null;
 const modules=['Visão geral','Pacientes','Prescrições','Administrações','Estoque','Auditoria'];
 const access={medico:modules,enfermeira:['Visão geral','Pacientes','Administrações','Estoque'],equipe:['Visão geral','Pacientes','Estoque']};
+const emptyPatient={nome:'',nascimento:'',telefone:'',cpf:'',email:'',cep:'',logradouro:'',numero:'',complemento:'',bairro:'',cidade:'',uf:''};
+function validCPF(value){
+ const n=value.replace(/\D/g,'');
+ if(n.length!==11||/^(\d)\1+$/.test(n))return false;
+ for(let length=9;length<=10;length++){let sum=0;for(let i=0;i<length;i++)sum+=Number(n[i])*(length+1-i);let d=(sum*10)%11;if(d===10)d=0;if(d!==Number(n[length]))return false;}
+ return true;
+}
 function Patients(){
- const [items,setItems]=useState([]),[nome,setNome]=useState(''),[nascimento,setNascimento]=useState(''),[telefone,setTelefone]=useState(''),[message,setMessage]=useState(''),[working,setWorking]=useState(false);
+ const [items,setItems]=useState([]),[form,setForm]=useState(emptyPatient),[editing,setEditing]=useState(null),[message,setMessage]=useState(''),[working,setWorking]=useState(false),[search,setSearch]=useState(''),[cepBusy,setCepBusy]=useState(false);
+ const set=(field,value)=>setForm(old=>({...old,[field]:value}));
  async function load(){
-  setWorking(true);setMessage('');
-  const {data,error}=await supabase.from('pacientes').select('id,nome,nascimento,telefone').order('nome').limit(100);
-  if(error)setMessage('Não foi possível consultar pacientes: '+error.message);
-  else setItems(data||[]);
+  setWorking(true);
+  const {data,error}=await supabase.from('pacientes').select('id,nome,nascimento,telefone,cpf,email,cep,logradouro,numero,complemento,bairro,cidade,uf').order('nome').limit(100);
+  if(error)setMessage('Não foi possível consultar pacientes: '+error.message);else setItems(data||[]);
   setWorking(false);
  }
  useEffect(()=>{load();},[]);
- async function save(e){
-  e.preventDefault();setWorking(true);setMessage('');
-  const {error}=await supabase.from('pacientes').insert({nome:nome.trim(),nascimento:nascimento||null,telefone:telefone.trim()||null});
-  if(error){setMessage('Cadastro não autorizado ou inválido: '+error.message);setWorking(false);return;}
-  setNome('');setNascimento('');setTelefone('');await load();setMessage('Paciente fictício cadastrado.');
+ function reset(){setForm(emptyPatient);setEditing(null);}
+ function edit(p){setForm(Object.fromEntries(Object.keys(emptyPatient).map(k=>[k,p[k]||''])));setEditing(p.id);setMessage('');window.scrollTo({top:0,behavior:'smooth'});}
+ async function lookupCEP(){
+  const cep=form.cep.replace(/\D/g,'');if(cep.length!==8){setMessage('Informe um CEP com 8 números.');return;}
+  setCepBusy(true);setMessage('');
+  try{
+   const response=await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+   if(!response.ok)throw new Error('Consulta indisponível');
+   const data=await response.json();if(data.erro){setMessage('CEP não encontrado.');return;}
+   setForm(old=>({...old,cep,logradouro:data.logradouro||old.logradouro,bairro:data.bairro||old.bairro,cidade:data.localidade||old.cidade,uf:data.uf||old.uf}));
+  }catch{setMessage('Não foi possível buscar o CEP. Preencha o endereço manualmente.');}finally{setCepBusy(false);}
  }
+ async function save(e){
+  e.preventDefault();setMessage('');
+  const cpf=form.cpf.replace(/\D/g,'');if(!validCPF(cpf)){setMessage('CPF inválido. Confira os 11 dígitos.');return;}
+  const cep=form.cep.replace(/\D/g,'');if(cep&&cep.length!==8){setMessage('CEP deve ter 8 dígitos.');return;}
+  setWorking(true);
+  const values={...form,nome:form.nome.trim(),cpf,cep:cep||null,uf:form.uf.trim().toUpperCase()};
+  for(const k of Object.keys(values)){if(typeof values[k]==='string'&&!values[k].trim())values[k]=null;}
+  const query=editing?supabase.from('pacientes').update(values).eq('id',editing):supabase.from('pacientes').insert(values);
+  const {error}=await query;
+  if(error){setMessage('Não foi possível salvar: '+(error.code==='23505'?'CPF já cadastrado.':error.message));setWorking(false);return;}
+  reset();await load();setMessage(editing?'Cadastro atualizado.':'Paciente fictício cadastrado.');
+ }
+ const field=(key,label,props={})=><label key={key}>{label}<input value={form[key]} onChange={e=>set(key,e.target.value)} {...props}/></label>;
+ const shown=items.filter(p=>[p.nome,p.cpf,p.email].some(v=>(v||'').toLowerCase().includes(search.toLowerCase())));
  return <section><p><strong>Ambiente de testes.</strong> Use somente dados fictícios. Não registre informações reais de pacientes.</p>
- <form onSubmit={save}><h3>Cadastrar paciente de teste</h3><label>Nome<input required maxLength="150" value={nome} onChange={e=>setNome(e.target.value)} placeholder="PACIENTE TESTE"/></label><label>Nascimento<input type="date" value={nascimento} onChange={e=>setNascimento(e.target.value)}/></label><label>Telefone<input maxLength="30" value={telefone} onChange={e=>setTelefone(e.target.value)} placeholder="Telefone fictício"/></label><button className="active" disabled={working||!nome.trim()}>Cadastrar</button></form>
+ <form onSubmit={save}><h3>{editing?'Editar paciente de teste':'Cadastrar paciente de teste'}</h3>
+ <div className="patient-grid">
+ {field('nome','Nome completo',{required:true,maxLength:150})}
+ {field('nascimento','Nascimento',{type:'date'})}
+ {field('cpf','CPF',{required:true,maxLength:14,placeholder:'000.000.000-00',inputMode:'numeric'})}
+ {field('telefone','Telefone / WhatsApp',{required:true,maxLength:30})}
+ {field('email','E-mail',{type:'email',maxLength:254})}
+ <div className="cep-row">{field('cep','CEP',{maxLength:9,inputMode:'numeric',placeholder:'00000-000'})}<button type="button" onClick={lookupCEP} disabled={cepBusy}>{cepBusy?'Buscando...':'Buscar CEP'}</button></div>
+ {field('logradouro','Rua / Avenida',{maxLength:200})}
+ {field('numero','Número',{maxLength:20})}
+ {field('complemento','Complemento',{maxLength:100})}
+ {field('bairro','Bairro',{maxLength:100})}
+ {field('cidade','Cidade',{maxLength:100})}
+ {field('uf','Estado (UF)',{maxLength:2})}
+ </div><button className="active" disabled={working||!form.nome.trim()||!form.cpf.trim()||!form.telefone.trim()}>{working?'Salvando...':editing?'Salvar alterações':'Cadastrar'}</button> {editing&&<button type="button" onClick={reset}>Cancelar edição</button>}</form>
  {message&&<p role="status">{message}</p>}
- <h3>Pacientes visíveis para seu perfil</h3><button onClick={load} disabled={working}>Atualizar lista</button>
- {working?<p>Carregando...</p>:items.length===0?<p>Nenhum paciente visível.</p>:<ul>{items.map(p=><li key={p.id}><strong>{p.nome}</strong> {p.nascimento||''} {p.telefone||''}</li>)}</ul>}
+ <h3>Pacientes visíveis para seu perfil</h3><label>Buscar por nome, CPF ou e-mail<input value={search} onChange={e=>setSearch(e.target.value)}/></label> <button onClick={load} disabled={working}>Atualizar lista</button>
+ {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul>{shown.map(p=><li key={p.id}><strong>{p.nome}</strong> {p.nascimento||''} {p.telefone||''} {p.email||''} <button type="button" onClick={()=>edit(p)}>Editar</button></li>)}</ul>}
  </section>;
 }
 function App(){
