@@ -1,1 +1,20 @@
 :root{font-family:system-ui,-apple-system,sans-serif;color:#172c45;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}main{max-width:1050px;margin:auto;padding:20px}header{background:#142e50;color:white;padding:24px;border-radius:16px}h1{margin:0 0 6px}small{color:#d2e0ef}.warning{margin-top:15px;background:#fff1d6;border-radius:10px;padding:12px;font-size:14px}nav{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}button{border:1px solid #cad4e0;background:white;padding:12px 16px;border-radius:10px;color:#173454;cursor:pointer}button:disabled{opacity:.6}.active{background:#1764a0;color:white}article{background:white;border-radius:16px;padding:24px;min-height:250px}.login{max-width:450px;margin:24px auto}.login form{display:grid;gap:16px}.login label{display:grid;gap:6px;font-weight:600}.login input{padding:13px;border:1px solid #b7c5d5;border-radius:9px;font:inherit;width:100%}.error{color:#a52525}.session{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0;flex-wrap:wrap}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.cards>div{background:#edf4fa;padding:18px;border-radius:12px}footer{font-size:12px;margin:20px 0;color:#69788a}
+
+/* Campos e fichas de pacientes */
+.patient-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:18px 0 22px}
+.patient-grid label{display:flex;flex-direction:column;gap:7px;min-width:0;font-weight:600;font-size:14px}
+.patient-grid input,section>label input{display:block;width:100%;min-width:0;padding:12px;border:1px solid #b7c5d5;border-radius:9px;font:inherit;color:#172c45;background:#fff}
+.patient-grid input:focus,section>label input:focus{outline:2px solid #1764a0;outline-offset:1px}
+.cep-row{display:flex;align-items:end;gap:9px;min-width:0}
+.cep-row label{flex:1}
+.cep-row button{white-space:nowrap}
+.patient-list{list-style:none;padding:0;display:grid;gap:12px;margin-top:18px}
+.patient-card{border:1px solid #dce4ed;border-radius:12px;padding:16px;background:#f9fbfe}
+.patient-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.patient-card-head strong{overflow-wrap:anywhere}
+.patient-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.patient-details>div{min-width:0;display:flex;flex-direction:column;gap:4px}
+.patient-details span{font-size:12px;color:#63758a}
+.patient-details strong{font-size:14px;overflow-wrap:anywhere;font-weight:600}
+@media(max-width:760px){.patient-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.patient-details{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.patient-grid{grid-template-columns:minmax(0,1fr)}.patient-details{grid-template-columns:minmax(0,1fr)}.cep-row{flex-wrap:wrap}.patient-card-head{align-items:flex-start}article{padding:16px}main{padding:12px}}
