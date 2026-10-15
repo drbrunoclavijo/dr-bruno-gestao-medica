@@ -136,3 +136,15 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .prescription-preview:first-child{border-top:0}
 .prescription-preview p{line-height:1.6}
 @media(max-width:650px){.prescription-item-top{align-items:flex-start;flex-wrap:wrap}}
+
+/* Registro simulado de administração */
+.administration-item{margin:0}
+.administration-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.administration-heading strong{color:#f1c77d}
+.administration-heading span{font-size:12px;color:#e5c085}
+.administration-item p{font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+.administration-checked{border:1px solid #736340;border-radius:8px;padding:10px;background:#242317;color:#e8d19c}
+.administration-actions{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.administration-actions label{display:flex;flex-direction:column;gap:8px;min-width:230px;flex:1;font-size:13px}
+.administration-actions textarea{background:#181d21;color:#f0eeea;border:1px solid #39434b;border-radius:9px;font:inherit;padding:10px}
+@media(max-width:650px){.administration-actions button{width:100%}}
