@@ -19,25 +19,36 @@ function brDate(v){if(!v)return 'Sem data';const m=String(v).match(/^(\d{4})-(\d
 export default function ClinicalRecord({supabase,patientId,canWrite}){
  const [template,setTemplate]=useState('geral');
  const [records,setRecords]=useState([]),[form,setForm]=useState(newForm),[error,setError]=useState(''),[success,setSuccess]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[tableMissing,setTableMissing]=useState(false),[showForm,setShowForm]=useState(false);
- const [aiNotes,setAiNotes]=useState(''),[aiDraft,setAiDraft]=useState(''),[aiBusy,setAiBusy]=useState(false),[aiError,setAiError]=useState('');
+ const [aiNotes,setAiNotes]=useState(''),[aiDraft,setAiDraft]=useState(''),[aiError,setAiError]=useState('');
  useEffect(()=>{let active=true;setRecords([]);setLoading(true);setError('');setTableMissing(false);supabase.from('consultas_teste').select('*').eq('paciente_id',patientId).order('data_consulta',{ascending:false}).order('criado_em',{ascending:false}).limit(100).then(({data,error})=>{if(!active)return;if(error){setError('Não foi possível consultar prontuário: '+error.message);setTableMissing(error.code==='42P01'||error.code==='PGRST205');}else setRecords(data||[]);setLoading(false);});return()=>{active=false}},[patientId,supabase]);
  const change=(k,v)=>setForm(old=>({...old,[k]:v}));
- async function organizeNotes(){
-  setAiError('');setError('');
-  if(!canWrite||aiBusy)return;
-  if(aiNotes.trim().length<10){setAiError('Escreva pelo menos 10 caracteres de anotações fictícias.');return;}
+ async function copyForChatGPT(){
+  setAiError('');setSuccess('');
+  if(!aiNotes.trim()){setAiError('Escreva anotações fictícias antes de copiar.');return;}
   const context=groups.flatMap(([,fields])=>fields)
-   .filter(([key])=>key!=='data_consulta')
+   .filter(([key])=>key!=='data_consulta'&&key!=='evolucao')
    .map(([key,label])=>[label,String(form[key]||'').trim()])
    .filter(([,value])=>value).map(([label,value])=>label+': '+value).join('\n');
-  setAiBusy(true);setAiDraft('');
-  const {data,error:fnError}=await supabase.functions.invoke('organizar-evolucao-teste',{
-   body:{notas:aiNotes,contexto:context.slice(0,9000)}
-  });
-  if(fnError||!data?.evolucao){
-   setAiError('Não foi possível gerar a evolução. Confirme se a função foi publicada e a chave de API configurada. '+(data?.error||fnError?.message||''));
-  }else setAiDraft(data.evolucao);
-  setAiBusy(false);
+  const prompt=[
+   'Organize as anotações abaixo de uma CONSULTA INTEIRAMENTE FICTÍCIA em uma evolução médica padronizada em português do Brasil.',
+   'Preserve todos os sintomas, negativas, datas, números, doses, medidas, exames, hipóteses e condutas informados.',
+   'Não invente informações, diagnósticos, condutas ou exames não fornecidos.',
+   'Separe em seções apenas quando houver informações: queixa principal, HDA, antecedentes, medicamentos, hábitos, exame físico, exames, avaliação, conduta e retorno.',
+   'Não presuma que hipóteses são diagnósticos confirmados. Em caso de ambiguidade, inclua pontos a confirmar.',
+   'Responda apenas com o texto da evolução, pronto para revisão médica.',
+   '',
+   'CONTEXTO ESTRUTURADO:',
+   context||'(não informado)',
+   '',
+   'ANOTAÇÕES LIVRES:',
+   aiNotes
+  ].join('\n');
+  try{
+   await navigator.clipboard.writeText(prompt);
+   setSuccess('Texto fictício copiado. Abra o ChatGPT, cole e depois retorne para revisar a evolução.');
+  }catch{
+   setAiError('A cópia automática foi bloqueada pelo navegador. Selecione e copie suas anotações manualmente.');
+  }
  }
  function useDraft(){
   if(!aiDraft.trim())return;
@@ -73,8 +84,8 @@ export default function ClinicalRecord({supabase,patientId,canWrite}){
     </label><p>{templates[template].descricao}</p><div className="template-guides">{templates[template].guides.map(g=><span key={g}>{g}</span>)}</div><small>Roteiro orientador: nenhuma informação é preenchida ou diagnosticada automaticamente.</small></div>
     <p className="consultation-start">Horário registrado automaticamente ao iniciar: <strong>{brTime(form.iniciada_em)}</strong></p>
     <section className="form-section clinical-ai-section" aria-label="Assistente de evolução com IA">
-     <h4>Assistente de evolução com IA — Teste</h4>
-     <p className="profile-notice">Use somente anotações fictícias. A IA organiza o texto sem salvar automaticamente. Confira todos os dados, doses, exames e hipóteses antes de aprovar. A geração requer uma função protegida no Supabase e chave OpenAI configurada no servidor.</p>
+     <h4>Organizar evolução com seu ChatGPT — Teste</h4>
+     <p className="profile-notice">Use sua assinatura atual do ChatGPT, sem contratar API adicional. Este painel NÃO envia dados automaticamente ao ChatGPT: você copia as anotações fictícias, organiza no ChatGPT e cola o resultado revisado aqui. Não utilize dados ou informações identificáveis de pacientes reais enquanto o fluxo não for validado para privacidade e LGPD.</p>
      <div className="clinical-ai-grid">
       <div className="clinical-ai-column">
        <label>Anotações livres durante a consulta
@@ -82,16 +93,17 @@ export default function ClinicalRecord({supabase,patientId,canWrite}){
          onChange={e=>{setAiNotes(e.target.value);setAiDraft('');}}
          placeholder="Exemplo fictício: paciente relata cansaço há 3 meses, sono de 6h/noite, treina 3 vezes por semana, nega febre. Exames informados..."/>
        </label>
-       <small>Acrescente informações conforme a conversa evoluir e clique em Organizar. A geração é acionada manualmente, não a cada tecla.</small>
-       <button type="button" className="gold-button" disabled={aiBusy||aiNotes.trim().length<10} onClick={organizeNotes}>{aiBusy?'Organizando anotações...':'Organizar evolução com IA'}</button>
+       <small>Acrescente informações fictícias durante a consulta. O botão copia suas notas e um pedido de organização pronto para colar no ChatGPT.</small>
+       <button type="button" className="gold-button" disabled={!aiNotes.trim()} onClick={copyForChatGPT}>Copiar anotações para o ChatGPT</button>
+       <a className="clinical-ai-chat-link" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Abrir ChatGPT em outra aba ↗</a>
       </div>
       <div className="clinical-ai-column">
        <label>Rascunho padronizado — revisar antes de usar
         <textarea rows={12} value={aiDraft} onChange={e=>setAiDraft(e.target.value)}
-         placeholder="A evolução organizada aparecerá aqui. Você poderá revisar e editar antes de transferir ao prontuário."/>
+         placeholder="Cole aqui a evolução organizada pelo ChatGPT. Revise todas as informações antes de transferir ao prontuário."/>
        </label>
-       <small>O texto gerado não substitui sua avaliação, nem será salvo até sua revisão e o salvamento da consulta.</small>
-       <button type="button" className="outline-gold" disabled={!aiDraft.trim()||aiBusy} onClick={useDraft}>Usar texto revisado no campo Evolução</button>
+       <small>Cole o texto devolvido pelo ChatGPT, revise, ajuste e transfira para o campo Evolução. A consulta só será salva quando você clicar em Salvar.</small>
+       <button type="button" className="outline-gold" disabled={!aiDraft.trim()} onClick={useDraft}>Usar texto revisado no campo Evolução</button>
       </div>
      </div>
      {aiError&&<p role="alert" className="form-message">{aiError}</p>}
