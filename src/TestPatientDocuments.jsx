@@ -12,8 +12,11 @@ export default function TestPatientDocuments({supabase,patientId}){
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState('');
  const [category,setCategory]=useState('exame'),[title,setTitle]=useState(''),[description,setDescription]=useState('');
  const [docDate,setDocDate]=useState(''),[consultation,setConsultation]=useState(''),[file,setFile]=useState(null),[openLinks,setOpenLinks]=useState({});
+ const [beforeId,setBeforeId]=useState(''),[afterId,setAfterId]=useState('');
+ const [comparison,setComparison]=useState(null),[comparisonBusy,setComparisonBusy]=useState(false);
  async function load(){
   setLoading(true);setError('');
+  setComparison(null);
   const [d,c]=await Promise.all([
    supabase.from('documentos_pacientes_teste')
      .select('id,categoria,titulo,descricao,data_documento,criado_em,nome_original,mime_type,tamanho_bytes,caminho')
@@ -64,6 +67,23 @@ export default function TestPatientDocuments({supabase,patientId}){
   if(error||!data?.signedUrl){setError('Não foi possível abrir o documento: '+(error?.message||'acesso indisponível'));return;}
   setOpenLinks(old=>({...old,[doc.id]:data.signedUrl}));
  }
+ const evolutionPhotos=docs.filter(d=>d.categoria==='foto_evolucao' && d.mime_type?.startsWith('image/'))
+  .slice().sort((a,b)=>(a.data_documento||a.criado_em?.slice(0,10)||'').localeCompare(b.data_documento||b.criado_em?.slice(0,10)||''));
+ const docById=id=>evolutionPhotos.find(d=>d.id===id);
+ async function comparePhotos(){
+  const first=docById(beforeId),second=docById(afterId);
+  if(!first||!second||first.id===second.id){setError('Selecione duas fotos de evolução diferentes.');return;}
+  setError('');setComparison(null);setComparisonBusy(true);
+  try{
+   const bucket=supabase.storage.from('documentos-pacientes-teste');
+   const [a,b]=await Promise.all([bucket.createSignedUrl(first.caminho,300),bucket.createSignedUrl(second.caminho,300)]);
+   if(a.error||b.error||!a.data?.signedUrl||!b.data?.signedUrl){
+    throw new Error((a.error||b.error)?.message||'Acesso indisponível');
+   }
+   setComparison({first:{...first,url:a.data.signedUrl},second:{...second,url:b.data.signedUrl}});
+  }catch(err){setError('Não foi possível carregar a comparação: '+err.message);}
+  finally{setComparisonBusy(false);}
+ }
  return <section className="premium-panel patient-documents">
   <div className="panel-title"><span className="title-icon" aria-hidden="true">▤</span>
    <div><h3>Documentos e imagens do paciente — Teste</h3>
@@ -87,6 +107,35 @@ export default function TestPatientDocuments({supabase,patientId}){
    </div>
    <div className="form-actions"><button type="submit" className="gold-button" disabled={busy||!file||!title.trim()}>{busy?'Enviando...':'Salvar anexo de teste'}</button></div>
   </form>
+  <section className="form-section evolution-comparison" aria-label="Comparação de fotos de evolução">
+   <h4>Comparar fotos de evolução (teste)</h4>
+   <p>Selecione duas fotos já anexadas à categoria “Fotos de evolução”. As imagens serão exibidas lado a lado, sem edição ou alteração dos originais.</p>
+   {evolutionPhotos.length<2?<p className="record-empty">Anexe pelo menos duas fotos fictícias de evolução para comparar.</p>:<>
+    <div className="clinical-fields">
+     <label>Foto anterior
+      <select value={beforeId} onChange={e=>{setBeforeId(e.target.value);setComparison(null);}}>
+       <option value="">Selecionar foto anterior</option>
+       {evolutionPhotos.map(d=><option key={d.id} value={d.id}>{dateBR(d.data_documento||d.criado_em)} · {d.titulo}</option>)}
+      </select>
+     </label>
+     <label>Foto posterior
+      <select value={afterId} onChange={e=>{setAfterId(e.target.value);setComparison(null);}}>
+       <option value="">Selecionar foto posterior</option>
+       {evolutionPhotos.map(d=><option key={d.id} value={d.id}>{dateBR(d.data_documento||d.criado_em)} · {d.titulo}</option>)}
+      </select>
+     </label>
+    </div>
+    <div className="form-actions"><button type="button" className="gold-button" onClick={comparePhotos} disabled={comparisonBusy||!beforeId||!afterId||beforeId===afterId}>{comparisonBusy?'Carregando imagens...':'Comparar fotos'}</button></div>
+    {comparison&&<div className="evolution-photo-grid">
+      {[['Anterior',comparison.first],['Posterior',comparison.second]].map(([label,d])=><figure key={label}>
+       <div className="evolution-photo-header"><strong>{label}</strong><span>{dateBR(d.data_documento||d.criado_em)}</span></div>
+       <img src={d.url} alt={label+': '+d.titulo} loading="lazy" referrerPolicy="no-referrer"/>
+       <figcaption>{d.titulo}</figcaption>
+      </figure>)}
+      <p className="evolution-comparison-note">Links temporários (5 minutos). Para visualizar novamente após expirar, clique em “Comparar fotos”. Poses, iluminação, distância e enquadramento diferentes dificultam a comparação.</p>
+    </div>}
+   </>}
+  </section>
   <div className="record-top"><h4>Arquivos cadastrados</h4><button type="button" className="outline-gold" onClick={load} disabled={busy||loading}>Atualizar</button></div>
   {loading?<p>Carregando documentos...</p>:docs.length===0?<p className="record-empty">Nenhum documento fictício anexado a este paciente.</p>:
   <div className="record-list">{docs.map(doc=><div className="form-section document-entry" key={doc.id}>
