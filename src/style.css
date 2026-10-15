@@ -112,3 +112,12 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .record-content strong{font-size:12px;color:#e7bd77}
 .record-content p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}
 @media(max-width:650px){.clinical-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* Modelos orientadores de consulta: sem autopreenchimento clínico */
+.consultation-template{padding:18px;background:linear-gradient(125deg,#191b1b,#252015);border:1px solid #8d7041;border-radius:12px;margin-bottom:18px}
+.consultation-template>label{display:flex;flex-direction:column;gap:8px;font-weight:700;color:#f3cb82;font-size:14px;max-width:450px}
+.consultation-template select{appearance:auto;background:#161b1e;color:#efe9df;border:1px solid #9d7b44;border-radius:9px;padding:12px;font:inherit;min-height:44px;width:100%}
+.consultation-template p{font-size:13px;color:#d1cbc0;margin:12px 0}
+.template-guides{display:flex;flex-wrap:wrap;gap:8px;margin:11px 0}
+.template-guides span{border:1px solid #675131;background:#171919;color:#e5c58e;border-radius:20px;padding:7px 11px;font-size:12px}
+.consultation-template small{display:block;color:#a6a7a5;line-height:1.5}
