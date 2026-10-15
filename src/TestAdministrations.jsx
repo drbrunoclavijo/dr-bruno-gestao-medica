@@ -36,16 +36,23 @@ export default function TestAdministrations({supabase,patientId,role}){
   if(vl.error||pr.error){setError('Não foi possível consultar vínculos ao estoque: '+(vl.error||pr.error).message);setLoading(false);return;}
   setLinks(Object.fromEntries((vl.data||[]).map(v=>[v.item_prescricao_id,v])));
   setProducts(pr.data||[]);
-  const [planned,prods,moves]=await Promise.all([
+  const [planned,prods]=await Promise.all([
    supabase.from('insumos_itens_teste').select('id,item_prescricao_id,produto_id,quantidade').in('item_prescricao_id',idsItem),
-   supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto').eq('tipo_produto','insumo'),
-   supabase.from('insumos_movimentos_teste').select('insumo_item_id,quantidade,custo_saida').limit(1000)
+   supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto').eq('tipo_produto','insumo')
   ]);
-  if(planned.error||prods.error||moves.error){
-   setError('Não foi possível carregar insumos: '+(planned.error||prods.error||moves.error).message);
+  if(planned.error||prods.error){
+   setError('Não foi possível carregar insumos: '+(planned.error||prods.error).message);
    setLoading(false);return;
   }
-  setSupplies(planned.data||[]);setSupplyProducts(prods.data||[]);setSupplyMoves(moves.data||[]);
+  const supplyIds=(planned.data||[]).map(x=>x.id);
+  let movements=[];
+  if(supplyIds.length){
+   const result=await supabase.from('insumos_movimentos_teste')
+    .select('insumo_item_id,quantidade,custo_saida').in('insumo_item_id',supplyIds).limit(1000);
+   if(result.error){setError('Não foi possível carregar custos dos insumos: '+result.error.message);setLoading(false);return;}
+   movements=result.data||[];
+  }
+  setSupplies(planned.data||[]);setSupplyProducts(prods.data||[]);setSupplyMoves(movements);
   setEntries(items.map(i=>({...i,prescribedAt:(rx.data||[]).find(p=>p.id===i.prescricao_id)?.criado_em})));
   setLoading(false);
  }
