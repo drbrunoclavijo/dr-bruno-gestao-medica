@@ -162,3 +162,12 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .inventory-cost-overview{padding:13px 16px;border:1px solid #765a31;border-radius:10px;background:#242016;color:#f0d4a1;font-size:13px;line-height:1.6}
 .inventory-cost-overview strong{font-size:16px;color:#f7d28b}
 .inventory-cost-overview span{color:#bab3a5}
+
+/* Resumo de consumo financeiro fictício */
+.inventory-report-search{display:flex;flex-direction:column;gap:7px;margin:16px 0;color:#cfc7b7;font-size:13px}
+.inventory-report-search input{border:1px solid #44433f;background:#171b1d;color:#f4efe7;border-radius:8px;padding:11px 12px;width:100%}
+.inventory-report-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:12px 0 22px}
+.inventory-report-metrics>div{padding:15px;background:#1b2023;border:1px solid #514331;border-radius:10px;display:flex;gap:8px;flex-direction:column}
+.inventory-report-metrics small{color:#bdb7af;font-size:12px}
+.inventory-report-metrics strong{color:#f1cb89;font-size:19px;font-variant-numeric:tabular-nums}
+.inventory-report-total{margin-top:15px;color:#ebd29e}
