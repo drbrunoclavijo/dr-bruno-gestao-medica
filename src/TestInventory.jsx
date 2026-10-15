@@ -3,6 +3,9 @@ export default function TestInventory({supabase,role}){
  const doctor=role==='medico';
  const canRegister=['medico','enfermeira','equipe'].includes(role);
  const brl=n=>n===null||n===undefined?'Custo não informado':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n));
+ // Armazenar somente os centavos digitados; converter para reais ao salvar.
+ const displayCost=digits=>digits?brl(Number(digits)/100):'';
+ const parseCost=digits=>Number(digits)/100;
  const [products,setProducts]=useState([]),[lots,setLots]=useState([]),[links,setLinks]=useState([]),[items,setItems]=useState([]),[patients,setPatients]=useState([]);
  const [name,setName]=useState(''),[unit,setUnit]=useState('unidade'),[product,setProduct]=useState(''),[lot,setLot]=useState(''),[expiry,setExpiry]=useState(''),[qty,setQty]=useState(''),[cost,setCost]=useState('');
  const [bindItem,setBindItem]=useState(''),[bindProduct,setBindProduct]=useState(''),[bindQty,setBindQty]=useState('1');
@@ -61,12 +64,12 @@ export default function TestInventory({supabase,role}){
     <label>Unidade (ex.: ampola, frasco, mL)<input required maxLength={30} value={unit} onChange={e=>setUnit(e.target.value)}/></label>
     <button className="gold-button" disabled={busy}>Cadastrar produto</button>
    </form></div>
-   <div className="form-section"><h4>Adicionar lote fictício</h4><form className="clinical-fields" onSubmit={e=>{e.preventDefault();call('adicionar_lote_estoque_teste',{p_produto_id:product,p_lote:lot,p_validade:expiry,p_quantidade:Number(qty),p_custo_total:Number(cost)},'Lote fictício incluído com custo de aquisição.');}}>
+   <div className="form-section"><h4>Adicionar lote fictício</h4><form className="clinical-fields" onSubmit={e=>{e.preventDefault();call('adicionar_lote_estoque_teste',{p_produto_id:product,p_lote:lot,p_validade:expiry,p_quantidade:Number(qty),p_custo_total:parseCost(cost)},'Lote fictício incluído com custo de aquisição.');}}>
     <label>Produto<select required value={product} onChange={e=>setProduct(e.target.value)}><option value="">Selecione</option>{products.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.unidade})</option>)}</select></label>
     <label>Número do lote<input required maxLength={100} value={lot} onChange={e=>setLot(e.target.value)}/></label>
     <label>Validade<input required type="date" value={expiry} onChange={e=>setExpiry(e.target.value)}/></label>
     <label>Quantidade recebida<input required type="number" min="0.001" step="0.001" value={qty} onChange={e=>setQty(e.target.value)}/></label>
-    <label>Custo total de aquisição do lote (R$)<input required type="number" min="0" step="0.01" placeholder="Ex.: 150.00" value={cost} onChange={e=>setCost(e.target.value)}/></label>
+    <label>Custo total de aquisição do lote (R$)<input required type="text" inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={displayCost(cost)} onChange={e=>setCost(e.target.value.replace(/\D/g,'').replace(/^0+(?=\d)/,'').slice(0,10))}/></label>
     <button className="gold-button" disabled={busy}>Salvar lote</button>
    </form></div>
    {doctor&&<div className="form-section"><h4>Vincular prescrição ao estoque</h4><p>Associe cada item fictício ao produto e à quantidade que será descontada quando a Dra. Carol confirmar a checagem.</p><form className="clinical-fields" onSubmit={e=>{e.preventDefault();call('vincular_item_estoque_teste',{p_item_id:bindItem,p_produto_id:bindProduct,p_quantidade:Number(bindQty)},'Item vinculado ao estoque.');setBindItem('');}}>
