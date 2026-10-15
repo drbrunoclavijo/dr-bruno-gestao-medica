@@ -121,3 +121,18 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .template-guides{display:flex;flex-wrap:wrap;gap:8px;margin:11px 0}
 .template-guides span{border:1px solid #675131;background:#171919;color:#e5c58e;border-radius:20px;padding:7px 11px;font-size:12px}
 .consultation-template small{display:block;color:#a6a7a5;line-height:1.5}
+
+/* Prescrições fictícias */
+.prescription-form{display:grid;gap:16px;border-top:1px solid #5c4b34;padding-top:18px;margin:16px 0}
+.prescription-label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600}
+.prescription-label select,.prescription-label textarea{font:inherit;padding:12px;min-height:44px;border:1px solid #6b593a;border-radius:9px;background:#171b1f;color:#ece9e2;width:100%;resize:vertical}
+.prescription-items{display:grid;gap:12px}
+.prescription-items .form-section{margin:0}
+.prescription-item-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.prescription-item-top h4{margin:0}
+.prescription-item-top button{font-size:12px}
+.clinical-fields .full-span{grid-column:1/-1}
+.prescription-preview{border-top:1px solid #4b4337;padding-top:10px}
+.prescription-preview:first-child{border-top:0}
+.prescription-preview p{line-height:1.6}
+@media(max-width:650px){.prescription-item-top{align-items:flex-start;flex-wrap:wrap}}
