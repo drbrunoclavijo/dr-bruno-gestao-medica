@@ -12,7 +12,7 @@ const stamp=value=>new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:
 export default function TestPatientDocuments({supabase,patientId}){
  const [docs,setDocs]=useState([]),[consultations,setConsultations]=useState([]),[loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState('');
- const [category,setCategory]=useState('exame'),[title,setTitle]=useState(''),[description,setDescription]=useState('');
+ const [category,setCategory]=useState('exame'),[uploadAngle,setUploadAngle]=useState(''),[title,setTitle]=useState(''),[description,setDescription]=useState('');
  const [docDate,setDocDate]=useState(''),[consultation,setConsultation]=useState(''),[file,setFile]=useState(null),[openLinks,setOpenLinks]=useState({});
  const [beforeId,setBeforeId]=useState(''),[afterId,setAfterId]=useState('');
  const [comparison,setComparison]=useState(null),[comparisonBusy,setComparisonBusy]=useState(false);
@@ -41,6 +41,9 @@ export default function TestPatientDocuments({supabase,patientId}){
   if(category==='foto_evolucao'&&file.type==='application/pdf'){
    setError('Para fotos de evolução, selecione JPG, PNG ou WebP.');return;
   }
+  if(category==='foto_evolucao'&&!angles.some(([id])=>id===uploadAngle)){
+   setError('Selecione o ângulo corporal da foto antes de salvar.');return;
+  }
   setBusy(true);
   try{
    const {data,error:authErr}=await supabase.auth.getUser();
@@ -50,15 +53,20 @@ export default function TestPatientDocuments({supabase,patientId}){
    const up=await supabase.storage.from('documentos-pacientes-teste')
     .upload(path,file,{contentType:file.type,upsert:false});
    if(up.error)throw new Error('Falha ao enviar arquivo: '+up.error.message);
-   const {error:saveErr}=await supabase.rpc('registrar_documento_paciente_teste',{
-    p_paciente_id:patientId,p_consulta_id:consultation||null,p_categoria:category,
+   const payload={
+    p_paciente_id:patientId,p_consulta_id:consultation||null,
     p_titulo:title.trim(),p_descricao:description.trim()||null,
     p_data_documento:docDate||null,p_nome_original:file.name.slice(0,240),
     p_mime_type:file.type,p_tamanho_bytes:file.size,p_caminho:path
-   });
+   };
+   const isEvolution=category==='foto_evolucao';
+   const {error:saveErr}=await supabase.rpc(
+    isEvolution?'registrar_foto_evolucao_com_angulo_teste':'registrar_documento_paciente_teste',
+    isEvolution?{...payload,p_angulo_foto:uploadAngle}:{...payload,p_categoria:category}
+   );
    if(saveErr)throw new Error('Arquivo enviado, mas NÃO associado à ficha: '+saveErr.message+'. Informe ao administrador para revisar o arquivo pendente.');
    setSuccess('Documento de teste anexado à ficha do paciente.');
-   setTitle('');setDescription('');setDocDate('');setConsultation('');setFile(null);
+   setTitle('');setDescription('');setDocDate('');setConsultation('');setFile(null);setUploadAngle('');
    await load();setSuccess('Documento de teste anexado à ficha do paciente.');
   }catch(err){setError(err.message);}
   finally{setBusy(false);}
@@ -114,7 +122,13 @@ export default function TestPatientDocuments({supabase,patientId}){
   <form className="form-section document-upload-form" onSubmit={add}>
    <h4>+ Adicionar documento fictício</h4>
    <div className="clinical-fields">
-    <label>Categoria<select value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+    <label>Categoria<select value={category} onChange={e=>{setCategory(e.target.value);setUploadAngle('');}}>{categories.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+    {category==='foto_evolucao'&&<label>Ângulo corporal da foto (obrigatório)
+     <select required value={uploadAngle} onChange={e=>setUploadAngle(e.target.value)}>
+      <option value="">Selecione o ângulo</option>
+      {angles.map(([id,name])=><option key={id} value={id}>{name}</option>)}
+     </select>
+    </label>}
     <label>Título<input required maxLength={180} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Ex.: avaliação inicial - teste"/></label>
     <label>Data do exame / foto (opcional)<input type="date" value={docDate} onChange={e=>setDocDate(e.target.value)}/></label>
     <label>Consulta vinculada (opcional)<select value={consultation} onChange={e=>setConsultation(e.target.value)}><option value="">Sem consulta vinculada</option>{consultations.map(c=><option key={c.id} value={c.id}>{dateBR(c.data_consulta)} · {c.motivo}</option>)}</select></label>
@@ -124,7 +138,7 @@ export default function TestPatientDocuments({supabase,patientId}){
      {file&&<small>Selecionado: {file.name}</small>}
     </label>
    </div>
-   <div className="form-actions"><button type="submit" className="gold-button" disabled={busy||!file||!title.trim()}>{busy?'Enviando...':'Salvar anexo de teste'}</button></div>
+   <div className="form-actions"><button type="submit" className="gold-button" disabled={busy||!file||!title.trim()||(category==='foto_evolucao'&&!uploadAngle)}>{busy?'Enviando...':'Salvar anexo de teste'}</button></div>
   </form>
   <section className="form-section evolution-comparison" aria-label="Comparação de fotos de evolução">
    <h4>Comparar fotos de evolução (teste)</h4>
@@ -144,7 +158,7 @@ export default function TestPatientDocuments({supabase,patientId}){
      <label>Foto posterior
       <select value={afterId} onChange={e=>{setAfterId(e.target.value);setComparison(null);}}>
        <option value="">Selecionar foto posterior</option>
-       {evolutionPhotos.map(d=><option key={d.id} value={d.id}>{dateBR(d.data_documento||d.criado_em)} · {d.titulo}</option>)}
+       {filteredPhotos.map(d=><option key={d.id} value={d.id}>{dateBR(d.data_documento||d.criado_em)} · {d.titulo} · {angleName(d.angulo_foto)}</option>)}
       </select>
      </label>
     </div>
