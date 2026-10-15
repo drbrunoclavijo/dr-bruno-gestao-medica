@@ -5,6 +5,7 @@ import './style.css';
 import ClinicalRecord from './ClinicalRecord.jsx';
 import TestPrescriptions from './TestPrescriptions.jsx';
 import TestAdministrations from './TestAdministrations.jsx';
+import TestInventory from './TestInventory.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -134,7 +135,7 @@ function App(){
  !session?<article className="login"><h2>Entrar no sistema</h2><form onSubmit={login}><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="active" disabled={busy}>{busy?'Entrando...':'Entrar'}</button></form>{error&&<p className="error" role="alert">{error}</p>}</article>:
  <><div className="session"><span className="session-user"><span className="user-avatar" aria-hidden="true">BC</span><span>{profile?.nome||session.user.email}<small>{profile?.ativo?profile.perfil:'Acesso restrito'}</small></span></span><button onClick={logout}>Sair</button></div>
  {!profile?.ativo||!access[profile?.perfil]?<article><h2>Acesso não liberado</h2><p>Seu usuário não possui um perfil ativo e autorizado. Solicite a configuração ao administrador.</p>{error&&<p className="error">{error}</p>}</article>:
- <><nav>{permitted.map(m=><button key={m} className={tab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{tab}</h2>{tab==='Pacientes'?<Patients role={profile.perfil}/>:<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}{tab==='Visão geral'&&<div className="cards">{permitted.filter(x=>x!=='Visão geral').map(x=><div key={x}><strong>{x}</strong><p>Em preparação</p></div>)}</div>}</article></>}
+ <><nav>{permitted.map(m=><button key={m} className={tab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{tab}</h2>{tab==='Pacientes'?<Patients role={profile.perfil}/>:tab==='Estoque'?(profile.perfil==='medico'||profile.perfil==='enfermeira'?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>O estoque clínico de testes está restrito aos perfis médico e enfermagem.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}{tab==='Visão geral'&&<div className="cards">{permitted.filter(x=>x!=='Visão geral').map(x=><div key={x}><strong>{x}</strong><p>Em preparação</p></div>)}</div>}</article></>}
  </>}
  <footer>Versão de testes. Não inserir dados de pacientes até a validação de segurança, LGPD e funcionalidades clínicas.</footer></main>;
 }
