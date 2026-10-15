@@ -200,3 +200,11 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .evolution-photo-grid figcaption{padding:12px;font-size:13px;color:#e8e0d3;overflow-wrap:anywhere}
 .evolution-comparison-note{grid-column:1/-1;margin:0!important;color:#a7a49f;font-size:12px;line-height:1.6}
 @media(max-width:650px){.evolution-photo-grid{gap:8px}.evolution-photo-grid img{height:230px}.evolution-photo-header{padding:8px;font-size:12px}}
+
+/* Classificação das fotos de evolução por ângulo */
+.angle-filter-label,.photo-angle-editor label{display:flex;flex-direction:column;gap:7px;font-size:13px;color:#e0d9cc}
+.angle-filter-label{max-width:370px;margin:15px 0}
+.angle-filter-label select,.photo-angle-editor select{font:inherit;color:#f1eee9;background:#181d21;border:1px solid #75603a;padding:10px;border-radius:9px;min-height:42px;max-width:100%}
+.photo-angle-editor{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:12px 0;padding:12px;background:#151819;border:1px solid #4e4636;border-radius:9px}
+.photo-angle-editor label{flex:1;min-width:185px}
+@media(max-width:650px){.photo-angle-editor button{width:100%}}
