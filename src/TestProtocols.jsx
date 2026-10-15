@@ -106,7 +106,7 @@ export default function TestProtocols({supabase}){
      {noDischarge&&<p className="form-message">As prescrições estão vinculadas, mas nenhuma baixa de estoque foi registrada para elas. Prescrever ou vincular não desconta estoque nem gera custo consumido. A margem ainda não pode ser avaliada.</p>}
      {Number(p.checagens_sem_baixa||0)>0&&<p className="form-message">Há {p.checagens_sem_baixa} checagem(ns) sem baixa vinculada de estoque. Verifique se pertencem a registros antigos.</p>}
      <div className="protocol-link-row"><label>Valor de repasse à clínica (R$)
-       <input inputMode="numeric" value={currencyInput(clinicEdits[p.protocolo_id])} onChange={e=>setClinicEdits(v=>({...v,[p.protocolo_id]:e.target.value.replace(/\\D/g,'').slice(0,11)}))}/>
+       <input inputMode="numeric" value={currencyInput(clinicEdits[p.protocolo_id])} onChange={e=>setClinicEdits(v=>({...v,[p.protocolo_id]:e.target.value.replace(/\D/g,'').slice(0,11)}))}/>
       </label><label>Percentual equivalente (automático)
        <input readOnly value={percent(parseCents(clinicEdits[p.protocolo_id]),priceTotal)}/>
       </label><button className="outline-gold" type="button" disabled={Boolean(clinicBusy)||parseCents(clinicEdits[p.protocolo_id])===clinicValue} onClick={()=>saveClinic(p)}>{clinicBusy===p.protocolo_id?'Salvando...':'Salvar repasse'}</button>
