@@ -171,3 +171,9 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .inventory-report-metrics small{color:#bdb7af;font-size:12px}
 .inventory-report-metrics strong{color:#f1cb89;font-size:19px;font-variant-numeric:tabular-nums}
 .inventory-report-total{margin-top:15px;color:#ebd29e}
+
+/* Comprovante fotográfico fictício na checagem de enfermagem */
+.administration-photo{border:1px dashed #796239;border-radius:9px;padding:12px;background:#17191a;min-width:min(100%,260px)}
+.administration-photo input[type=file]{display:block;max-width:100%;color:#ddd7c9;font-size:13px}
+.administration-photo small{display:block;color:#a9a39a;overflow-wrap:anywhere}
+.administration-checked button{margin-top:8px;font-size:13px}
