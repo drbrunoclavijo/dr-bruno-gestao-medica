@@ -19,6 +19,7 @@ function formatCPF(value){const n=String(value||'').replace(/\D/g,'').slice(0,11
 function formatPhone(value){const n=String(value||'').replace(/\D/g,'').slice(0,11);if(!n)return '';if(n.length<3)return '('+n;const d='('+n.slice(0,2)+') ';const rest=n.slice(2);if(rest.length<=4)return d+rest;const split=rest.length>8?5:4;return d+rest.slice(0,split)+(rest.length>split?'-'+rest.slice(split):'');}
 function dateBR(value){if(!value)return 'Não informado';const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:value;}
 function Patients(){
+ const [selectedId,setSelectedId]=useState(null);
  const [items,setItems]=useState([]),[form,setForm]=useState(emptyPatient),[editing,setEditing]=useState(null),[message,setMessage]=useState(''),[working,setWorking]=useState(false),[search,setSearch]=useState(''),[cepBusy,setCepBusy]=useState(false);
  const set=(field,value)=>setForm(old=>({...old,[field]:field==='cpf'?formatCPF(value):field==='telefone'?formatPhone(value):value}));
  async function load(){
@@ -29,7 +30,7 @@ function Patients(){
  }
  useEffect(()=>{load();},[]);
  function reset(){setForm(emptyPatient);setEditing(null);}
- function edit(p){setForm(Object.fromEntries(Object.keys(emptyPatient).map(k=>[k,k==='cpf'?formatCPF(p[k]):k==='telefone'?formatPhone(p[k]):p[k]||''])));setEditing(p.id);setMessage('');window.scrollTo({top:0,behavior:'smooth'});}
+ function edit(p){setSelectedId(null);setForm(Object.fromEntries(Object.keys(emptyPatient).map(k=>[k,k==='cpf'?formatCPF(p[k]):k==='telefone'?formatPhone(p[k]):p[k]||''])));setEditing(p.id);setMessage('');window.scrollTo({top:0,behavior:'smooth'});}
  async function lookupCEP(){
   const cep=form.cep.replace(/\D/g,'');if(cep.length!==8){setMessage('Informe um CEP com 8 números.');return;}
   setCepBusy(true);setMessage('');
@@ -55,6 +56,20 @@ function Patients(){
  }
  const field=(key,label,props={})=><label key={key}>{label}<input value={form[key]} onChange={e=>set(key,e.target.value)} {...props}/></label>;
  const shown=items.filter(p=>[p.nome,p.cpf,p.email].some(v=>(v||'').toLowerCase().includes(search.toLowerCase())));
+ const selected=items.find(p=>p.id===selectedId);
+ const detail=(label,value)=><div className="detail-item"><span>{label}</span><strong>{value||'Não informado'}</strong></div>;
+ const addressOf=p=>[p.logradouro,[p.numero,p.complemento].filter(Boolean).join(' - '),p.bairro,[p.cidade,p.uf].filter(Boolean).join(' / ')].filter(Boolean).join(', ');
+ if(selected) return <section className="patients-page patient-profile">
+  <div className="profile-toolbar"><button type="button" className="outline-gold" onClick={()=>setSelectedId(null)}>← Voltar para pacientes</button><span className="profile-test-label">FICHA CADASTRAL · AMBIENTE DE TESTES</span></div>
+  <div className="premium-panel">
+   <div className="profile-heading"><div className="patient-avatar" aria-hidden="true">♙</div><div className="profile-name"><p className="eyebrow">FICHA DO PACIENTE</p><h3>{selected.nome}</h3><p>Informações cadastrais disponíveis no sistema</p></div><button type="button" className="gold-button" onClick={()=>edit(selected)}>✎ Editar cadastro</button></div>
+   <div className="form-section"><h4>◈ Dados pessoais</h4><div className="detail-grid">{detail('Nome completo',selected.nome)}{detail('Nascimento',dateBR(selected.nascimento))}{detail('CPF',formatCPF(selected.cpf))}</div></div>
+   <div className="form-section"><h4>✧ Contato</h4><div className="detail-grid">{detail('Telefone / WhatsApp',formatPhone(selected.telefone))}{detail('E-mail',selected.email)}</div></div>
+   <div className="form-section"><h4>⌖ Endereço</h4><div className="detail-grid">{detail('CEP',selected.cep)}{detail('Rua / Avenida',selected.logradouro)}{detail('Número',selected.numero)}{detail('Complemento',selected.complemento)}{detail('Bairro',selected.bairro)}{detail('Cidade',selected.cidade)}{detail('Estado (UF)',selected.uf)}</div></div>
+  </div>
+  <div className="premium-panel"><div className="panel-title"><span className="title-icon" aria-hidden="true">⌁</span><div><h3>Histórico e prontuário</h3><p>Estrutura planejada para a próxima etapa.</p></div></div><p className="profile-notice">Ainda não há prontuário eletrônico, consultas, exames ou prescrições disponíveis nesta versão. Nenhum histórico clínico foi consultado ou registrado.</p></div>
+ </section>;
+
  return <section className="patients-page">
  <div className="page-intro"><div><p className="eyebrow">GESTÃO DE PACIENTES</p><p className="muted">Ambiente de testes. Use somente dados fictícios. Não registre informações reais de pacientes.</p></div><span className="intro-motto">CUIDADO · ORGANIZAÇÃO · EXCELÊNCIA</span></div>
  <form onSubmit={save} className="premium-panel registration-panel">
@@ -82,7 +97,7 @@ function Patients(){
  {message&&<p className="form-message" role="status">{message}</p>}
  <div className="premium-panel directory-panel"><div className="panel-title"><span className="title-icon" aria-hidden="true">♧</span><div><h3>Pacientes visíveis para seu perfil</h3><p>Busque por nome, CPF ou e-mail para encontrar cadastros.</p></div></div>
  <div className="search-row"><label className="search-label"><span className="sr-only">Buscar por nome, CPF ou e-mail</span><input aria-label="Buscar por nome, CPF ou e-mail" placeholder="⌕  Buscar por nome, CPF ou e-mail..." value={search} onChange={e=>setSearch(e.target.value)}/></label><button type="button" className="outline-gold" onClick={load} disabled={working}>↻ &nbsp; Atualizar lista</button></div>
- {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul className="patient-list">{shown.map(p=><li className="patient-card" key={p.id}><div className="patient-avatar" aria-hidden="true">♙</div><div className="patient-card-content"><div className="patient-card-head"><strong>{p.nome}</strong><button type="button" className="outline-gold" onClick={()=>edit(p)}>✎ &nbsp; Editar</button></div><div className="patient-details"><div><span>Nascimento</span><strong>{dateBR(p.nascimento)}</strong></div><div><span>Telefone</span><strong>{p.telefone||'Não informado'}</strong></div><div><span>E-mail</span><strong>{p.email||'Não informado'}</strong></div></div></div></li>)}</ul>}
+ {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul className="patient-list">{shown.map(p=><li className="patient-card" key={p.id}><div className="patient-avatar" aria-hidden="true">♙</div><div className="patient-card-content"><div className="patient-card-head"><strong>{p.nome}</strong><div className="patient-actions"><button type="button" className="gold-button" onClick={()=>setSelectedId(p.id)}>Abrir ficha</button><button type="button" className="outline-gold" onClick={()=>edit(p)}>✎ &nbsp; Editar</button></div></div><div className="patient-details"><div><span>Nascimento</span><strong>{dateBR(p.nascimento)}</strong></div><div><span>Telefone</span><strong>{p.telefone||'Não informado'}</strong></div><div><span>E-mail</span><strong>{p.email||'Não informado'}</strong></div></div></div></li>)}</ul>}
  </div>
  </section>;
 }
