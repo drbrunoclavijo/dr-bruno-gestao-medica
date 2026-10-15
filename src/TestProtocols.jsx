@@ -14,16 +14,18 @@ export default function TestProtocols({supabase}){
  const [duration,setDuration]=useState('90'),[days,setDays]=useState('90'),[price,setPrice]=useState(''),[clinic,setClinic]=useState('');
  const [clinicEdits,setClinicEdits]=useState({}),[clinicBusy,setClinicBusy]=useState('');
  const [selectedRx,setSelectedRx]=useState({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
+ const [forecasts,setForecasts]=useState({});
  const [message,setMessage]=useState(''),[error,setError]=useState('');
  async function load(){
   setLoading(true);setError('');
-  const [p,pa,rx]=await Promise.all([
+  const [p,pa,rx,estimates]=await Promise.all([
    supabase.rpc('listar_protocolos_com_insumos_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
-   supabase.rpc('listar_prescricoes_para_protocolos_teste')
+   supabase.rpc('listar_prescricoes_para_protocolos_teste'),
+   supabase.rpc('previsao_custos_protocolos_teste')
   ]);
-  if(p.error||pa.error||rx.error)setError('Não foi possível carregar protocolos: '+(p.error||pa.error||rx.error).message);
-  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));}
+  if(p.error||pa.error||rx.error||estimates.error)setError('Não foi possível carregar protocolos: '+(p.error||pa.error||rx.error||estimates.error).message);
+  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));}
   setLoading(false);
  }
  useEffect(()=>{load()},[]);
@@ -92,6 +94,12 @@ export default function TestProtocols({supabase}){
     const suppliesCost=Number(p.custo_insumos||0),supplyMissing=Number(p.saidas_insumos_sem_custo||0);
     const totalKnown=cost+suppliesCost+clinicValue,contribution=priceTotal-totalKnown,margin=priceTotal>0?contribution/priceTotal*100:null;
     const noDischarge=Number(p.checagens_registradas||0)===0;
+    const f=forecasts[p.protocolo_id]||{};
+    const pendingMed=Number(f.previsto_medicamentos_pendentes||0),pendingSup=Number(f.previsto_insumos_pendentes||0);
+    const forecastGaps=Number(f.linhas_sem_preco||0)+Number(f.linhas_sem_saldo_suficiente||0)+Number(f.itens_sem_vinculo_estoque||0);
+    const totalForecast=totalKnown+pendingMed+pendingSup;
+    const futureBalance=priceTotal-totalForecast;
+    const forecastComplete=forecastGaps===0&&missing===0&&supplyMissing===0;
     const canShowMargin=!missing&&!supplyMissing&&!noDischarge&&priceTotal>0;
     const options=rxs.filter(r=>r.paciente_id===p.paciente_id&&!r.protocolo_id);
     return <div className="form-section protocol-entry" key={p.protocolo_id}>
@@ -105,6 +113,19 @@ export default function TestProtocols({supabase}){
       <div><small>Total de custos conhecidos</small><strong>{money(totalKnown)}</strong></div>
       <div><small>Saldo após custos conhecidos (parcial)</small><strong>{money(contribution)}</strong></div>
       <div><small>Margem parcial</small><strong>{canShowMargin?margin.toFixed(1).replace('.',',')+'%':'Aguardando custos'}</strong></div>
+     </div>
+     <div className="protocol-forecast">
+      <h4>Previsão de custos pendentes (teste)</h4>
+      <p>Estimativa dos medicamentos e insumos já associados aos itens de prescrição ainda não checados, usando o custo médio dos lotes válidos com saldo. Não reserva estoque nem prevê aplicações futuras não cadastradas.</p>
+      <div className="inventory-report-metrics">
+       <div><small>Medicamentos ainda não aplicados</small><strong>{money(pendingMed)}</strong></div>
+       <div><small>Insumos ainda não utilizados</small><strong>{money(pendingSup)}</strong></div>
+       <div><small>Custo total conhecido + previsto</small><strong>{money(totalForecast)}</strong></div>
+       <div><small>Saldo projetado sobre custos conhecidos e previstos</small><strong>{money(futureBalance)}</strong></div>
+       <div><small>Margem projetada</small><strong>{forecastComplete&&priceTotal>0?((futureBalance/priceTotal)*100).toFixed(1).replace('.',',')+'%':'Previsão incompleta'}</strong></div>
+      </div>
+      {forecastGaps>0&&<p className="form-message">Previsão incompleta: {f.itens_sem_vinculo_estoque||0} item(ns) sem medicamento vinculado ao estoque, {f.linhas_sem_preco||0} linha(s) sem preço conhecido e {f.linhas_sem_saldo_suficiente||0} linha(s) sem saldo válido suficiente. Os custos ausentes não são tratados como zero.</p>}
+      {!forecastGaps&&Number(f.itens_pendentes||0)===0&&<p>Não há itens prescritos pendentes de checagem. Isso não significa que o tratamento esteja concluído.</p>}
      </div>
      <p>Prescrições vinculadas: {p.prescricoes_vinculadas} · Itens prescritos: {p.itens_prescritos} · Checagens com saída: {p.checagens_registradas} · Medicamentos consumidos: {p.quantidade_saida} · Insumos consumidos (quantidades mistas): {p.quantidade_insumos}</p>
      {noDischarge&&<p className="form-message">As prescrições estão vinculadas, mas nenhuma baixa de estoque foi registrada para elas. Prescrever ou vincular não desconta estoque nem gera custo consumido. A margem ainda não pode ser avaliada.</p>}
@@ -123,7 +144,7 @@ export default function TestProtocols({supabase}){
        {options.map(r=><option key={r.prescricao_id} value={r.prescricao_id}>{dateBR(r.criado_em)} · {r.prescricao_id.slice(0,8)}</option>)}
       </select>
      </label><button type="button" className="outline-gold" disabled={busy||!selectedRx[p.protocolo_id]} onClick={()=>link(p)}>Vincular prescrição</button></div>
-     <p className="muted">O cálculo utiliza baixas registradas das prescrições vinculadas. Sessões futuras, preço efetivamente recebido e saldo por produto serão integrados em etapas posteriores.</p>
+     <p className="muted">O cálculo utiliza baixas registradas das prescrições vinculadas. Aplicações futuras ainda não prescritas, preço efetivamente recebido e saldo reservado por produto serão integrados em etapas posteriores.</p>
     </div>;
    })}
   </div>}
