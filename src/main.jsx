@@ -7,6 +7,7 @@ import TestPrescriptions from './TestPrescriptions.jsx';
 import TestAdministrations from './TestAdministrations.jsx';
 import TestInventory from './TestInventory.jsx';
 import TestCostReport from './TestCostReport.jsx';
+import TestPatientDocuments from './TestPatientDocuments.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -73,6 +74,7 @@ function Patients({role}){
    <div className="form-section"><h4>⌖ Endereço</h4><div className="detail-grid">{detail('CEP',selected.cep)}{detail('Rua / Avenida',selected.logradouro)}{detail('Número',selected.numero)}{detail('Complemento',selected.complemento)}{detail('Bairro',selected.bairro)}{detail('Cidade',selected.cidade)}{detail('Estado (UF)',selected.uf)}</div></div>
   </div>
   {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
+  {role==='medico'&&<TestPatientDocuments key={'docs-'+selected.id} supabase={supabase} patientId={selected.id}/>}
   {role==='medico'&&<TestPrescriptions key={'rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>}
   {(role==='medico'||role==='enfermeira')&&<TestAdministrations key={'admin-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>}
  </section>;
