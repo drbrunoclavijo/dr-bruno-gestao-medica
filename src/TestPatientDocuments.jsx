@@ -5,6 +5,8 @@ const categories=[
  ['foto_evolucao','Fotos de evolução'],
  ['outro','Outros documentos']
 ];
+const angles=[["frente","Frente"],["costas","Costas"],["perfil_direito","Perfil direito"],["perfil_esquerdo","Perfil esquerdo"],["outro","Outro ângulo"]];
+const angleName=id=>angles.find(([a])=>a===id)?.[1]||'Sem classificação';
 const dateBR=value=>value?value.slice(0,10).split('-').reverse().join('/'):'Sem data informada';
 const stamp=value=>new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(new Date(value));
 export default function TestPatientDocuments({supabase,patientId}){
@@ -14,18 +16,19 @@ export default function TestPatientDocuments({supabase,patientId}){
  const [docDate,setDocDate]=useState(''),[consultation,setConsultation]=useState(''),[file,setFile]=useState(null),[openLinks,setOpenLinks]=useState({});
  const [beforeId,setBeforeId]=useState(''),[afterId,setAfterId]=useState('');
  const [comparison,setComparison]=useState(null),[comparisonBusy,setComparisonBusy]=useState(false);
+ const [angleFilter,setAngleFilter]=useState(''),[angleEdits,setAngleEdits]=useState({}),[angleBusy,setAngleBusy]=useState('');
  async function load(){
   setLoading(true);setError('');
   setComparison(null);
   const [d,c]=await Promise.all([
    supabase.from('documentos_pacientes_teste')
-     .select('id,categoria,titulo,descricao,data_documento,criado_em,nome_original,mime_type,tamanho_bytes,caminho')
+     .select('id,categoria,titulo,descricao,data_documento,criado_em,nome_original,mime_type,tamanho_bytes,caminho,angulo_foto')
      .eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100),
    supabase.from('consultas_teste').select('id,data_consulta,motivo')
      .eq('paciente_id',patientId).order('data_consulta',{ascending:false}).limit(100)
   ]);
   if(d.error||c.error)setError('Não foi possível consultar a biblioteca: '+(d.error||c.error).message);
-  else{setDocs(d.data||[]);setConsultations(c.data||[]);}
+  else{setDocs(d.data||[]);setConsultations(c.data||[]);setAngleEdits(Object.fromEntries((d.data||[]).map(x=>[x.id,x.angulo_foto||''])));}
   setLoading(false);
  }
  useEffect(()=>{load()},[patientId]);
@@ -67,12 +70,28 @@ export default function TestPatientDocuments({supabase,patientId}){
   if(error||!data?.signedUrl){setError('Não foi possível abrir o documento: '+(error?.message||'acesso indisponível'));return;}
   setOpenLinks(old=>({...old,[doc.id]:data.signedUrl}));
  }
+ async function saveAngle(doc){
+  setError('');setSuccess('');setAngleBusy(doc.id);
+  const value=angleEdits[doc.id]||null;
+  const {error}=await supabase.rpc('classificar_foto_evolucao_teste',{
+   p_documento_id:doc.id,p_paciente_id:patientId,p_angulo_foto:value
+  });
+  if(error)setError('Não foi possível classificar a imagem: '+error.message);
+  else{
+   setDocs(old=>old.map(d=>d.id===doc.id?{...d,angulo_foto:value}:d));
+   setBeforeId('');setAfterId('');setComparison(null);
+   setSuccess('Ângulo da foto atualizado sem modificar a imagem original.');
+  }
+  setAngleBusy('');
+ }
  const evolutionPhotos=docs.filter(d=>d.categoria==='foto_evolucao' && d.mime_type?.startsWith('image/'))
   .slice().sort((a,b)=>(a.data_documento||a.criado_em?.slice(0,10)||'').localeCompare(b.data_documento||b.criado_em?.slice(0,10)||''));
- const docById=id=>evolutionPhotos.find(d=>d.id===id);
+ const filteredPhotos=angleFilter?evolutionPhotos.filter(d=>d.angulo_foto===angleFilter):evolutionPhotos;
+ const docById=id=>filteredPhotos.find(d=>d.id===id);
  async function comparePhotos(){
   const first=docById(beforeId),second=docById(afterId);
   if(!first||!second||first.id===second.id){setError('Selecione duas fotos de evolução diferentes.');return;}
+  if(first.angulo_foto&&second.angulo_foto&&first.angulo_foto!==second.angulo_foto){setError('As fotos possuem ângulos diferentes. Selecione o mesmo ângulo para comparação.');return;}
   setError('');setComparison(null);setComparisonBusy(true);
   try{
    const bucket=supabase.storage.from('documentos-pacientes-teste');
@@ -111,11 +130,15 @@ export default function TestPatientDocuments({supabase,patientId}){
    <h4>Comparar fotos de evolução (teste)</h4>
    <p>Selecione duas fotos já anexadas à categoria “Fotos de evolução”. As imagens serão exibidas lado a lado, sem edição ou alteração dos originais.</p>
    {evolutionPhotos.length<2?<p className="record-empty">Anexe pelo menos duas fotos fictícias de evolução para comparar.</p>:<>
+    <label className="angle-filter-label">Filtrar por ângulo
+     <select value={angleFilter} onChange={e=>{setAngleFilter(e.target.value);setBeforeId('');setAfterId('');setComparison(null);}}><option value="">Todos os ângulos</option>{angles.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+    </label>
+    {filteredPhotos.length<2&&<p className="record-empty">Este ângulo ainda não possui duas fotos. Cadastre ou classifique outras imagens.</p>}
     <div className="clinical-fields">
      <label>Foto anterior
       <select value={beforeId} onChange={e=>{setBeforeId(e.target.value);setComparison(null);}}>
        <option value="">Selecionar foto anterior</option>
-       {evolutionPhotos.map(d=><option key={d.id} value={d.id}>{dateBR(d.data_documento||d.criado_em)} · {d.titulo}</option>)}
+       {filteredPhotos.map(d=><option key={d.id} value={d.id}>{dateBR(d.data_documento||d.criado_em)} · {d.titulo} · {angleName(d.angulo_foto)}</option>)}
       </select>
      </label>
      <label>Foto posterior
@@ -143,6 +166,12 @@ export default function TestPatientDocuments({supabase,patientId}){
    <p>Data do documento: {dateBR(doc.data_documento)} · Enviado em {stamp(doc.criado_em)}</p>
    <p>Arquivo: {doc.nome_original} · {(doc.tamanho_bytes/1024/1024).toFixed(2).replace('.',',')} MB</p>
    {doc.descricao&&<p>{doc.descricao}</p>}
+   {doc.categoria==='foto_evolucao'&&<div className="photo-angle-editor"><label>Ângulo corporal
+     <select value={angleEdits[doc.id]||''} disabled={angleBusy===doc.id} onChange={e=>setAngleEdits(old=>({...old,[doc.id]:e.target.value}))}>
+       <option value="">Não classificada</option>{angles.map(([id,name])=><option key={id} value={id}>{name}</option>)}
+     </select></label>
+     <button type="button" className="outline-gold" disabled={Boolean(angleBusy)||(angleEdits[doc.id]||'')===(doc.angulo_foto||'')} onClick={()=>saveAngle(doc)}>{angleBusy===doc.id?'Salvando...':'Salvar ângulo'}</button>
+   </div>}
    <div className="document-entry-actions"><button type="button" className="outline-gold" onClick={()=>view(doc)}>Preparar acesso</button>
     {openLinks[doc.id]&&<a className="photo-signed-link" href={openLinks[doc.id]} target="_blank" rel="noopener noreferrer">Abrir documento (60 s)</a>}
    </div>
