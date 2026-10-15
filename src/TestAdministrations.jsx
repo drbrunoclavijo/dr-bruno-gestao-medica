@@ -1,10 +1,12 @@
 import React,{useEffect,useState} from 'react';
 const stamp=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'Data indisponível':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(d)};
 export default function TestAdministrations({supabase,patientId,role}){
- const [photos,setPhotos]=useState({}),[photoLinks,setPhotoLinks]=useState({}),[names,setNames]=useState({}),[entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
+ const [currentUserId,setCurrentUserId]=useState(null),[photos,setPhotos]=useState({}),[photoLinks,setPhotoLinks]=useState({}),[names,setNames]=useState({}),[entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
  const canCheck=role==='enfermeira';
  async function load(){
   setLoading(true);setError('');
+  const {data:authData}=await supabase.auth.getUser();
+  setCurrentUserId(authData?.user?.id||null);
   const rx=await supabase.from('prescricoes_teste').select('id,criado_em').eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100);
   if(rx.error){setError('Não foi possível consultar prescrições: '+rx.error.message);setLoading(false);return;}
   const ids=(rx.data||[]).map(x=>x.id);
@@ -83,7 +85,7 @@ export default function TestAdministrations({supabase,patientId,role}){
  }
  async function attachLater(item){
   const record=checks[item.id];
-  if(!canCheck||busy||!record||record.foto_caminho)return;
+  if(!canCheck||busy||!record||record.foto_caminho||record.profissional_id!==currentUserId)return;
   if(!validateFile(photos[item.id])){setError('Selecione uma foto fictícia JPG, PNG ou WebP de até 6 MB.');return;}
   if(!window.confirm('Anexar esta foto à checagem já registrada? O estoque não será alterado.'))return;
   setBusy(item.id);setError('');setMessage('');
@@ -118,7 +120,7 @@ export default function TestAdministrations({supabase,patientId,role}){
       {photoLinks[item.id]&&<a className="photo-signed-link" href={photoLinks[item.id]} target="_blank" rel="noopener noreferrer">Abrir foto (link temporário)</a>}</div>
     : <div className="administration-actions">
        <p>Comprovante fotográfico pendente (opcional).</p>
-       {canCheck&&<>{fileInput(item)}<button className="outline-gold" type="button" disabled={Boolean(busy)||!photos[item.id]} onClick={()=>attachLater(item)}>{busy===item.id?'Anexando...':'Anexar foto agora'}</button></>}
+       {canCheck&&checks[item.id].profissional_id===currentUserId&&<>{fileInput(item)}<button className="outline-gold" type="button" disabled={Boolean(busy)||!photos[item.id]} onClick={()=>attachLater(item)}>{busy===item.id?'Anexando...':'Anexar foto agora'}</button></>}
       </div>}
    </div>:canCheck?<div className="administration-actions">
     <label>Observação de teste (opcional)<textarea value={notes[item.id]||''} maxLength={2000} rows={2} onChange={e=>setNotes(o=>({...o,[item.id]:e.target.value}))}/></label>
