@@ -224,3 +224,16 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .protocol-link-row input[readonly],.protocols-test input[readonly]{color:#d6bd86;background:#23221d;cursor:default}
 .protocol-entry .inventory-report-metrics{margin-top:14px}
 .protocol-entry .form-message{margin:12px 0}
+
+/* Insumos utilizados por medicamento na checagem fictícia */
+.supply-checagem{flex-basis:100%;width:100%;border:1px solid #675439;border-radius:10px;background:#15191b;padding:12px;margin-top:10px}
+.supply-checagem>strong{color:#eed0a0;font-size:13px}
+.supply-checagem>p{margin:7px 0;color:#bfb7ab;font-size:12px;line-height:1.5}
+.supply-line{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #46413a;font-size:13px}
+.supply-line small{color:#afac9e}
+.supply-line button{padding:7px 10px;font-size:12px}
+.supply-add-row{display:flex;align-items:end;flex-wrap:wrap;gap:9px;margin-top:12px}
+.supply-add-row label{display:flex;flex-direction:column;gap:6px;min-width:160px;flex:1;font-size:12px;color:#ddcab0}
+.supply-add-row select,.supply-add-row input{width:100%;min-height:42px;color:#f0e9dd;background:#1b2024;border:1px solid #685538;border-radius:8px;padding:9px;font:inherit}
+.supply-add-row button{min-height:42px}
+@media(max-width:650px){.supply-add-row button{width:100%}}
