@@ -237,3 +237,15 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .supply-add-row select,.supply-add-row input{width:100%;min-height:42px;color:#f0e9dd;background:#1b2024;border:1px solid #685538;border-radius:8px;padding:9px;font:inherit}
 .supply-add-row button{min-height:42px}
 @media(max-width:650px){.supply-add-row button{width:100%}}
+
+/* Assistente de redação clínica — somente dados fictícios */
+.clinical-ai-section{margin:20px 0;border:1px solid #786039;background:linear-gradient(135deg,#232118,#161a1d);border-radius:12px;padding:18px}
+.clinical-ai-section>h4{color:#f1cf92;margin:0 0 12px}
+.clinical-ai-section .profile-notice{line-height:1.55}
+.clinical-ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:16px}
+.clinical-ai-column{display:flex;flex-direction:column;gap:10px;min-width:0}
+.clinical-ai-column label{display:flex;flex-direction:column;gap:9px;font-size:13px;font-weight:600;color:#e2d6c4}
+.clinical-ai-column textarea{width:100%;min-height:280px;resize:vertical;line-height:1.5;font-size:14px;background:#101316;border:1px solid #55452d;color:#f5f0e8;border-radius:10px;padding:12px;font-family:inherit}
+.clinical-ai-column small{font-size:12px;line-height:1.5}
+.clinical-ai-column button{align-self:flex-start;margin-top:auto;max-width:100%}
+@media(max-width:760px){.clinical-ai-grid{grid-template-columns:1fr}.clinical-ai-column textarea{min-height:185px}.clinical-ai-column button{width:100%}}
