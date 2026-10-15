@@ -18,7 +18,7 @@ export default function TestProtocols({supabase}){
  async function load(){
   setLoading(true);setError('');
   const [p,pa,rx]=await Promise.all([
-   supabase.rpc('listar_protocolos_com_percentual_teste'),
+   supabase.rpc('listar_protocolos_com_insumos_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
    supabase.rpc('listar_prescricoes_para_protocolos_teste')
   ]);
@@ -68,7 +68,7 @@ export default function TestProtocols({supabase}){
  }
  return <section className="premium-panel protocols-test">
   <div className="panel-title"><span className="title-icon">◈</span><div><h3>Protocolos de tratamento — Teste</h3><p>Planejamento de tratamento e estimativa financeira dos medicamentos efetivamente consumidos.</p></div></div>
-  <p className="profile-notice">Exclusivo ao perfil médico no protótipo, somente pacientes fictícios. O resultado abaixo é contribuição bruta parcial: valor cobrado menos repasse à clínica e custos de medicamentos efetivamente baixados; NÃO representa lucro líquido. Não inclui impostos, salários, materiais, taxas, infraestrutura ou aplicações futuras. Cada checagem de item prescrito é única nesta versão; não é um controle completo de sessões recorrentes.</p>
+  <p className="profile-notice">Exclusivo ao perfil médico no protótipo, somente pacientes fictícios. O resultado abaixo é contribuição bruta parcial: valor cobrado menos repasse à clínica e custos de medicamentos efetivamente baixados; NÃO representa lucro líquido. Não inclui impostos, salários, outros gastos indiretos, taxas, infraestrutura ou aplicações futuras. Os custos de materiais registrados e baixados são considerados. Cada checagem de item prescrito é única nesta versão; não é um controle completo de sessões recorrentes.</p>
   {error&&<p role="alert" className="form-message">{error}</p>}
   {message&&<p role="status" className="form-message">{message}</p>}
   <form className="form-section" onSubmit={create}>
@@ -89,9 +89,10 @@ export default function TestProtocols({supabase}){
   {loading?<p>Carregando...</p>:protocols.length===0?<p className="record-empty">Ainda não existem protocolos fictícios.</p>:<div className="record-list">
    {protocols.map(p=>{
     const cost=Number(p.custo_conhecido||0),priceTotal=Number(p.preco_cobrado||0),missing=Number(p.saidas_sem_custo||0),clinicValue=Number(p.repasse_clinica||0);
-    const totalKnown=cost+clinicValue,contribution=priceTotal-totalKnown,margin=priceTotal>0?contribution/priceTotal*100:null;
+    const suppliesCost=Number(p.custo_insumos||0),supplyMissing=Number(p.saidas_insumos_sem_custo||0);
+    const totalKnown=cost+suppliesCost+clinicValue,contribution=priceTotal-totalKnown,margin=priceTotal>0?contribution/priceTotal*100:null;
     const noDischarge=Number(p.checagens_registradas||0)===0;
-    const canShowMargin=!missing&&!noDischarge&&priceTotal>0;
+    const canShowMargin=!missing&&!supplyMissing&&!noDischarge&&priceTotal>0;
     const options=rxs.filter(r=>r.paciente_id===p.paciente_id&&!r.protocolo_id);
     return <div className="form-section protocol-entry" key={p.protocolo_id}>
      <div className="administration-heading"><strong>{p.nome}</strong><span>{p.status==='ativo'?'Ativo':p.status}</span></div>
@@ -100,11 +101,12 @@ export default function TestProtocols({supabase}){
       <div><small>Valor cobrado (não equivale a recebido)</small><strong>{money(priceTotal)}</strong></div>
       <div><small>Repasse à clínica ({formatPercentage(p.percentual_clinica)}%)</small><strong>{money(clinicValue)}</strong></div>
       <div><small>Custo conhecido dos medicamentos baixados</small><strong>{money(cost)}</strong></div>
+      <div><small>Custo conhecido dos insumos baixados</small><strong>{money(suppliesCost)}</strong></div>
       <div><small>Total de custos conhecidos</small><strong>{money(totalKnown)}</strong></div>
       <div><small>Saldo após custos conhecidos (parcial)</small><strong>{money(contribution)}</strong></div>
       <div><small>Margem parcial</small><strong>{canShowMargin?margin.toFixed(1).replace('.',',')+'%':'Aguardando custos'}</strong></div>
      </div>
-     <p>Prescrições vinculadas: {p.prescricoes_vinculadas} · Itens prescritos: {p.itens_prescritos} · Checagens com saída: {p.checagens_registradas} · Quantidade consumida: {p.quantidade_saida}</p>
+     <p>Prescrições vinculadas: {p.prescricoes_vinculadas} · Itens prescritos: {p.itens_prescritos} · Checagens com saída: {p.checagens_registradas} · Medicamentos consumidos: {p.quantidade_saida} · Insumos consumidos (quantidades mistas): {p.quantidade_insumos}</p>
      {noDischarge&&<p className="form-message">As prescrições estão vinculadas, mas nenhuma baixa de estoque foi registrada para elas. Prescrever ou vincular não desconta estoque nem gera custo consumido. A margem ainda não pode ser avaliada.</p>}
      {Number(p.checagens_sem_baixa||0)>0&&<p className="form-message">Há {p.checagens_sem_baixa} checagem(ns) sem baixa vinculada de estoque. Verifique se pertencem a registros antigos.</p>}
      <div className="protocol-link-row"><label>Porcentagem cobrada pela clínica (%)
@@ -113,6 +115,7 @@ export default function TestProtocols({supabase}){
        <input readOnly value={money(clinicAmount(Math.round(priceTotal*100),clinicEdits[p.protocolo_id]))}/>
       </label><button className="outline-gold" type="button" disabled={Boolean(clinicBusy)||!validPercentage(clinicEdits[p.protocolo_id])||parsePercentage(clinicEdits[p.protocolo_id])===Number(p.percentual_clinica||0)} onClick={()=>saveClinic(p)}>{clinicBusy===p.protocolo_id?'Salvando...':'Salvar porcentagem'}</button>
      </div>
+     {supplyMissing>0&&<p className="form-message">Atenção: {supplyMissing} saída(s) de insumos sem custo informado. Resultado incompleto.</p>}
      {missing>0&&<p className="form-message">Atenção: {missing} baixa(s) não possuem custo informado. O custo total e a margem estão incompletos.</p>}
      <div className="protocol-link-row"><label>Vincular prescrição do mesmo paciente
       <select value={selectedRx[p.protocolo_id]||''} onChange={e=>setSelectedRx(o=>({...o,[p.protocolo_id]:e.target.value}))}>
