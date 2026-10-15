@@ -4,6 +4,7 @@ import {createClient} from '@supabase/supabase-js';
 import './style.css';
 import ClinicalRecord from './ClinicalRecord.jsx';
 import TestPrescriptions from './TestPrescriptions.jsx';
+import TestAdministrations from './TestAdministrations.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -71,6 +72,7 @@ function Patients({role}){
   </div>
   {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
   {role==='medico'&&<TestPrescriptions key={'rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>}
+  {(role==='medico'||role==='enfermeira')&&<TestAdministrations key={'admin-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>}
  </section>;
 
  return <section className="patients-page">
