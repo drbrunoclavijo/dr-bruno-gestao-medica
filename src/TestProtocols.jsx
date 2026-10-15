@@ -4,7 +4,10 @@ const dateBR=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>new Date().toISOString().slice(0,10);
 const parseCents=s=>Number(s||'0')/100;
 const currencyInput=s=>(Number(s||'0')/100).toFixed(2).replace('.',',');
-const percent=(value,total)=>total>0?(value/total*100).toFixed(2).replace('.',',')+'%':'—';
+const parsePercentage=v=>Number(String(v||'0').replace(',','.'));
+const formatPercentage=v=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
+const validPercentage=v=>/^\d{1,3}([.,]\d{1,2})?$/.test(String(v||'0'))&&parsePercentage(v)>=0&&parsePercentage(v)<=100;
+const clinicAmount=(priceCents,rate)=>Math.round(Number(priceCents||0)*parsePercentage(rate)/100)/100;
 export default function TestProtocols({supabase}){
  const [protocols,setProtocols]=useState([]),[patients,setPatients]=useState([]),[rxs,setRxs]=useState([]);
  const [patient,setPatient]=useState(''),[name,setName]=useState(''),[start,setStart]=useState(today());
@@ -15,12 +18,12 @@ export default function TestProtocols({supabase}){
  async function load(){
   setLoading(true);setError('');
   const [p,pa,rx]=await Promise.all([
-   supabase.rpc('listar_protocolos_com_repasse_teste'),
+   supabase.rpc('listar_protocolos_com_percentual_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
    supabase.rpc('listar_prescricoes_para_protocolos_teste')
   ]);
   if(p.error||pa.error||rx.error)setError('Não foi possível carregar protocolos: '+(p.error||pa.error||rx.error).message);
-  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,String(Math.round(Number(x.repasse_clinica||0)*100))])));}
+  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));}
   setLoading(false);
  }
  useEffect(()=>{load()},[]);
@@ -31,11 +34,10 @@ export default function TestProtocols({supabase}){
    setError('Preencha paciente, nome, início e duração válida (1 a 730 dias).');return;
   }
   if(!/^\d+$/.test(price)||Number(price)<0){setError('Informe o valor total em reais.');return;}
-  if(clinic&&!/^\d+$/.test(clinic)){setError('Informe um repasse válido.');return;}
-  if(parseCents(clinic)>parseCents(price)){setError('O repasse não pode exceder o valor cobrado.');return;}
+  if(!validPercentage(clinic)){setError('Informe uma porcentagem entre 0 e 100, com até duas casas decimais.');return;}
   setBusy(true);
-  const {error:err}=await supabase.rpc('criar_protocolo_com_repasse_teste',{
-   p_paciente_id:patient,p_nome:name.trim(),p_inicio:start,p_duracao_dias:effectiveDays,p_preco_cobrado:parseCents(price),p_repasse_clinica:parseCents(clinic)
+  const {error:err}=await supabase.rpc('criar_protocolo_com_percentual_teste',{
+   p_paciente_id:patient,p_nome:name.trim(),p_inicio:start,p_duracao_dias:effectiveDays,p_preco_cobrado:parseCents(price),p_percentual_clinica:parsePercentage(clinic)
   });
   if(err)setError('Falha ao cadastrar protocolo: '+err.message);
   else{setMessage('Protocolo fictício criado. Agora vincule as prescrições correspondentes.');setName('');setPrice('');setClinic('');await load();}
@@ -52,13 +54,13 @@ export default function TestProtocols({supabase}){
   setBusy(false);
  }
  async function saveClinic(p){
-  const cents=clinicEdits[p.protocolo_id]||'0';
-  if(!/^\d+$/.test(cents)||parseCents(cents)>Number(p.preco_cobrado)){
-   setError('O repasse não pode exceder o valor cobrado.');return;
+  const rate=clinicEdits[p.protocolo_id]||'0';
+  if(!validPercentage(rate)){
+   setError('Informe uma porcentagem válida entre 0% e 100%.');return;
   }
   setClinicBusy(p.protocolo_id);setError('');setMessage('');
-  const {error:err}=await supabase.rpc('definir_repasse_clinica_protocolo_teste',{
-   p_protocolo_id:p.protocolo_id,p_valor:parseCents(cents)
+  const {error:err}=await supabase.rpc('definir_percentual_clinica_protocolo_teste',{
+   p_protocolo_id:p.protocolo_id,p_percentual:parsePercentage(rate)
   });
   if(err)setError('Não foi possível alterar o repasse: '+err.message);
   else{await load();setMessage('Repasse da clínica atualizado no protocolo fictício.');}
@@ -78,8 +80,8 @@ export default function TestProtocols({supabase}){
     <label>Duração<select value={duration} onChange={e=>setDuration(e.target.value)}><option value="45">45 dias</option><option value="90">3 meses (90 dias)</option><option value="180">6 meses (180 dias)</option><option value="custom">Personalizada</option></select></label>
     {duration==='custom'&&<label>Duração em dias<input type="number" min="1" max="730" required value={days} onChange={e=>setDays(e.target.value)}/></label>}
     <label>Valor cobrado (R$)<input required inputMode="numeric" placeholder="0,00" value={currencyInput(price)} onChange={e=>setPrice(e.target.value.replace(/\D/g,'').slice(0,11))}/><small>Digite os números; os dois últimos são centavos.</small></label>
-    <label>Repasse à clínica (R$)<input inputMode="numeric" value={currencyInput(clinic)} onChange={e=>setClinic(e.target.value.replace(/\D/g,'').slice(0,11))}/><small>Informe o valor pago à clínica pelo protocolo.</small></label>
-    <label>Repasse da clínica (%) — automático<input readOnly value={percent(parseCents(clinic),parseCents(price))}/><small>Calculado sobre o valor cobrado.</small></label>
+    <label>Porcentagem cobrada pela clínica (%)<input inputMode="decimal" placeholder="Ex.: 20" value={clinic} onChange={e=>setClinic(e.target.value.replace(/[^\d,.]/g,'').slice(0,6))}/><small>Você informa o percentual: por exemplo, 20 para 20%.</small></label>
+    <label>Repasse calculado à clínica (R$)<input readOnly value={money(clinicAmount(price,clinic))}/><small>Calculado automaticamente e descontado do saldo do protocolo.</small></label>
    </div>
    <div className="form-actions"><button className="gold-button" disabled={busy}>{busy?'Salvando...':'Cadastrar protocolo'}</button></div>
   </form>
@@ -96,7 +98,7 @@ export default function TestProtocols({supabase}){
      <p>Paciente: <strong>{p.paciente_nome}</strong> · Início: {dateBR(p.inicio)} · Duração: {p.duracao_dias} dias</p>
      <div className="inventory-report-metrics">
       <div><small>Valor cobrado (não equivale a recebido)</small><strong>{money(priceTotal)}</strong></div>
-      <div><small>Repasse à clínica</small><strong>{money(clinicValue)}</strong></div>
+      <div><small>Repasse à clínica ({formatPercentage(p.percentual_clinica)}%)</small><strong>{money(clinicValue)}</strong></div>
       <div><small>Custo conhecido dos medicamentos baixados</small><strong>{money(cost)}</strong></div>
       <div><small>Total de custos conhecidos</small><strong>{money(totalKnown)}</strong></div>
       <div><small>Saldo após custos conhecidos (parcial)</small><strong>{money(contribution)}</strong></div>
@@ -105,11 +107,11 @@ export default function TestProtocols({supabase}){
      <p>Prescrições vinculadas: {p.prescricoes_vinculadas} · Itens prescritos: {p.itens_prescritos} · Checagens com saída: {p.checagens_registradas} · Quantidade consumida: {p.quantidade_saida}</p>
      {noDischarge&&<p className="form-message">As prescrições estão vinculadas, mas nenhuma baixa de estoque foi registrada para elas. Prescrever ou vincular não desconta estoque nem gera custo consumido. A margem ainda não pode ser avaliada.</p>}
      {Number(p.checagens_sem_baixa||0)>0&&<p className="form-message">Há {p.checagens_sem_baixa} checagem(ns) sem baixa vinculada de estoque. Verifique se pertencem a registros antigos.</p>}
-     <div className="protocol-link-row"><label>Valor de repasse à clínica (R$)
-       <input inputMode="numeric" value={currencyInput(clinicEdits[p.protocolo_id])} onChange={e=>setClinicEdits(v=>({...v,[p.protocolo_id]:e.target.value.replace(/\D/g,'').slice(0,11)}))}/>
-      </label><label>Percentual equivalente (automático)
-       <input readOnly value={percent(parseCents(clinicEdits[p.protocolo_id]),priceTotal)}/>
-      </label><button className="outline-gold" type="button" disabled={Boolean(clinicBusy)||parseCents(clinicEdits[p.protocolo_id])===clinicValue} onClick={()=>saveClinic(p)}>{clinicBusy===p.protocolo_id?'Salvando...':'Salvar repasse'}</button>
+     <div className="protocol-link-row"><label>Porcentagem cobrada pela clínica (%)
+       <input inputMode="decimal" value={clinicEdits[p.protocolo_id]??'0'} onChange={e=>setClinicEdits(v=>({...v,[p.protocolo_id]:e.target.value.replace(/[^\d,.]/g,'').slice(0,6)}))}/>
+      </label><label>Valor descontado da clínica (R$) — automático
+       <input readOnly value={money(clinicAmount(Math.round(priceTotal*100),clinicEdits[p.protocolo_id]))}/>
+      </label><button className="outline-gold" type="button" disabled={Boolean(clinicBusy)||!validPercentage(clinicEdits[p.protocolo_id])||parsePercentage(clinicEdits[p.protocolo_id])===Number(p.percentual_clinica||0)} onClick={()=>saveClinic(p)}>{clinicBusy===p.protocolo_id?'Salvando...':'Salvar porcentagem'}</button>
      </div>
      {missing>0&&<p className="form-message">Atenção: {missing} baixa(s) não possuem custo informado. O custo total e a margem estão incompletos.</p>}
      <div className="protocol-link-row"><label>Vincular prescrição do mesmo paciente
