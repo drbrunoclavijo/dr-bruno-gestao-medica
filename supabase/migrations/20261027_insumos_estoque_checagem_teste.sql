@@ -237,6 +237,35 @@ BEGIN
   WHERE rel.protocolo_id=r.protocolo_id)
  FROM public.listar_protocolos_com_percentual_teste() r;
 END $$;
+-- Relatório médico de consumo de insumos, agrupável por prescrição.
+CREATE OR REPLACE FUNCTION public.relatorio_consumo_insumos_teste()
+RETURNS TABLE(
+ prescricao_id uuid,paciente_nome text,medicamento text,insumo_nome text,
+ unidade text,lote text,quantidade numeric,custo_saida numeric,baixa_em timestamptz
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $
+BEGIN
+ IF auth.uid() IS NULL OR NOT EXISTS (
+ SELECT 1 FROM public.profissionais p
+ WHERE p.id=auth.uid() AND p.ativo=true AND p.perfil='medico'
+ ) THEN RAISE EXCEPTION 'Somente médico autorizado'; END IF;
+ RETURN QUERY
+ SELECT rx.id,pa.nome::text,it.medicamento::text,prod.nome::text,
+ prod.unidade::text,l.lote::text,m.quantidade,m.custo_saida,m.criado_em
+ FROM public.insumos_movimentos_teste m
+ JOIN public.insumos_itens_teste si ON si.id=m.insumo_item_id
+ JOIN public.prescricao_itens_teste it ON it.id=si.item_prescricao_id
+ JOIN public.prescricoes_teste rx ON rx.id=it.prescricao_id
+ JOIN public.pacientes pa ON pa.id=rx.paciente_id
+ JOIN public.estoque_lotes_teste l ON l.id=m.lote_id
+ JOIN public.estoque_produtos_teste prod ON prod.id=l.produto_id
+ ORDER BY m.criado_em DESC,m.id DESC
+ LIMIT 1000;
+END $;
+REVOKE ALL ON FUNCTION public.relatorio_consumo_insumos_teste() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.relatorio_consumo_insumos_teste() TO authenticated;
+
 REVOKE ALL ON FUNCTION public.listar_protocolos_com_insumos_teste() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.listar_protocolos_com_insumos_teste() TO authenticated;
 COMMIT;
