@@ -158,3 +158,7 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .inventory-product{margin:0}
 .inventory-product p{font-size:13px;color:#bdbab4}
 .administration-stock{color:#f0c77f!important}
+
+.inventory-cost-overview{padding:13px 16px;border:1px solid #765a31;border-radius:10px;background:#242016;color:#f0d4a1;font-size:13px;line-height:1.6}
+.inventory-cost-overview strong{font-size:16px;color:#f7d28b}
+.inventory-cost-overview span{color:#bab3a5}
