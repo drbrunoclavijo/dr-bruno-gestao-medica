@@ -1,7 +1,7 @@
 import React,{useEffect,useState} from 'react';
 const stamp=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'Data indisponível':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(d)};
 export default function TestAdministrations({supabase,patientId,role}){
- const [entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
+ const [entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
  const canCheck=role==='enfermeira';
  async function load(){
   setLoading(true);setError('');
@@ -20,28 +20,35 @@ export default function TestAdministrations({supabase,patientId,role}){
    grouped=Object.fromEntries((a.data||[]).map(v=>[v.item_prescricao_id,v]));
   }
   setChecks(grouped);
+  const [vl,pr]=await Promise.all([
+   supabase.from('estoque_vinculos_teste').select('item_prescricao_id,produto_id,quantidade').in('item_prescricao_id',idsItem),
+   supabase.from('estoque_produtos_teste').select('id,nome,unidade')
+  ]);
+  if(vl.error||pr.error){setError('Não foi possível consultar vínculos ao estoque: '+(vl.error||pr.error).message);setLoading(false);return;}
+  setLinks(Object.fromEntries((vl.data||[]).map(v=>[v.item_prescricao_id,v])));
+  setProducts(pr.data||[]);
   setEntries(items.map(i=>({...i,prescribedAt:(rx.data||[]).find(p=>p.id===i.prescricao_id)?.criado_em})));
   setLoading(false);
  }
  useEffect(()=>{load()},[patientId,role]);
  async function check(item){
   if(!canCheck||busy||checks[item.id])return;
-  if(!window.confirm('Confirma registrar a CHECAGEM FICTÍCIA deste item? Esta ação NÃO representa administração real e não movimenta estoque.'))return;
+  if(!window.confirm('Confirma registrar a CHECAGEM FICTÍCIA deste item? Esta ação NÃO representa administração real, mas baixa automaticamente o ESTOQUE DE TESTES.'))return;
   setBusy(item.id);setError('');setMessage('');
-  const {error}=await supabase.from('administracoes_teste').insert({item_prescricao_id:item.id,observacao:(notes[item.id]||'').trim()||null});
+  const {error}=await supabase.rpc('checar_e_baixar_estoque_teste',{p_item_id:item.id,p_observacao:(notes[item.id]||'').trim()||null});
   if(error)setError(error.code==='23505'?'Este item já foi checado por outro usuário. Atualize a lista.':'Não foi possível registrar checagem: '+error.message);
-  else setMessage('Checagem fictícia registrada no histórico. Nenhum estoque foi alterado.');
+  else setMessage('Checagem de teste registrada e baixa automática aplicada ao estoque fictício.');
   await load();setBusy(''); 
  }
  return <section className="premium-panel test-administrations">
   <div className="panel-title"><span className="title-icon" aria-hidden="true">✓</span><div><h3>Checagem de administração (teste)</h3><p>Registro fictício por item prescrito e por profissional.</p></div></div>
-  <p className="profile-notice">Somente simulação. Não confirma que um medicamento foi efetivamente administrado; não movimenta estoque. Cada item aceita apenas uma checagem nesta versão.</p>
+  <p className="profile-notice">Somente simulação. Não confirma que um medicamento foi efetivamente administrado; movimenta somente o estoque FICTÍCIO, se houver vínculo válido e saldo disponível. Cada item aceita apenas uma checagem nesta versão.</p>
   {error&&<p role="alert" className="form-message">{error}</p>}{message&&<p role="status" className="form-message">{message}</p>}
   <div className="record-top"><h4>Itens das prescrições de teste</h4><button type="button" className="outline-gold" disabled={loading} onClick={load}>Atualizar</button></div>
   {loading?<p>Carregando...</p>:entries.length===0?<p className="record-empty">Nenhum item de prescrição encontrado.</p>:<div className="record-list">{entries.map(item=><div key={item.id} className="form-section administration-item">
    <div className="administration-heading"><strong>{item.medicamento}</strong><span>{checks[item.id]?'Checagem registrada':'Pendente no teste'}</span></div>
-   <p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}
-   {checks[item.id]?<p className="administration-checked">Checado em {stamp(checks[item.id].checado_em)} · Profissional ID: {checks[item.id].profissional_id}{checks[item.id].observacao?' · '+checks[item.id].observacao:''}</p>:canCheck?<div className="administration-actions"><label>Observação de teste (opcional)<textarea value={notes[item.id]||''} maxLength={2000} rows={2} onChange={e=>setNotes(o=>({...o,[item.id]:e.target.value}))}/></label><button type="button" className="gold-button" disabled={Boolean(busy)} onClick={()=>check(item)}>{busy===item.id?'Registrando...':'Confirmar checagem fictícia'}</button></div>:<p className="record-empty">Somente o perfil enfermeira pode registrar esta checagem.</p>}
+   <p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{links[item.id]&&<p className="administration-stock">Baixa configurada: {links[item.id].quantidade} {products.find(p=>p.id===links[item.id].produto_id)?.unidade||'un.'} de {products.find(p=>p.id===links[item.id].produto_id)?.nome||'produto de teste'}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}
+   {checks[item.id]?<p className="administration-checked">Checado em {stamp(checks[item.id].checado_em)} · Profissional ID: {checks[item.id].profissional_id}{checks[item.id].observacao?' · '+checks[item.id].observacao:''}</p>:canCheck?<div className="administration-actions"><label>Observação de teste (opcional)<textarea value={notes[item.id]||''} maxLength={2000} rows={2} onChange={e=>setNotes(o=>({...o,[item.id]:e.target.value}))}/></label><button type="button" className="gold-button" disabled={Boolean(busy)||!links[item.id]} onClick={()=>check(item)}>{busy===item.id?'Registrando...':links[item.id]?'Confirmar e baixar estoque':'Vincule ao estoque primeiro'}</button></div>:<p className="record-empty">Somente o perfil enfermeira pode registrar esta checagem.</p>}
   </div>)}</div>}
  </section>;
 }
