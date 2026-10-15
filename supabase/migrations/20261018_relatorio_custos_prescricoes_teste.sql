@@ -26,9 +26,9 @@ BEGIN
  ) THEN RAISE EXCEPTION 'Apenas perfil médico autorizado pode ver custos por prescrição'; END IF;
 
  RETURN QUERY
- SELECT rx.id,rx.paciente_id,pa.nome,rx.criado_em,
-  i.medicamento,prod.nome,prod.unidade,lot.lote,
-  mov.quantidade,mov.custo_saida,mov.criado_em,coalesce(prof.nome,'Profissional não identificado')
+ SELECT rx.id,rx.paciente_id,pa.nome::text,rx.criado_em,
+  i.medicamento::text,prod.nome::text,prod.unidade::text,lot.lote::text,
+  mov.quantidade,mov.custo_saida,mov.criado_em,coalesce(prof.nome,'Profissional não identificado')::text
  FROM public.estoque_movimentos_teste mov
  JOIN public.prescricao_itens_teste i ON i.id=mov.item_prescricao_id
  JOIN public.prescricoes_teste rx ON rx.id=i.prescricao_id
