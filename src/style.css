@@ -94,3 +94,21 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .patient-actions{display:flex;flex-wrap:wrap;gap:8px}
 .patient-actions button{padding:8px 13px}
 @media(max-width:650px){.profile-heading{align-items:flex-start;flex-wrap:wrap}.profile-heading>.gold-button{width:100%}.detail-grid{grid-template-columns:minmax(0,1fr);gap:16px}.patient-actions{justify-content:flex-start}.patient-card-head{flex-wrap:wrap}}
+
+/* Prontuário clínico de testes */
+.record-top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:18px 0}
+.record-top h4{margin:0;font-size:16px}
+.clinical-form{border-top:1px solid #54442d;padding-top:18px;margin-top:15px}
+.clinical-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.clinical-fields label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:13px;font-weight:600}
+.clinical-fields input,.clinical-fields textarea{font:inherit;min-height:42px;background:#181d21;border:1px solid #39434b;border-radius:9px;padding:11px 12px;color:#f0eeea;max-width:100%;width:100%;resize:vertical}
+.clinical-fields input:focus,.clinical-fields textarea:focus{outline:2px solid #b78a45;outline-offset:1px}
+.record-list{display:grid;gap:12px}
+.record-empty{color:#aaa6a0}
+.record-entry{border:1px solid #5c4b34;background:#141719;border-radius:11px;padding:13px 16px}
+.record-entry summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-weight:600;color:#efc783}
+.record-entry summary span:last-child{font-size:12px;color:#a9a6a0}
+.record-content{display:grid;gap:12px;margin-top:16px;border-top:1px solid #44403b;padding-top:14px}
+.record-content strong{font-size:12px;color:#e7bd77}
+.record-content p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}
+@media(max-width:650px){.clinical-fields{grid-template-columns:minmax(0,1fr)}}
