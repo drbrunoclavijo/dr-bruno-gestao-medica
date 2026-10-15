@@ -1,14 +1,14 @@
 import React,{useEffect,useState} from 'react';
 const stamp=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'Data indisponível':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(d)};
 export default function TestAdministrations({supabase,patientId,role}){
- const [entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
+ const [names,setNames]=useState({}),[entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
  const canCheck=role==='enfermeira';
  async function load(){
   setLoading(true);setError('');
   const rx=await supabase.from('prescricoes_teste').select('id,criado_em').eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100);
   if(rx.error){setError('Não foi possível consultar prescrições: '+rx.error.message);setLoading(false);return;}
   const ids=(rx.data||[]).map(x=>x.id);
-  if(!ids.length){setEntries([]);setChecks({});setLoading(false);return;}
+  if(!ids.length){setEntries([]);setChecks({});setNames({});setLoading(false);return;}
   const it=await supabase.from('prescricao_itens_teste').select('id,prescricao_id,medicamento,dose,via,frequencia,duracao,orientacoes').in('prescricao_id',ids);
   if(it.error){setError('Não foi possível consultar medicamentos: '+it.error.message);setLoading(false);return;}
   const items=it.data||[];
@@ -20,6 +20,12 @@ export default function TestAdministrations({supabase,patientId,role}){
    grouped=Object.fromEntries((a.data||[]).map(v=>[v.item_prescricao_id,v]));
   }
   setChecks(grouped);
+  const professionalIds=[...new Set(Object.values(grouped).map(c=>c.profissional_id))];
+  if(professionalIds.length){
+   const {data:named,error:nameError}=await supabase.rpc('nomes_checagem_teste',{p_paciente_id:patientId});
+   if(!nameError)setNames(Object.fromEntries((named||[]).map(p=>[p.profissional_id,p.nome])));
+   else setNames({});
+  }else setNames({});
   const [vl,pr]=await Promise.all([
    supabase.from('estoque_vinculos_teste').select('item_prescricao_id,produto_id,quantidade').in('item_prescricao_id',idsItem),
    supabase.from('estoque_produtos_teste').select('id,nome,unidade')
@@ -48,7 +54,7 @@ export default function TestAdministrations({supabase,patientId,role}){
   {loading?<p>Carregando...</p>:entries.length===0?<p className="record-empty">Nenhum item de prescrição encontrado.</p>:<div className="record-list">{entries.map(item=><div key={item.id} className="form-section administration-item">
    <div className="administration-heading"><strong>{item.medicamento}</strong><span>{checks[item.id]?'Checagem registrada':'Pendente no teste'}</span></div>
    <p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{links[item.id]&&<p className="administration-stock">Baixa configurada: {links[item.id].quantidade} {products.find(p=>p.id===links[item.id].produto_id)?.unidade||'un.'} de {products.find(p=>p.id===links[item.id].produto_id)?.nome||'produto de teste'}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}
-   {checks[item.id]?<p className="administration-checked">Checado em {stamp(checks[item.id].checado_em)} · Profissional ID: {checks[item.id].profissional_id}{checks[item.id].observacao?' · '+checks[item.id].observacao:''}</p>:canCheck?<div className="administration-actions"><label>Observação de teste (opcional)<textarea value={notes[item.id]||''} maxLength={2000} rows={2} onChange={e=>setNotes(o=>({...o,[item.id]:e.target.value}))}/></label><button type="button" className="gold-button" disabled={Boolean(busy)||!links[item.id]} onClick={()=>check(item)}>{busy===item.id?'Registrando...':links[item.id]?'Confirmar e baixar estoque':'Vincule ao estoque primeiro'}</button></div>:<p className="record-empty">Somente o perfil enfermeira pode registrar esta checagem.</p>}
+   {checks[item.id]?<p className="administration-checked">Checado em {stamp(checks[item.id].checado_em)} · Responsável: {names[checks[item.id].profissional_id]||'Profissional não identificado'}{checks[item.id].observacao?' · '+checks[item.id].observacao:''}</p>:canCheck?<div className="administration-actions"><label>Observação de teste (opcional)<textarea value={notes[item.id]||''} maxLength={2000} rows={2} onChange={e=>setNotes(o=>({...o,[item.id]:e.target.value}))}/></label><button type="button" className="gold-button" disabled={Boolean(busy)||!links[item.id]} onClick={()=>check(item)}>{busy===item.id?'Registrando...':links[item.id]?'Confirmar e baixar estoque':'Vincule ao estoque primeiro'}</button></div>:<p className="record-empty">Somente o perfil enfermeira pode registrar esta checagem.</p>}
   </div>)}</div>}
  </section>;
 }
