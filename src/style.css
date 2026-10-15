@@ -249,3 +249,5 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .clinical-ai-column small{font-size:12px;line-height:1.5}
 .clinical-ai-column button{align-self:flex-start;margin-top:auto;max-width:100%}
 @media(max-width:760px){.clinical-ai-grid{grid-template-columns:1fr}.clinical-ai-column textarea{min-height:185px}.clinical-ai-column button{width:100%}}
+
+.clinical-ai-chat-link{display:inline-block;align-self:flex-start;color:#eac58b;font-size:13px;text-decoration:underline;text-underline-offset:3px}
