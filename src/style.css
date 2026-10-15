@@ -179,3 +179,12 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .administration-checked button{margin-top:8px;font-size:13px}
 
 .photo-signed-link{display:inline-flex;margin:9px 0 0 9px;padding:8px 11px;color:#f3cf8b;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere;font-size:13px}
+
+/* Biblioteca de documentos fictícios vinculados ao paciente */
+.document-upload-form{margin-bottom:16px}
+.patient-documents .clinical-fields select{font:inherit;min-height:44px;background:#181d21;border:1px solid #39434b;border-radius:9px;padding:10px;color:#f0eeea;max-width:100%;width:100%}
+.patient-documents .clinical-fields input[type=file]{height:auto;min-height:44px}
+.patient-documents .clinical-fields label>small{font-size:12px;color:#b7aa90;overflow-wrap:anywhere}
+.document-entry{margin:0}
+.document-entry p{font-size:13px;color:#c4bfb4;line-height:1.6;overflow-wrap:anywhere}
+.document-entry-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
