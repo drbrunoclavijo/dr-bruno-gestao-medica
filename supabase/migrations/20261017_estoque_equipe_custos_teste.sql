@@ -3,6 +3,10 @@
 -- Não usar dados de pacientes reais. "equipe" só vê produtos/lotes, nunca vínculos a prescrições.
 BEGIN;
 
+ALTER TABLE public.estoque_produtos_teste
+ ADD COLUMN IF NOT EXISTS cadastrado_por uuid DEFAULT auth.uid() REFERENCES auth.users(id);
+ALTER TABLE public.estoque_lotes_teste
+ ADD COLUMN IF NOT EXISTS cadastrado_por uuid DEFAULT auth.uid() REFERENCES auth.users(id);
 ALTER TABLE public.estoque_lotes_teste
  ADD COLUMN IF NOT EXISTS custo_total_aquisicao numeric(14,2);
 ALTER TABLE public.estoque_lotes_teste
