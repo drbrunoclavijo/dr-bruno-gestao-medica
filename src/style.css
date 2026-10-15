@@ -148,3 +148,13 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .administration-actions label{display:flex;flex-direction:column;gap:8px;min-width:230px;flex:1;font-size:13px}
 .administration-actions textarea{background:#181d21;color:#f0eeea;border:1px solid #39434b;border-radius:9px;font:inherit;padding:10px}
 @media(max-width:650px){.administration-actions button{width:100%}}
+
+/* Estoque de testes e lotes */
+.inventory-management{display:grid;gap:14px;margin-top:22px}
+.inventory-management .form-section{margin:0}
+.inventory-management .form-section>p{font-size:13px;color:#c8c3b8;line-height:1.6}
+.inventory-management .clinical-fields button{align-self:end}
+.inventory-management .clinical-fields select{font:inherit;min-height:44px;background:#181d21;border:1px solid #39434b;border-radius:9px;padding:10px;color:#f0eeea;max-width:100%;width:100%}
+.inventory-product{margin:0}
+.inventory-product p{font-size:13px;color:#bdbab4}
+.administration-stock{color:#f0c77f!important}
