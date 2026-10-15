@@ -3,6 +3,7 @@ const stamp=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'Data indis
 export default function TestAdministrations({supabase,patientId,role}){
  const [currentUserId,setCurrentUserId]=useState(null),[photos,setPhotos]=useState({}),[photoLinks,setPhotoLinks]=useState({}),[names,setNames]=useState({}),[entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
  const canCheck=role==='enfermeira';
+ const [supplies,setSupplies]=useState([]),[supplyProducts,setSupplyProducts]=useState([]),[supplyMoves,setSupplyMoves]=useState([]),[supplyPick,setSupplyPick]=useState({}),[supplyQty,setSupplyQty]=useState({});
  async function load(){
   setLoading(true);setError('');
   const {data:authData}=await supabase.auth.getUser();
@@ -10,7 +11,7 @@ export default function TestAdministrations({supabase,patientId,role}){
   const rx=await supabase.from('prescricoes_teste').select('id,criado_em').eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100);
   if(rx.error){setError('Não foi possível consultar prescrições: '+rx.error.message);setLoading(false);return;}
   const ids=(rx.data||[]).map(x=>x.id);
-  if(!ids.length){setEntries([]);setChecks({});setNames({});setLoading(false);return;}
+  if(!ids.length){setEntries([]);setChecks({});setNames({});setSupplies([]);setSupplyMoves([]);setLoading(false);return;}
   const it=await supabase.from('prescricao_itens_teste').select('id,prescricao_id,medicamento,dose,via,frequencia,duracao,orientacoes').in('prescricao_id',ids);
   if(it.error){setError('Não foi possível consultar medicamentos: '+it.error.message);setLoading(false);return;}
   const items=it.data||[];
@@ -35,6 +36,16 @@ export default function TestAdministrations({supabase,patientId,role}){
   if(vl.error||pr.error){setError('Não foi possível consultar vínculos ao estoque: '+(vl.error||pr.error).message);setLoading(false);return;}
   setLinks(Object.fromEntries((vl.data||[]).map(v=>[v.item_prescricao_id,v])));
   setProducts(pr.data||[]);
+  const [planned,prods,moves]=await Promise.all([
+   supabase.from('insumos_itens_teste').select('id,item_prescricao_id,produto_id,quantidade').in('item_prescricao_id',idsItem),
+   supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto').eq('tipo_produto','insumo'),
+   supabase.from('insumos_movimentos_teste').select('insumo_item_id,quantidade,custo_saida').limit(1000)
+  ]);
+  if(planned.error||prods.error||moves.error){
+   setError('Não foi possível carregar insumos: '+(planned.error||prods.error||moves.error).message);
+   setLoading(false);return;
+  }
+  setSupplies(planned.data||[]);setSupplyProducts(prods.data||[]);setSupplyMoves(moves.data||[]);
   setEntries(items.map(i=>({...i,prescribedAt:(rx.data||[]).find(p=>p.id===i.prescricao_id)?.criado_em})));
   setLoading(false);
  }
@@ -99,6 +110,46 @@ export default function TestAdministrations({supabase,patientId,role}){
   }catch(err){setError('Não foi possível anexar foto: '+err.message);}
   finally{setBusy('');}
  }
+ async function configureSupply(item,remove=false,productOverride=null){
+  if(!canCheck||busy||checks[item.id])return;
+  const id=productOverride||supplyPick[item.id],qty=Number(supplyQty[item.id]||'1');
+  if(!id||(!remove&&(!Number.isFinite(qty)||qty<=0))){setError('Selecione um insumo e uma quantidade válida.');return;}
+  setBusy(item.id);setError('');setMessage('');
+  const {error}=await supabase.rpc(remove?'remover_insumo_item_teste':'configurar_insumo_item_teste',
+   remove?{p_item_id:item.id,p_produto_id:id}:{p_item_id:item.id,p_produto_id:id,p_quantidade:qty});
+  if(error)setError('Não foi possível atualizar insumos: '+error.message);
+  else{await load();setMessage(remove?'Insumo removido antes da checagem.':'Insumo preparado para baixa junto à checagem fictícia.');}
+  setBusy('');
+ }
+ const suppliesFor=item=>supplies.filter(x=>x.item_prescricao_id===item.id);
+ const suppliesUI=item=><div className="supply-checagem">
+  <strong>Insumos da aplicação fictícia</strong>
+  <p>Soro, equipo, Jelco e outros materiais: selecione a quantidade efetivamente utilizada. A baixa será registrada junto à checagem do medicamento, uma única vez.</p>
+  {suppliesFor(item).length>0?<div className="record-list">
+   {suppliesFor(item).map(x=>{
+    const p=supplyProducts.find(t=>t.id===x.produto_id);
+    const moves=supplyMoves.filter(m=>m.insumo_item_id===x.id);
+    const known=moves.reduce((n,m)=>n+Number(m.custo_saida||0),0);
+    const missing=moves.some(m=>m.custo_saida==null);
+    return <div className="supply-line" key={x.id}>
+     <span>{p?.nome||'Insumo'} · {x.quantidade} {p?.unidade||'un.'}
+      {checks[item.id]&&<small> · Custo baixado: {moves.length?(missing?'parcial / não informado':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(known)):'não localizado'}</small>}
+     </span>
+     {canCheck&&!checks[item.id]&&<button type="button" className="outline-gold" disabled={Boolean(busy)} onClick={()=>configureSupply(item,true,x.produto_id)}>Remover</button>}
+    </div>;
+   })}
+  </div>:<p className="record-empty">Nenhum insumo informado.</p>}
+  {canCheck&&!checks[item.id]&&<div className="supply-add-row">
+   <label>Insumo
+    <select value={supplyPick[item.id]||''} onChange={e=>setSupplyPick(v=>({...v,[item.id]:e.target.value}))}>
+     <option value="">Selecione insumo do estoque</option>
+     {supplyProducts.filter(p=>p.ativo).map(p=><option value={p.id} key={p.id}>{p.nome} ({p.unidade})</option>)}
+    </select>
+   </label>
+   <label>Quantidade<input type="number" min="0.001" step="0.001" value={supplyQty[item.id]||'1'} onChange={e=>setSupplyQty(v=>({...v,[item.id]:e.target.value}))}/></label>
+   <button type="button" className="outline-gold" disabled={Boolean(busy)||!supplyPick[item.id]} onClick={()=>configureSupply(item)}>Adicionar insumo</button>
+  </div>}
+ </div>;
  const fileInput=item=><label className="administration-photo">Foto do comprovante (opcional)
   <input type="file" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)}
    onChange={e=>setPhotos(o=>({...o,[item.id]:e.target.files?.[0]||null}))}/>
@@ -115,6 +166,7 @@ export default function TestAdministrations({supabase,patientId,role}){
    <p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{links[item.id]&&<p className="administration-stock">Baixa configurada: {links[item.id].quantidade} {products.find(p=>p.id===links[item.id].produto_id)?.unidade||'un.'} de {products.find(p=>p.id===links[item.id].produto_id)?.nome||'produto de teste'}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}
    {checks[item.id]?<div className="administration-checked">
     <p>Checado em {stamp(checks[item.id].checado_em)} · Responsável: {names[checks[item.id].profissional_id]||'Profissional não identificado'}{checks[item.id].observacao?' · '+checks[item.id].observacao:''}</p>
+    {suppliesUI(item)}
     {checks[item.id].foto_caminho?
       <div><button type="button" className="outline-gold" onClick={()=>viewPhoto(item)}>Preparar acesso à foto</button>
       {photoLinks[item.id]&&<a className="photo-signed-link" href={photoLinks[item.id]} target="_blank" rel="noopener noreferrer">Abrir foto (link temporário)</a>}</div>
@@ -124,6 +176,7 @@ export default function TestAdministrations({supabase,patientId,role}){
       </div>}
    </div>:canCheck?<div className="administration-actions">
     <label>Observação de teste (opcional)<textarea value={notes[item.id]||''} maxLength={2000} rows={2} onChange={e=>setNotes(o=>({...o,[item.id]:e.target.value}))}/></label>
+    {suppliesUI(item)}
     {fileInput(item)}
     <button type="button" className="gold-button" disabled={Boolean(busy)||!links[item.id]} onClick={()=>check(item)}>
      {busy===item.id?'Registrando...':links[item.id]?'Confirmar checagem e baixar estoque':'Vincule ao estoque primeiro'}
