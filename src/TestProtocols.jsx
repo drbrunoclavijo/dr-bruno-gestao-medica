@@ -99,7 +99,7 @@ export default function TestProtocols({supabase}){
     const forecastGaps=Number(f.linhas_sem_preco||0)+Number(f.linhas_sem_saldo_suficiente||0)+Number(f.itens_sem_vinculo_estoque||0);
     const totalForecast=totalKnown+pendingMed+pendingSup;
     const futureBalance=priceTotal-totalForecast;
-    const forecastComplete=forecastGaps===0&&missing===0&&supplyMissing===0;
+    const forecastComplete=forecastGaps===0&&missing===0&&supplyMissing===0&&Number(p.prescricoes_vinculadas||0)>0;
     const canShowMargin=!missing&&!supplyMissing&&!noDischarge&&priceTotal>0;
     const options=rxs.filter(r=>r.paciente_id===p.paciente_id&&!r.protocolo_id);
     return <div className="form-section protocol-entry" key={p.protocolo_id}>
