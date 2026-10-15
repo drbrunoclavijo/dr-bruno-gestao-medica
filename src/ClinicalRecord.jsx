@@ -19,8 +19,33 @@ function brDate(v){if(!v)return 'Sem data';const m=String(v).match(/^(\d{4})-(\d
 export default function ClinicalRecord({supabase,patientId,canWrite}){
  const [template,setTemplate]=useState('geral');
  const [records,setRecords]=useState([]),[form,setForm]=useState(newForm),[error,setError]=useState(''),[success,setSuccess]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[tableMissing,setTableMissing]=useState(false),[showForm,setShowForm]=useState(false);
+ const [aiNotes,setAiNotes]=useState(''),[aiDraft,setAiDraft]=useState(''),[aiBusy,setAiBusy]=useState(false),[aiError,setAiError]=useState('');
  useEffect(()=>{let active=true;setRecords([]);setLoading(true);setError('');setTableMissing(false);supabase.from('consultas_teste').select('*').eq('paciente_id',patientId).order('data_consulta',{ascending:false}).order('criado_em',{ascending:false}).limit(100).then(({data,error})=>{if(!active)return;if(error){setError('Não foi possível consultar prontuário: '+error.message);setTableMissing(error.code==='42P01'||error.code==='PGRST205');}else setRecords(data||[]);setLoading(false);});return()=>{active=false}},[patientId,supabase]);
  const change=(k,v)=>setForm(old=>({...old,[k]:v}));
+ async function organizeNotes(){
+  setAiError('');setError('');
+  if(!canWrite||aiBusy)return;
+  if(aiNotes.trim().length<10){setAiError('Escreva pelo menos 10 caracteres de anotações fictícias.');return;}
+  const context=groups.flatMap(([,fields])=>fields)
+   .filter(([key])=>key!=='data_consulta')
+   .map(([key,label])=>[label,String(form[key]||'').trim()])
+   .filter(([,value])=>value).map(([label,value])=>label+': '+value).join('\n');
+  setAiBusy(true);setAiDraft('');
+  const {data,error:fnError}=await supabase.functions.invoke('organizar-evolucao-teste',{
+   body:{notas:aiNotes,contexto:context.slice(0,9000)}
+  });
+  if(fnError||!data?.evolucao){
+   setAiError('Não foi possível gerar a evolução. Confirme se a função foi publicada e a chave de API configurada. '+(data?.error||fnError?.message||''));
+  }else setAiDraft(data.evolucao);
+  setAiBusy(false);
+ }
+ function useDraft(){
+  if(!aiDraft.trim())return;
+  if(form.evolucao.trim()&&!window.confirm('Substituir o texto atual do campo Evolução pelo rascunho revisado?'))return;
+  change('evolucao',aiDraft);
+  setAiError('');
+ }
+
  async function save(e){
   e.preventDefault();setError('');setSuccess('');if(!canWrite)return;
   if(!form.motivo.trim()){setError('Informe o motivo da consulta.');return;}
@@ -31,7 +56,7 @@ export default function ClinicalRecord({supabase,patientId,canWrite}){
   for(const [k,v] of Object.entries(form))payload[k]=v===''?null:(k==='motivo'?v.trim():v);
   const {data,error}=await supabase.from('consultas_teste').insert(payload).select('*').single();
   if(error)setError('Não foi possível salvar consulta: '+error.message);
-  else{setRecords(old=>[data,...old].sort((a,b)=>(b.data_consulta||'').localeCompare(a.data_consulta||'')||(b.criado_em||'').localeCompare(a.criado_em||'')));setForm(newForm());setTemplate('geral');setShowForm(false);setSuccess('Consulta de teste salva.');}
+  else{setRecords(old=>[data,...old].sort((a,b)=>(b.data_consulta||'').localeCompare(a.data_consulta||'')||(b.criado_em||'').localeCompare(a.criado_em||'')));setForm(newForm());setAiNotes('');setAiDraft('');setAiError('');setTemplate('geral');setShowForm(false);setSuccess('Consulta de teste salva.');}
   setBusy(false);
  }
  return <div className="premium-panel clinical-panel">
@@ -47,6 +72,30 @@ export default function ClinicalRecord({supabase,patientId,canWrite}){
       <select id="consultation-model" value={template} onChange={e=>setTemplate(e.target.value)}>{Object.entries(templates).map(([key,item])=><option key={key} value={key}>{item.nome}</option>)}</select>
     </label><p>{templates[template].descricao}</p><div className="template-guides">{templates[template].guides.map(g=><span key={g}>{g}</span>)}</div><small>Roteiro orientador: nenhuma informação é preenchida ou diagnosticada automaticamente.</small></div>
     <p className="consultation-start">Horário registrado automaticamente ao iniciar: <strong>{brTime(form.iniciada_em)}</strong></p>
+    <section className="form-section clinical-ai-section" aria-label="Assistente de evolução com IA">
+     <h4>Assistente de evolução com IA — Teste</h4>
+     <p className="profile-notice">Use somente anotações fictícias. A IA organiza o texto sem salvar automaticamente. Confira todos os dados, doses, exames e hipóteses antes de aprovar. A geração requer uma função protegida no Supabase e chave OpenAI configurada no servidor.</p>
+     <div className="clinical-ai-grid">
+      <div className="clinical-ai-column">
+       <label>Anotações livres durante a consulta
+        <textarea rows={12} maxLength={12000} value={aiNotes}
+         onChange={e=>{setAiNotes(e.target.value);setAiDraft('');}}
+         placeholder="Exemplo fictício: paciente relata cansaço há 3 meses, sono de 6h/noite, treina 3 vezes por semana, nega febre. Exames informados..."/>
+       </label>
+       <small>Acrescente informações conforme a conversa evoluir e clique em Organizar. A geração é acionada manualmente, não a cada tecla.</small>
+       <button type="button" className="gold-button" disabled={aiBusy||aiNotes.trim().length<10} onClick={organizeNotes}>{aiBusy?'Organizando anotações...':'Organizar evolução com IA'}</button>
+      </div>
+      <div className="clinical-ai-column">
+       <label>Rascunho padronizado — revisar antes de usar
+        <textarea rows={12} value={aiDraft} onChange={e=>setAiDraft(e.target.value)}
+         placeholder="A evolução organizada aparecerá aqui. Você poderá revisar e editar antes de transferir ao prontuário."/>
+       </label>
+       <small>O texto gerado não substitui sua avaliação, nem será salvo até sua revisão e o salvamento da consulta.</small>
+       <button type="button" className="outline-gold" disabled={!aiDraft.trim()||aiBusy} onClick={useDraft}>Usar texto revisado no campo Evolução</button>
+      </div>
+     </div>
+     {aiError&&<p role="alert" className="form-message">{aiError}</p>}
+    </section>
     {groups.map(([heading,fields])=><div key={heading} className="form-section"><h4>{heading}</h4><div className="clinical-fields">{fields.map(([k,label,type])=><label key={k}>{label}{type==='textarea'?<textarea rows={3} maxLength={12000} placeholder={templates[template].hints[k]||'Descreva somente informações apuradas na consulta.'} value={form[k]} onChange={e=>change(k,e.target.value)}/>:<input type={type} placeholder={templates[template].hints[k]||undefined} step={type==='number'?(k==='peso_kg'||k==='altura_cm'?'0.1':'1'):undefined} min={type==='number'?'0':undefined} required={k==='motivo'||k==='data_consulta'} maxLength={type==='text'?200:undefined} value={form[k]} onChange={e=>change(k,e.target.value)}/>}</label>)}</div></div>)}
     <div className="form-actions"><button type="button" className="outline-gold" onClick={()=>setShowForm(false)}>Cancelar</button><button type="submit" className="gold-button" disabled={busy}>{busy?'Salvando...':'Salvar consulta de teste'}</button></div>
    </form>}
