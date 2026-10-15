@@ -244,7 +244,7 @@ RETURNS TABLE(
  unidade text,lote text,quantidade numeric,custo_saida numeric,baixa_em timestamptz
 )
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
-AS $
+AS $$
 BEGIN
  IF auth.uid() IS NULL OR NOT EXISTS (
  SELECT 1 FROM public.profissionais p
@@ -262,7 +262,7 @@ BEGIN
  JOIN public.estoque_produtos_teste prod ON prod.id=l.produto_id
  ORDER BY m.criado_em DESC,m.id DESC
  LIMIT 1000;
-END $;
+END $$;
 REVOKE ALL ON FUNCTION public.relatorio_consumo_insumos_teste() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.relatorio_consumo_insumos_teste() TO authenticated;
 
