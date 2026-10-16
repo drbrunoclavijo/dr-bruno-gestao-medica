@@ -495,3 +495,23 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .dashboard-appointments .dashboard-agenda-title{margin-bottom:2px}
 @media(max-width:760px){.calendar-entry{grid-template-columns:1fr;gap:11px}.calendar-entry-actions{max-width:none;justify-content:flex-start}.calendar-entry-actions button{flex:1;min-width:130px}}
 @media(max-width:500px){.dashboard-appointments .dashboard-kpis{grid-template-columns:1fr}.calendar-tools{grid-template-columns:1fr}}
+
+/* Alertas de estoque critico na visao geral e modulo Estoque. */
+.stock-alerts{display:grid;gap:15px}
+.stock-alert-actions{display:flex;gap:8px;flex-wrap:wrap}
+.stock-alert-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stock-alert-kpis>div{display:flex;flex-direction:column;gap:7px;border:1px solid #675637;border-radius:11px;background:rgba(111,87,49,.11);padding:12px 14px}
+.stock-alert-kpis small{color:#cdbd9f;font-size:12px}
+.stock-alert-kpis strong{color:#f5d7a5;font-size:25px;font-variant-numeric:tabular-nums}
+.stock-alert-list{display:grid;gap:8px}
+.stock-alert-entry{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px;border:1px solid #554b39;border-radius:10px;background:#151a1e}
+.stock-alert-entry>div:first-child{display:flex;flex-direction:column;gap:5px;min-width:0}
+.stock-alert-entry strong{color:#f0debb;font-size:13px;overflow-wrap:anywhere}
+.stock-alert-entry small{color:#e1ba83;font-size:11px}
+.stock-alert-info{font-size:12px;color:#c2b9aa;text-align:right}
+.inventory-minimum-edit{display:flex;align-items:end;gap:9px;flex-wrap:wrap;margin:12px 0}
+.inventory-minimum-edit label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#e0ca9f}
+.inventory-minimum-edit input{width:130px}
+.inventory-minimum-edit>span{font-size:12px;color:#c5bcae;padding-bottom:12px}
+.inventory-test>.stock-alerts{margin:14px 0 18px}
+@media(max-width:720px){.stock-alert-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.stock-alert-entry{align-items:flex-start;flex-direction:column}.stock-alert-info{text-align:left}}
