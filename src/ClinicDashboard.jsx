@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {useAppointments,localDate,shiftDay,displayDate,appointmentTypes,statuses} from './ClinicCalendar.jsx';
+import StockAlerts from './StockAlerts.jsx';
 
 // Apenas dados fictícios: nenhum custo, valor de protocolo ou medicamento à equipe administrativa.
 const tz='America/Sao_Paulo';
@@ -101,6 +102,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
       </div>)}</div>}
     <p className="profile-notice">Lembretes internos: acompanhe os atendimentos aqui ao abrir o aplicativo. Avisos automáticos ao profissional e confirmação por resposta do paciente ainda dependem de integração com mensageria.</p>
   </div>
+  <StockAlerts supabase={supabase} onNavigate={onNavigate} compact/>
   {!clinical?<><div className="premium-panel dashboard-appointments">
    <div className="dashboard-agenda-title"><div><h3>Reagendamentos — Atenção, Amanda</h3>
     <p>Pedidos feitos por pacientes fictícios na simulação de confirmação.</p></div>
