@@ -6,6 +6,7 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
  const [consultations,setConsultations]=useState([]),[prescriptions,setPrescriptions]=useState([]),[itemsById,setItemsById]=useState({});
  const [consultation,setConsultation]=useState(''),[items,setItems]=useState([blankItem()]),[notes,setNotes]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[open,setOpen]=useState(false);
+ const [referenceItem,setReferenceItem]=useState(''),[repetitions,setRepetitions]=useState('4');
  async function load(){
   setLoading(true);setError('');
   const [c,p]=await Promise.all([
@@ -24,6 +25,23 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
  }
  useEffect(()=>{if(canWrite)load();},[patientId,canWrite]);
  const updateItem=(index,k,value)=>setItems(old=>old.map((item,i)=>i===index?{...item,[k]:value}:item));
+ const referenceOptions=prescriptions.flatMap(p=>(itemsById[p.id]||[]).map((it,i)=>({
+   value:p.id+':'+i,item:it,label:formatStamp(p.criado_em)+' · '+it.medicamento+' · '+it.dose+' · '+it.via
+ })));
+ function duplicateForSessions(){
+  setError('');setSuccess('');
+  const selected=referenceOptions.find(o=>o.value===referenceItem);
+  const count=Number(repetitions);
+  if(!selected){setError('Selecione um item de prescrição fictícia anterior.');return;}
+  if(!Number.isInteger(count)||count<1||count>20){setError('Escolha de 1 a 20 aplicações para preparar.');return;}
+  if(!window.confirm('Preparar '+count+' itens de rascunho com os dados da prescrição anterior? Confira dose, via e frequência de CADA item antes de salvar.'))return;
+  const fields=['medicamento','dose','via','frequencia','duracao','orientacoes'];
+  const draft=Object.fromEntries(fields.map(k=>[k,String(selected.item[k]||'')]));
+  setItems(Array.from({length:count},()=>({...draft})));
+  setOpen(true);
+  setSuccess(count+' itens preenchidos como RASCUNHO. Selecione uma consulta e revise TODOS os itens. Nada foi prescrito ou registrado automaticamente.');
+ }
+
  async function save(e){
   e.preventDefault();setError('');setSuccess('');
   if(!canWrite||busy)return;
@@ -37,11 +55,24 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
  return <section className="premium-panel prescription-panel">
  <div className="panel-title"><span className="title-icon" aria-hidden="true">✚</span><div><h3>Prescrições de teste</h3><p>Medicamentos fictícios vinculados ao paciente e a uma consulta registrada.</p></div></div>
  {!canWrite?<p className="profile-notice">Acesso restrito ao perfil médico autorizado.</p>:<>
-  <p className="profile-notice">Somente testes. Nenhuma prescrição é assinada, enviada, dispensada ou vinculada ao estoque nesta etapa.</p>
+  <p className="profile-notice">Somente testes. Nenhuma prescrição é assinada ou enviada; medicamentos precisam de vínculo com estoque antes da checagem. Itens repetidos são apenas sugestões copiadas para revisão médica obrigatória, não uma prescrição automática.</p>
   {error&&<p className="form-message" role="alert">{error}</p>}
   {success&&<p className="form-message" role="status">{success}</p>}
   <div className="record-top"><h4>Prescrições de {patientName}</h4><button type="button" className="gold-button" disabled={loading||!consultations.length} onClick={()=>setOpen(x=>!x)}>{open?'Fechar formulário':'+ Nova prescrição'}</button></div>
   {!loading&&!consultations.length&&<p className="record-empty">Salve uma consulta fictícia no prontuário antes de criar prescrições.</p>}
+  {!loading&&referenceOptions.length>0&&<div className="form-section prescription-repeat">
+    <h4>Preparar aplicações repetidas (rascunho)</h4>
+    <p>Reaproveite um item de prescrição fictícia anterior do MESMO paciente para preencher vários itens independentes. Este recurso não decide dose, duração ou intervalo: a revisão e o salvamento são exclusivamente médicos.</p>
+    <div className="prescription-repeat-grid">
+      <label>Item de referência<select value={referenceItem} onChange={e=>setReferenceItem(e.target.value)}>
+       <option value="">Selecione um item anterior</option>
+       {referenceOptions.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}
+      </select></label>
+      <label>Número de aplicações<input type="number" min="1" max="20" step="1" value={repetitions} onChange={e=>setRepetitions(e.target.value)}/></label>
+      <button type="button" className="outline-gold" disabled={!referenceItem||busy} onClick={duplicateForSessions}>Preparar itens para revisão</button>
+    </div>
+    <small>Limite de 20 itens por rascunho. Não vincula sessões, não copia estoque nem realiza checagem. Cada item deverá ser associado a uma sessão de teste após salvar e vincular a prescrição ao protocolo.</small>
+  </div>}
   {open&&<form className="prescription-form" onSubmit={save}>
    <label className="prescription-label">Consulta vinculada
     <select value={consultation} required onChange={e=>setConsultation(e.target.value)}>
