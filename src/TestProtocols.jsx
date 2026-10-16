@@ -16,6 +16,7 @@ export default function TestProtocols({supabase}){
  const [selectedRx,setSelectedRx]=useState({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [forecasts,setForecasts]=useState({});
  const [sessions,setSessions]=useState([]),[sessionItems,setSessionItems]=useState([]),[sessionForm,setSessionForm]=useState({}),[sessionBusy,setSessionBusy]=useState('');
+ const [recurrence,setRecurrence]=useState({});
  const [message,setMessage]=useState(''),[error,setError]=useState('');
  async function load(){
   setLoading(true);setError('');
@@ -84,6 +85,37 @@ export default function TestProtocols({supabase}){
   });
   if(err)setError('Não foi possível agendar a sessão: '+err.message);
   else{setSessionForm(old=>({...old,[p.protocolo_id]:{date:'',description:'',item:'',note:''}}));await load();setMessage('Sessão fictícia agendada. Nenhum estoque foi baixado.');}
+  setSessionBusy('');
+ }
+ const updateRecurrence=(id,k,v)=>setRecurrence(old=>({...old,[id]:{...(old[id]||{}),[k]:v}}));
+ function recurrenceDates(f){
+  const n=Number(f.count||4),interval=Number(f.interval||7);
+  if(!f.date||!Number.isInteger(n)||n<1||n>52||!Number.isInteger(interval)||interval<1||interval>90)return [];
+  const first=new Date(f.date+'T12:00:00Z');
+  if(Number.isNaN(first.getTime()))return [];
+  return Array.from({length:n},(_,i)=>{
+   const d=new Date(first.getTime()+i*interval*86400000);
+   return d.toISOString().slice(0,10);
+  });
+ }
+ async function generateRecurring(p){
+  if(sessionBusy)return;
+  const f=recurrence[p.protocolo_id]||{},dates=recurrenceDates(f),description=(f.description||'').trim();
+  const last=dates[dates.length-1];
+  const begin=p.inicio,endDate=new Date(p.inicio+'T12:00:00Z');
+  endDate.setUTCDate(endDate.getUTCDate()+Number(p.duracao_dias));
+  const end=endDate.toISOString().slice(0,10);
+  if(!dates.length||!description||description.length>125||dates[0]<begin||last>=end){
+   setError('Informe uma sequência válida inteiramente dentro do período do protocolo (até 52 sessões).');return;
+  }
+  if(!window.confirm('Criar '+dates.length+' agendamentos fictícios entre '+dateBR(dates[0])+' e '+dateBR(last)+'? Nenhuma medicação será prescrita ou baixada.'))return;
+  setSessionBusy(p.protocolo_id);setError('');setMessage('');
+  const {data,error:err}=await supabase.rpc('gerar_sessoes_recorrentes_teste',{
+   p_protocolo_id:p.protocolo_id,p_primeira_data:dates[0],p_intervalo_dias:Number(f.interval||7),
+   p_quantidade:dates.length,p_descricao_base:description
+  });
+  if(err)setError('Não foi possível gerar calendário: '+err.message);
+  else{await load();setMessage(data+' sessões fictícias adicionadas. Nenhum item prescrito foi vinculado, e o estoque não foi alterado.');}
   setSessionBusy('');
  }
  async function cancelSession(sess){
@@ -189,6 +221,26 @@ export default function TestProtocols({supabase}){
        </div>
        {sess.status==='agendada'&&!sess.checado_em&&<button type="button" className="outline-gold" disabled={Boolean(sessionBusy)} onClick={()=>cancelSession(sess)}>Cancelar</button>}
       </div>)}</div>:<p>Nenhuma sessão fictícia agendada.</p>}
+      {p.status==='ativo'&&<div className="protocol-recurrence">
+       <h4>Gerar calendário recorrente</h4>
+       <p>Planejamento administrativo, sem checagem, prescrição ou baixa de estoque. As datas precisam caber no período do protocolo.</p>
+       <div className="protocol-session-form">
+        <label>Primeira sessão<input type="date" value={recurrence[p.protocolo_id]?.date||''} min={p.inicio} onChange={e=>updateRecurrence(p.protocolo_id,'date',e.target.value)}/></label>
+        <label>Intervalo<select value={recurrence[p.protocolo_id]?.interval||'7'} onChange={e=>updateRecurrence(p.protocolo_id,'interval',e.target.value)}>
+          <option value="7">Semanal (7 dias)</option>
+          <option value="14">Quinzenal (14 dias)</option>
+          <option value="30">A cada 30 dias</option>
+          <option value="1">Diário (simulação)</option>
+         </select></label>
+        <label>Número de sessões<input type="number" min="1" max="52" step="1" value={recurrence[p.protocolo_id]?.count||'4'} onChange={e=>updateRecurrence(p.protocolo_id,'count',e.target.value)}/></label>
+        <label>Descrição da agenda<input maxLength={125} placeholder="Ex.: Atendimento do protocolo" value={recurrence[p.protocolo_id]?.description||''} onChange={e=>updateRecurrence(p.protocolo_id,'description',e.target.value)}/></label>
+        <button type="button" className="gold-button" disabled={Boolean(sessionBusy)||!recurrence[p.protocolo_id]?.date||!recurrence[p.protocolo_id]?.description?.trim()} onClick={()=>generateRecurring(p)}>
+         {sessionBusy===p.protocolo_id?'Gerando...':'Gerar sessões'}
+        </button>
+       </div>
+       {recurrenceDates(recurrence[p.protocolo_id]||{}).length>0&&
+        <p>Prévia: {recurrenceDates(recurrence[p.protocolo_id]||{}).map(dateBR).join(' · ')}</p>}
+      </div>}
       {p.status==='ativo'&&<div className="protocol-session-form">
        <label>Data prevista<input type="date" value={sessionForm[p.protocolo_id]?.date||''} onChange={e=>updateSession(p.protocolo_id,'date',e.target.value)}/></label>
        <label>Descrição da sessão<input maxLength={160} placeholder="Ex.: Aplicação 1 — teste" value={sessionForm[p.protocolo_id]?.description||''} onChange={e=>updateSession(p.protocolo_id,'description',e.target.value)}/></label>
