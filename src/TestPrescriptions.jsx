@@ -124,7 +124,7 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
     <div className="prescription-stock-link"><strong>Vincular medicamento ao estoque (opcional)</strong>
      <p>Selecione manualmente o produto correspondente à prescrição e a quantidade a descontar somente quando a enfermagem confirmar a checagem.</p>
      <div className="prescription-stock-fields">
-      <label>Produto cadastrado no estoque<select value={item.produto_id} onChange={e=>updateItem(index,'produto_id',e.target.value)}>
+      <label>Produto cadastrado no estoque<select value={item.produto_id} onChange={e=>setItems(old=>old.map((entry,j)=>j===index?{...entry,produto_id:e.target.value,quantidade_estoque:e.target.value?entry.quantidade_estoque:''}:entry))}>
        <option value="">Sem vínculo agora — Dra. Carol poderá vincular depois</option>
        {stockProducts.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.unidade})</option>)}
       </select></label>
