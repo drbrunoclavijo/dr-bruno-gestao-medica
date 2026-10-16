@@ -1,6 +1,16 @@
 -- Majestic Sante | nurse access to operational protocols and planned sessions (TEST ONLY).
 -- Financial fields are intentionally excluded.
 BEGIN;
+CREATE TABLE IF NOT EXISTS public.historico_datas_sessoes_teste(
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ sessao_id uuid NOT NULL REFERENCES public.sessoes_protocolos_teste(id) ON DELETE RESTRICT,
+ data_anterior date NOT NULL,data_nova date NOT NULL,
+ motivo text NOT NULL CHECK(length(btrim(motivo)) BETWEEN 5 AND 500),
+ alterado_por uuid NOT NULL REFERENCES auth.users(id),
+ alterado_em timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.historico_datas_sessoes_teste ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.historico_datas_sessoes_teste FROM PUBLIC,anon,authenticated;
 CREATE OR REPLACE FUNCTION public.protocolos_operacionais_enfermagem_teste()
 RETURNS TABLE(
  protocolo_id uuid,paciente_id uuid,paciente_nome text,nome text,
