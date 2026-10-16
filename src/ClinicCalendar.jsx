@@ -8,6 +8,18 @@ export const shiftDay=(s,n)=>{const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.ge
 export const displayDate=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'—';
 export const appointmentTypes={consulta:'Consulta',retorno:'Retorno',procedimento:'Procedimento',outro:'Outro agendamento'};
 export const statuses={agendado:'Aguardando confirmação',confirmado:'Confirmado',realizado:'Realizado',cancelado:'Cancelado',faltou:'Faltou'};
+export const professionalDisplayName=name=>{
+ const value=String(name||'').trim();
+ if(/bruno.*clavijo/i.test(value))return 'Dr. Bruno Clavijo';
+ if(/carol/i.test(value)&&/klaus/i.test(value))return 'Dra. Carol Klaus';
+ return value;
+};
+export const confirmationText=a=>{
+ const name=professionalDisplayName(a.profissional_nome);
+ const date=displayDate(a.inicio_local),time=String(a.inicio_local||'').slice(11,16);
+ return 'Olá! Sua consulta no Majestic Santé Institute com '+name+' está agendada para '+date+', às '+time+'.\\n\\n'
+ +'Responda 1 para confirmar sua presença ou 2 para solicitar reagendamento.\\n\\nAguardamos você!';
+};
 export function useAppointments(supabase,from,to){
  const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  async function refresh(){
@@ -116,6 +128,9 @@ export default function ClinicCalendar({supabase,role}){
      <div className="calendar-entry-actions">
       {['agendado','confirmado'].includes(a.status)&&<button className="outline-gold" onClick={()=>edit(a)}>Remarcar</button>}
       {a.status==='agendado'&&<button className="outline-gold" disabled={busy} onClick={()=>status(a,'confirmado')}>Confirmar manualmente</button>}
+      {['agendado','confirmado'].includes(a.status)&&<button type="button" className="outline-gold"
+        onClick={async()=>{try{await navigator.clipboard.writeText(confirmationText(a));setMessage('Mensagem de confirmação copiada. Nenhum WhatsApp foi enviado pelo sistema.');}
+          catch{setMessage('Não foi possível copiar automaticamente; configure a permissão da área de transferência no navegador.');}}}>Copiar mensagem WhatsApp</button>}
       {['agendado','confirmado'].includes(a.status)&&<button className="outline-gold" disabled={busy} onClick={()=>status(a,'realizado')}>Realizado</button>}
       {['agendado','confirmado'].includes(a.status)&&<button className="outline-gold" disabled={busy} onClick={()=>status(a,'cancelado')}>Cancelar</button>}
      </div>
