@@ -5,7 +5,7 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS public.sessoes_protocolos_teste (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  protocolo_id uuid NOT NULL REFERENCES public.protocolos_teste(id) ON DELETE RESTRICT,
- item_prescricao_id uuid UNIQUE REFERENCES public.prescricao_itens_teste(id) ON DELETE RESTRICT,
+ item_prescricao_id uuid REFERENCES public.prescricao_itens_teste(id) ON DELETE RESTRICT,
  data_prevista date NOT NULL,
  descricao text NOT NULL CHECK(length(btrim(descricao)) BETWEEN 1 AND 160),
  observacao text CHECK(observacao IS NULL OR length(observacao)<=1000),
@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.sessoes_protocolos_teste (
  cancelado_por uuid REFERENCES auth.users(id),
  cancelado_em timestamptz
 );
+CREATE UNIQUE INDEX IF NOT EXISTS sessoes_protocolos_teste_item_ativo_ux ON public.sessoes_protocolos_teste(item_prescricao_id) WHERE status='agendada' AND item_prescricao_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS sessoes_protocolos_teste_protocolo_idx
  ON public.sessoes_protocolos_teste(protocolo_id,data_prevista,id);
 ALTER TABLE public.sessoes_protocolos_teste ENABLE ROW LEVEL SECURITY;
