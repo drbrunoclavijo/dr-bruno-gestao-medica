@@ -10,6 +10,7 @@ export default function TestAdministrations({supabase,patientId,role}){
 
  const [viewFilter,setViewFilter]=useState('pendentes'),[searchTerm,setSearchTerm]=useState('');
  const [supplies,setSupplies]=useState([]),[supplyProducts,setSupplyProducts]=useState([]),[supplyMoves,setSupplyMoves]=useState([]),[supplyPick,setSupplyPick]=useState({}),[supplyQty,setSupplyQty]=useState({});
+ const [medicationProducts,setMedicationProducts]=useState([]),[medicationPick,setMedicationPick]=useState({}),[medicationQty,setMedicationQty]=useState({});
  async function load(){
   setLoading(true);setError('');
   const {data:authData}=await supabase.auth.getUser();
@@ -37,11 +38,12 @@ export default function TestAdministrations({supabase,patientId,role}){
   }else setNames({});
   const [vl,pr]=await Promise.all([
    supabase.from('estoque_vinculos_teste').select('item_prescricao_id,produto_id,quantidade').in('item_prescricao_id',idsItem),
-   supabase.from('estoque_produtos_teste').select('id,nome,unidade')
+   supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto')
   ]);
   if(vl.error||pr.error){setError('Não foi possível consultar vínculos ao estoque: '+(vl.error||pr.error).message);setLoading(false);return;}
   setLinks(Object.fromEntries((vl.data||[]).map(v=>[v.item_prescricao_id,v])));
   setProducts(pr.data||[]);
+  setMedicationProducts((pr.data||[]).filter(p=>p.ativo&&p.tipo_produto==='medicamento'));
   const [planned,prods]=await Promise.all([
    supabase.from('insumos_itens_teste').select('id,item_prescricao_id,produto_id,quantidade').in('item_prescricao_id',idsItem),
    supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto').eq('tipo_produto','insumo')
@@ -149,6 +151,26 @@ export default function TestAdministrations({supabase,patientId,role}){
    setPhotos(old=>({...old,[item.id]:null}));
    await load();
   }catch(err){setError('Não foi possível anexar foto: '+err.message);}
+  finally{setBusy('');}
+ }
+ async function bindMedication(item){
+  if(!canCheck||busy||checks[item.id]||links[item.id])return;
+  const productId=medicationPick[item.id],quantity=Number(medicationQty[item.id]||'1');
+  if(!productId||!Number.isFinite(quantity)||quantity<=0||quantity>100000||Math.round(quantity*1000)!==quantity*1000){
+   setError('Selecione o medicamento do estoque e informe uma quantidade valida, com ate 3 casas decimais.');return;
+  }
+  const chosen=medicationProducts.find(p=>p.id===productId);
+  if(!chosen){setError('Selecione um medicamento ativo, nao um insumo.');return;}
+  if(!window.confirm('Conferiu a prescricao, concentracao/apresentacao, via e quantidade? Vincular '+quantity+' '+chosen.unidade+' de '+chosen.nome+' ao item ficticio '+item.medicamento+'? Isso ainda nao desconta estoque.'))return;
+  setBusy(item.id);setError('');setMessage('');
+  try{
+   const {error:err}=await supabase.rpc('vincular_medicamento_enfermagem_teste',{
+    p_item_id:item.id,p_produto_id:productId,p_quantidade:quantity
+   });
+   if(err)throw new Error(err.message);
+   await load();
+   setMessage('Medicamento associado ao estoque ficticio. Confira insumos e so depois confirme a checagem.');
+  }catch(err){setError('Nao foi possivel vincular ao estoque: '+err.message);}
   finally{setBusy('');}
  }
  async function configureSupply(item,remove=false,productOverride=null){
@@ -284,6 +306,26 @@ export default function TestAdministrations({supabase,patientId,role}){
        {canCheck&&checks[item.id].profissional_id===currentUserId&&<>{fileInput(item)}<button className="outline-gold" type="button" disabled={Boolean(busy)||!photos[item.id]} onClick={()=>attachLater(item)}>{busy===item.id?'Anexando...':'Anexar foto agora'}</button></>}
       </div>}
    </div>:canCheck?<div className="administration-actions">
+    {!links[item.id]&&<div className="nursing-medication-link">
+     <strong>Associar medicamento ao estoque antes da checagem</strong>
+     <p>Confirme nome, concentracao/apresentacao, via e quantidade conforme a prescricao. A associacao nao realiza baixa. Caso haja divergencia, solicite revisao do medico.</p>
+     <div className="nursing-medication-fields">
+      <label>Medicamento existente no estoque
+       <select value={medicationPick[item.id]||''} disabled={Boolean(busy)}
+        onChange={e=>setMedicationPick(old=>({...old,[item.id]:e.target.value}))}>
+        <option value="">Selecione o produto prescrito</option>
+        {medicationProducts.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.unidade})</option>)}
+       </select>
+      </label>
+      <label>Quantidade a descontar nesta checagem
+       <input type="number" min="0.001" max="100000" step="0.001" value={medicationQty[item.id]||'1'}
+        disabled={Boolean(busy)} onChange={e=>setMedicationQty(old=>({...old,[item.id]:e.target.value}))}/>
+      </label>
+      <button type="button" className="outline-gold" disabled={Boolean(busy)||!medicationPick[item.id]}
+       onClick={()=>bindMedication(item)}>{busy===item.id?'Vinculando...':'Vincular medicamento'}</button>
+     </div>
+     {!medicationProducts.length&&<p className="form-message">Nao ha medicamentos ativos cadastrados no estoque. Solicite o cadastro antes de checar.</p>}
+    </div>}
     <label>Observação de teste (opcional)<textarea value={notes[item.id]||''} maxLength={2000} rows={2} onChange={e=>setNotes(o=>({...o,[item.id]:e.target.value}))}/></label>
     {suppliesUI(item)}
     {fileInput(item)}
