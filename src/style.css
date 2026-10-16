@@ -339,3 +339,10 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .nursing-medication-fields select,.nursing-medication-fields input{width:100%;min-width:0;min-height:42px;border:1px solid #675437;border-radius:8px;padding:9px;background:#131b20;color:#f1e9dc;font:inherit}
 .nursing-medication-fields button{min-height:42px}
 @media(max-width:730px){.nursing-medication-fields{grid-template-columns:1fr}.nursing-medication-fields button{width:100%}}
+
+/* Painel operacional de protocolos da enfermagem */
+.nurse-protocols .nurse-protocol-card{padding:16px;margin:12px 0}
+.nurse-protocols .nurse-protocol-session{padding:12px;border:1px solid #5e4e35;border-radius:9px;margin:10px 0;background:rgba(94,71,35,.1)}
+.nurse-protocols .nurse-protocol-session>div:first-child strong{color:#f0dfbb}
+.nurse-protocols .nurse-protocol-session>div:first-child p{font-size:12px;line-height:1.5;color:#cbbda4;margin:7px 0}
+.nurse-protocols .nursing-toolbar{margin:15px 0}
