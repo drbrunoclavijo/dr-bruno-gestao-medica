@@ -271,3 +271,8 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .protocol-session-form input,.protocol-session-form select{min-width:0;width:100%;background:#14191c;color:#f4eee4;border:1px solid #645238;border-radius:8px;padding:10px;min-height:42px;font:inherit}
 .protocol-session-form button{min-height:42px}
 @media(max-width:680px){.protocol-session-line{flex-direction:column;align-items:stretch}.protocol-session-line button{align-self:flex-start}}
+
+/* Geração de calendário recorrente dos protocolos de teste */
+.protocol-recurrence{border:1px solid #705632;background:rgba(111,82,37,.12);border-radius:10px;margin:16px 0;padding:14px}
+.protocol-recurrence h4{color:#e9c68d;font-size:15px;margin:0 0 8px}
+.protocol-recurrence p{font-size:12px;color:#c5b9a7;line-height:1.6;margin:9px 0}
