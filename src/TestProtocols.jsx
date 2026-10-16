@@ -73,6 +73,32 @@ export default function TestProtocols({supabase}){
   setClinicBusy('');
  }
  const [sessionLinkDraft,setSessionLinkDraft]=useState({});
+ const [batchLinkDraft,setBatchLinkDraft]=useState({});
+ const updateBatchLink=(protocolId,sessionId,itemId)=>setBatchLinkDraft(old=>({
+  ...old,[protocolId]:{...(old[protocolId]||{}),[sessionId]:itemId}
+ }));
+ async function linkBatch(p){
+  if(sessionBusy)return;
+  const drafts=batchLinkDraft[p.protocolo_id]||{};
+  const pairs=Object.entries(drafts).filter(([,itemId])=>Boolean(itemId));
+  const ids=pairs.map(([,itemId])=>itemId);
+  if(!pairs.length){setError('Selecione pelo menos um vínculo para confirmar.');return;}
+  if(new Set(ids).size!==ids.length){setError('Um item prescrito não pode ser selecionado para mais de uma sessão.');return;}
+  if(!window.confirm('Vincular '+pairs.length+' sessões às prescrições fictícias escolhidas? Revise os pares. Nenhuma checagem ou baixa será realizada.'))return;
+  setSessionBusy(p.protocolo_id);setError('');setMessage('');
+  const {data,error:err}=await supabase.rpc('vincular_itens_sessoes_em_lote_teste',{
+   p_protocolo_id:p.protocolo_id,p_sessao_ids:pairs.map(([sessionId])=>sessionId),
+   p_item_ids:ids
+  });
+  if(err)setError('Não foi possível associar as sessões em lote: '+err.message);
+  else{
+   setBatchLinkDraft(old=>({...old,[p.protocolo_id]:{}}));
+   await load();
+   setMessage(data+' sessões fictícias vinculadas. Nenhuma administração ou baixa de estoque foi realizada.');
+  }
+  setSessionBusy('');
+ }
+
  async function bindSession(sess,p){
   const itemId=sessionLinkDraft[sess.sessao_id];
   if(!itemId||sessionBusy)return;
@@ -174,6 +200,10 @@ export default function TestProtocols({supabase}){
     const options=rxs.filter(r=>r.paciente_id===p.paciente_id&&!r.protocolo_id);
     const pSessions=sessions.filter(x=>x.protocolo_id===p.protocolo_id);
     const pOptions=sessionItems.filter(x=>x.protocolo_id===p.protocolo_id&&!x.ja_checado&&!x.ja_agendado);
+    const availableSessions=pSessions.filter(x=>x.status==='agendada'&&!x.item_prescricao_id&&!x.checado_em);
+    const batchSelection=batchLinkDraft[p.protocolo_id]||{};
+    const batchSelected=availableSessions.map(x=>batchSelection[x.sessao_id]).filter(Boolean);
+    const hasDuplicates=new Set(batchSelected).size!==batchSelected.length;
     const doneSessions=pSessions.filter(x=>x.status==='agendada'&&x.checado_em).length;
     const openSessions=pSessions.filter(x=>x.status==='agendada'&&!x.checado_em).length;
     return <div className="form-section protocol-entry" key={p.protocolo_id}>
@@ -226,6 +256,24 @@ export default function TestProtocols({supabase}){
        <div><small>Sessões com checagem associada</small><strong>{doneSessions}</strong></div>
        <div><small>Sessões canceladas</small><strong>{pSessions.filter(x=>x.status==='cancelada').length}</strong></div>
       </div>
+      {p.status==='ativo'&&availableSessions.length>0&&pOptions.length>0&&<div className="protocol-batch-links">
+       <h4>Vincular várias sessões de uma vez</h4>
+       <p>Selecione o item prescrito correspondente em cada data. Verifique cuidadosamente medicamento, dose e sessão antes de confirmar. Cada item pode ser usado somente uma vez.</p>
+       <div className="protocol-batch-grid">
+        {availableSessions.slice(0,50).map(sess=><label key={sess.sessao_id}>
+         <strong>{dateBR(sess.data_prevista)} · {sess.descricao}</strong>
+         <select value={batchSelection[sess.sessao_id]||''} onChange={e=>updateBatchLink(p.protocolo_id,sess.sessao_id,e.target.value)}>
+          <option value="">Não vincular esta sessão</option>
+          {pOptions.map(it=><option key={it.item_id} value={it.item_id}>{it.medicamento} · {it.item_id.slice(0,8)}</option>)}
+         </select>
+        </label>)}
+       </div>
+       {availableSessions.length>50&&<p>Exibindo somente 50 sessões por operação.</p>}
+       {hasDuplicates&&<p className="form-message">Há um mesmo item selecionado em mais de uma sessão. Corrija antes de salvar.</p>}
+       <button type="button" className="gold-button" disabled={Boolean(sessionBusy)||!batchSelected.length||hasDuplicates} onClick={()=>linkBatch(p)}>
+         {sessionBusy===p.protocolo_id?'Vinculando...':'Confirmar '+batchSelected.length+' vínculo(s)'}
+       </button>
+      </div>}
       {pSessions.length>0?<div className="record-list">{pSessions.map(sess=><div className="protocol-session-line" key={sess.sessao_id}>
        <div><strong>{dateBR(sess.data_prevista)} · {sess.descricao}</strong>
         <p>{sess.status==='cancelada'?'Cancelada':sess.checado_em?'Checagem associada registrada':'Agendada — pendente de checagem'}{sess.medicamento?' · '+sess.medicamento:' · sem item prescrito associado'}</p>
