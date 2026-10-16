@@ -18,8 +18,19 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
  const dateNow=localDate();
  const {rows:appointments,loading:appointmentsLoading,error:appointmentsError,refresh:refreshAppointments}=useAppointments(supabase,dateNow,shiftDay(dateNow,7));
  const today'sAppointments=appointments.filter(a=>a.inicio_local.slice(0,10)===dateNow&&a.status!=='cancelado');
- const nextAppointments=appointments.filter(a=>a.status==='agendado'||a.status==='confirmado').sort((a,b)=>a.inicio_local.localeCompare(b.inicio_local));
+ const nextAppointments=appointments.filter(a=>a.status==='agendado'||a.status==='confirmado'||a.status==='reagendamento_solicitado').sort((a,b)=>a.inicio_local.localeCompare(b.inicio_local));
  const [adminApplications,setAdminApplications]=useState([]),[adminApplicationsError,setAdminApplicationsError]=useState('');
+ const [pendingRequests,setPendingRequests]=useState([]),[pendingRequestsError,setPendingRequestsError]=useState('');
+ useEffect(()=>{
+  if(role!=='equipe')return;
+  let active=true;
+  supabase.rpc('listar_pendencias_agenda_teste').then(({data,error})=>{
+   if(!active)return;
+   if(error)setPendingRequestsError('Pendências de reagendamento indisponíveis: '+error.message);
+   else{setPendingRequests(data||[]);setPendingRequestsError('');}
+  });
+  return()=>{active=false;};
+ },[role]);
  useEffect(()=>{
   if(role!=='equipe')return;
   let active=true;
@@ -90,7 +101,18 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
       </div>)}</div>}
     <p className="profile-notice">Lembretes internos: acompanhe os atendimentos aqui ao abrir o aplicativo. Avisos automáticos ao profissional e confirmação por resposta do paciente ainda dependem de integração com mensageria.</p>
   </div>
-  {!clinical?<><div className="premium-panel dashboard-agenda">
+  {!clinical?<><div className="premium-panel dashboard-appointments">
+   <div className="dashboard-agenda-title"><div><h3>Reagendamentos — Atenção, Amanda</h3>
+    <p>Pedidos feitos por pacientes fictícios na simulação de confirmação.</p></div>
+    <button type="button" className="gold-button" onClick={()=>onNavigate('Agenda')}>Abrir pendências →</button></div>
+   {pendingRequestsError&&<p role="alert" className="form-message">{pendingRequestsError}</p>}
+   <div className="dashboard-kpis">{summary('Solicitações pendentes',pendingRequestsError?'—':pendingRequests.length,'Entrar em contato para remarcar')}</div>
+   {pendingRequests.slice(0,5).map(p=><div key={p.pendencia_id} className="calendar-entry">
+    <div className="calendar-entry-time"><strong>{displayDate(p.inicio_local)}</strong><span>{p.inicio_local?.slice(11,16)}</span></div>
+    <div className="calendar-entry-detail"><strong>{p.paciente_nome}</strong><span>{p.profissional_nome}</span><small>Reagendamento solicitado — aguardando contato</small></div>
+    <button type="button" className="outline-gold" onClick={()=>onNavigate('Agenda')}>Abrir agenda</button>
+   </div>)}
+  </div><div className="premium-panel dashboard-agenda">
    <div className="dashboard-agenda-title"><div><h3>Agenda de aplicações — Visão administrativa</h3>
     <p>Todos os pacientes com sessão planejada, sem exibir medicamentos, doses ou prescrições.</p></div>
     <button type="button" className="outline-gold" onClick={()=>onNavigate('Agenda')}>Abrir agenda completa →</button></div>
