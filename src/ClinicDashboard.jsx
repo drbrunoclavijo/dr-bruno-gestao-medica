@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import {useAppointments,localDate,shiftDay,displayDate,appointmentTypes,statuses} from './ClinicCalendar.jsx';
 
 // Apenas dados fictícios: nenhum custo, valor de protocolo ou medicamento à equipe administrativa.
 const tz='America/Sao_Paulo';
@@ -14,6 +15,10 @@ const summary=(title,value,note)=> <div className="dashboard-kpi" key={title}><s
 
 export default function ClinicDashboard({supabase,role,onNavigate}){
  const clinical=role==='medico'||role==='enfermeira';
+ const dateNow=localDate();
+ const {rows:appointments,loading:appointmentsLoading,error:appointmentsError,refresh:refreshAppointments}=useAppointments(supabase,dateNow,shiftDay(dateNow,7));
+ const today'sAppointments=appointments.filter(a=>a.inicio_local.slice(0,10)===dateNow&&a.status!=='cancelado');
+ const nextAppointments=appointments.filter(a=>a.status==='agendado'||a.status==='confirmado').sort((a,b)=>a.inicio_local.localeCompare(b.inicio_local));
  const [protocols,setProtocols]=useState([]),[sessions,setSessions]=useState([]),[patientCount,setPatientCount]=useState(null);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[filter,setFilter]=useState('hoje'),[query,setQuery]=useState('');
  async function load(){
@@ -60,10 +65,26 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
    {error&&<p className="form-message" role="alert">{error}</p>}
    <div className="form-actions"><button className="outline-gold" type="button" onClick={load} disabled={loading}>{loading?'Atualizando...':'↻ Atualizar painel'}</button></div>
   </div>
+  <div className="premium-panel dashboard-appointments">
+    <div className="dashboard-agenda-title"><div><h3>Agenda de consultas e atendimentos</h3><p>Próximos compromissos compartilhados · {displayDate(dateNow)}</p></div>
+      <button type="button" className="gold-button" onClick={()=>onNavigate('Agenda')}>Abrir agenda completa →</button></div>
+    {appointmentsError&&<p className="form-message" role="alert">{appointmentsError}</p>}
+    <div className="dashboard-kpis">
+      {summary('Atendimentos hoje',appointmentsLoading?'…':today'sAppointments.length,'Inclui confirmados e realizados')}
+      {summary('Aguardando confirmação',appointmentsLoading?'…':appointments.filter(a=>a.status==='agendado').length,'Próximos oito dias')}
+    </div>
+    {appointmentsLoading?<p>Carregando agendamentos...</p>:nextAppointments.length===0?<p className="record-empty">Nenhuma consulta pendente cadastrada para os próximos oito dias.</p>:
+      <div className="calendar-entries">{nextAppointments.slice(0,8).map(a=><div key={a.id} className="calendar-entry">
+       <div className="calendar-entry-time"><strong>{displayDate(a.inicio_local)}</strong><span>{a.inicio_local.slice(11,16)}</span></div>
+       <div className="calendar-entry-detail"><strong>{a.paciente_nome}</strong><span>{appointmentTypes[a.tipo]} · {a.profissional_nome}</span><small>{statuses[a.status]}</small></div>
+       <button type="button" className="outline-gold" onClick={()=>onNavigate('Agenda')}>Abrir</button>
+      </div>)}</div>}
+    <p className="profile-notice">Lembretes internos: acompanhe os atendimentos aqui ao abrir o aplicativo. Avisos automáticos ao profissional e confirmação por resposta do paciente ainda dependem de integração com mensageria.</p>
+  </div>
   {!clinical?<div className="premium-panel">
    <h3>Atendimento e cadastros</h3>
    <div className="dashboard-kpis">{summary('Pacientes cadastrados',loading?'…':patientCount??'—','Total de registros fictícios')}</div>
-   <p className="profile-notice">Agenda de aplicações, medicamentos e protocolos clínicos não são mostrados no perfil administrativo. Uma futura agenda de atendimento exigirá permissões próprias, separadas das informações clínicas.</p>
+   <p className="profile-notice">A equipe administrativa pode consultar a agenda compartilhada de atendimentos, sem acesso às prescrições ou às sessões clínicas dos protocolos.</p>
    <button className="gold-button" type="button" onClick={()=>onNavigate('Pacientes')}>Abrir pacientes →</button>
   </div>:<>
    <div className="dashboard-kpis">
