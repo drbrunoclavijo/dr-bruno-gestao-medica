@@ -20,8 +20,8 @@ export const confirmationText=a=>{
  return 'Olá! Sua consulta no Majestic Santé Institute com '+name+' está agendada para '+date+', às '+time+'.\n\n'
  +'Responda 1 para confirmar sua presença ou 2 para solicitar reagendamento.\n\nAguardamos você!';
 };
-export const confirmedText=a=>'Sua consulta com '+professionalDisplayName(a.profissional_nome)+' no Majestic Santé Institute está confirmada para '+displayDate(a.inicio_local)+', às '+String(a.inicio_local||'').slice(11,16)+'.\\n\\nSerá um prazer recebê-lo(a). Até breve!';
-export const rescheduleText=()=> 'Recebemos sua solicitação de reagendamento. Nossa equipe de relacionamento entrará em contato para encontrar um novo horário que seja conveniente para você.\\n\\nMajestic Santé Institute — será um prazer recebê-lo(a)!';
+export const confirmedText=a=>'Sua consulta com '+professionalDisplayName(a.profissional_nome)+' no Majestic Santé Institute está confirmada para '+displayDate(a.inicio_local)+', às '+String(a.inicio_local||'').slice(11,16)+'.\n\nSerá um prazer recebê-lo(a). Até breve!';
+export const rescheduleText=()=> 'Recebemos sua solicitação de reagendamento. Nossa equipe de relacionamento entrará em contato para encontrar um novo horário que seja conveniente para você.\n\nMajestic Santé Institute — será um prazer recebê-lo(a)!';
 export function useAppointments(supabase,from,to){
  const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  async function refresh(){
