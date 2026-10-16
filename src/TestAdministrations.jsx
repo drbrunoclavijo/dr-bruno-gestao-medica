@@ -4,6 +4,7 @@ export default function TestAdministrations({supabase,patientId,role}){
  const [currentUserId,setCurrentUserId]=useState(null),[photos,setPhotos]=useState({}),[photoLinks,setPhotoLinks]=useState({}),[names,setNames]=useState({}),[entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
  const canCheck=role==='enfermeira';
  const [sessionByItem,setSessionByItem]=useState({});
+ const [viewFilter,setViewFilter]=useState('pendentes'),[searchTerm,setSearchTerm]=useState('');
  const [supplies,setSupplies]=useState([]),[supplyProducts,setSupplyProducts]=useState([]),[supplyMoves,setSupplyMoves]=useState([]),[supplyPick,setSupplyPick]=useState({}),[supplyQty,setSupplyQty]=useState({});
  async function load(){
   setLoading(true);setError('');
@@ -161,6 +162,29 @@ export default function TestAdministrations({supabase,patientId,role}){
    <button type="button" className="outline-gold" disabled={Boolean(busy)||!supplyPick[item.id]} onClick={()=>configureSupply(item)}>Adicionar insumo</button>
   </div>}
  </div>;
+ const allPending=entries.filter(item=>!checks[item.id]);
+ const allChecked=entries.filter(item=>Boolean(checks[item.id]));
+ const assignedPending=allPending.filter(item=>Boolean(sessionByItem[item.id]));
+ const missingStock=allPending.filter(item=>!links[item.id]);
+ const todayLocal=()=>{
+  const d=new Date();
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+ };
+ const todayDate=todayLocal();
+ const overdue=assignedPending.filter(item=>sessionByItem[item.id]?.data_prevista<todayDate);
+ const visibleItems=entries.filter(item=>{
+  const checked=Boolean(checks[item.id]);
+  if(viewFilter==='pendentes'&&checked)return false;
+  if(viewFilter==='checadas'&&!checked)return false;
+  if(viewFilter==='agendadas'&&(checked||!sessionByItem[item.id]))return false;
+  if(viewFilter==='semEstoque'&&(checked||links[item.id]))return false;
+  const q=searchTerm.trim().toLocaleLowerCase('pt-BR');
+  return !q||[item.medicamento,item.dose,item.via,sessionByItem[item.id]?.protocolo_nome,sessionByItem[item.id]?.descricao].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q));
+ }).sort((a,b)=>{
+  if(viewFilter==='checadas')return new Date(checks[b.id]?.checado_em||0)-new Date(checks[a.id]?.checado_em||0);
+  const da=sessionByItem[a.id]?.data_prevista||'9999-12-31',db=sessionByItem[b.id]?.data_prevista||'9999-12-31';
+  return da.localeCompare(db)||String(a.medicamento).localeCompare(String(b.medicamento),'pt-BR');
+ });
  const fileInput=item=><label className="administration-photo">Foto do comprovante (opcional)
   <input type="file" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)}
    onChange={e=>setPhotos(o=>({...o,[item.id]:e.target.files?.[0]||null}))}/>
@@ -171,9 +195,32 @@ export default function TestAdministrations({supabase,patientId,role}){
   <div className="panel-title"><span className="title-icon" aria-hidden="true">✓</span><div><h3>Checagem de administração (teste)</h3><p>Registro fictício com comprovante fotográfico opcional e identificação da profissional.</p></div></div>
   <p className="profile-notice">Somente simulação. Não confirma que um medicamento foi efetivamente administrado; movimenta somente o estoque FICTÍCIO, se houver vínculo válido e saldo disponível. A foto é opcional: pode ser enviada durante a checagem ou posteriormente, sem gerar outra baixa. Não envie fotos ou dados reais de pacientes neste ambiente de testes. Cada item aceita apenas uma checagem nesta versão.</p>
   {error&&<p role="alert" className="form-message">{error}</p>}{message&&<p role="status" className="form-message">{message}</p>}
-  <div className="record-top"><h4>Itens das prescrições de teste</h4><button type="button" className="outline-gold" disabled={loading} onClick={load}>Atualizar</button></div>
-  {loading?<p>Carregando...</p>:entries.length===0?<p className="record-empty">Nenhum item de prescrição encontrado.</p>:<div className="record-list">{entries.map(item=><div key={item.id} className="form-section administration-item">
+  <div className="record-top"><h4>Painel de aplicações e checagens</h4><button type="button" className="outline-gold" disabled={loading||Boolean(busy)} onClick={load}>Atualizar</button></div>
+  {!loading&&<div className="nursing-summary" aria-label="Resumo das checagens de teste">
+    <div><small>Pendentes</small><strong>{allPending.length}</strong></div>
+    <div><small>Com sessão vinculada</small><strong>{assignedPending.length}</strong></div>
+    <div><small>Data prevista já passou</small><strong>{overdue.length}</strong></div>
+    <div><small>Sem vínculo ao estoque</small><strong>{missingStock.length}</strong></div>
+    <div><small>Checagens registradas</small><strong>{allChecked.length}</strong></div>
+   </div>}
+  {!loading&&entries.length>0&&<div className="nursing-toolbar">
+   <label>Visualizar
+    <select value={viewFilter} onChange={e=>setViewFilter(e.target.value)}>
+     <option value="pendentes">Pendentes ({allPending.length})</option>
+     <option value="agendadas">Pendentes com sessão ({assignedPending.length})</option>
+     <option value="semEstoque">Sem vínculo ao estoque ({missingStock.length})</option>
+     <option value="checadas">Checadas ({allChecked.length})</option>
+     <option value="todas">Todas ({entries.length})</option>
+    </select>
+   </label>
+   <label>Buscar medicamento ou protocolo
+    <input type="search" maxLength={100} placeholder="Digite para filtrar" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
+   </label>
+  </div>}
+  {!loading&&overdue.length>0&&<p className="form-message" role="status">Há {overdue.length} sessão(ões) com data prevista anterior a hoje e sem checagem associada. Confira o agendamento; isso não comprova falta ou realização do procedimento.</p>}
+  {loading?<p>Carregando...</p>:entries.length===0?<p className="record-empty">Nenhum item de prescrição encontrado.</p>:visibleItems.length===0?<p className="record-empty">Nenhum item corresponde aos filtros escolhidos.</p>:<div className="record-list">{visibleItems.map(item=><div key={item.id} className="form-section administration-item">
    <div className="administration-heading"><strong>{item.medicamento}</strong><span>{checks[item.id]?'Checagem registrada':'Pendente no teste'}</span></div>
+   {sessionByItem[item.id]&&!checks[item.id]&&sessionByItem[item.id].data_prevista<todayDate&&<p className="form-message">Data planejada anterior a hoje — conferir situação do agendamento.</p>}
    {sessionByItem[item.id]&&<p className="administration-stock"><strong>Sessão vinculada:</strong> {sessionByItem[item.id].protocolo_nome} · {sessionByItem[item.id].descricao} · Prevista para {String(sessionByItem[item.id].data_prevista).split('-').reverse().join('/')}</p>}
    <p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{links[item.id]&&<p className="administration-stock">Baixa configurada: {links[item.id].quantidade} {products.find(p=>p.id===links[item.id].produto_id)?.unidade||'un.'} de {products.find(p=>p.id===links[item.id].produto_id)?.nome||'produto de teste'}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}
    {checks[item.id]?<div className="administration-checked">
