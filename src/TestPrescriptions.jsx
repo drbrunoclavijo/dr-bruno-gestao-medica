@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-const blankItem=()=>({medicamento:'',dose:'',via:'',frequencia:'',duracao:'',orientacoes:''});
+const blankItem=()=>({medicamento:'',dose:'',via:'',frequencia:'',duracao:'',orientacoes:'',produto_id:'',quantidade_estoque:''});
 const formatStamp=v=>{if(!v)return 'Sem data';const d=new Date(v);return Number.isNaN(d.getTime())?'Data indisponível':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(d);};
 const formatDate=v=>{const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]+'/'+m[1]:'Data não informada';};
 export default function TestPrescriptions({supabase,patientId,patientName,canWrite}){
@@ -7,20 +7,29 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
  const [consultation,setConsultation]=useState(''),[items,setItems]=useState([blankItem()]),[notes,setNotes]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[open,setOpen]=useState(false);
  const [referenceItem,setReferenceItem]=useState(''),[repetitions,setRepetitions]=useState('4');
+ const [stockProducts,setStockProducts]=useState([]),[stockLinks,setStockLinks]=useState({});
  async function load(){
   setLoading(true);setError('');
-  const [c,p]=await Promise.all([
+  const [c,p,stock]=await Promise.all([
    supabase.from('consultas_teste').select('id,data_consulta,motivo').eq('paciente_id',patientId).order('data_consulta',{ascending:false}).limit(100),
-   supabase.from('prescricoes_teste').select('id,consulta_id,criado_em,observacoes,medico_id').eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100)
+   supabase.from('prescricoes_teste').select('id,consulta_id,criado_em,observacoes,medico_id').eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100),
+   supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto').eq('tipo_produto','medicamento').eq('ativo',true).order('nome')
   ]);
   if(c.error||p.error){setError('Não foi possível carregar prescrições: '+(c.error||p.error).message);setConsultations([]);setPrescriptions([]);setItemsById({});setLoading(false);return;}
   setConsultations(c.data||[]);setPrescriptions(p.data||[]);
+  if(stock.error){setError('Não foi possível consultar medicamentos do estoque: '+stock.error.message);setStockProducts([]);}else setStockProducts(stock.data||[]);
   const ids=(p.data||[]).map(x=>x.id);
   if(ids.length){
-   const {data,error}=await supabase.from('prescricao_itens_teste').select('prescricao_id,medicamento,dose,via,frequencia,duracao,orientacoes').in('prescricao_id',ids);
+   const {data,error}=await supabase.from('prescricao_itens_teste').select('id,prescricao_id,medicamento,dose,via,frequencia,duracao,orientacoes').in('prescricao_id',ids);
    if(error)setError('Prescrições encontradas, mas não foi possível carregar os itens: '+error.message);
-   else{const grouped={};for(const i of data||[])(grouped[i.prescricao_id]??=[]).push(i);setItemsById(grouped);}
-  }else setItemsById({});
+   else{const grouped={};for(const i of data||[])(grouped[i.prescricao_id]??=[]).push(i);setItemsById(grouped);
+    const itemIds=(data||[]).map(i=>i.id);
+    if(itemIds.length){const v=await supabase.from('estoque_vinculos_teste').select('item_prescricao_id,produto_id,quantidade').in('item_prescricao_id',itemIds);
+      if(v.error)setError('Prescrições carregadas, mas vínculo ao estoque indisponível: '+v.error.message);
+      else setStockLinks(Object.fromEntries((v.data||[]).map(x=>[x.item_prescricao_id,x])));
+    }else setStockLinks({});
+   }
+  }else{setItemsById({});setStockLinks({});}
   setLoading(false);
  }
  useEffect(()=>{if(canWrite)load();},[patientId,canWrite]);
@@ -36,7 +45,7 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
   if(!Number.isInteger(count)||count<1||count>20){setError('Escolha de 1 a 20 aplicações para preparar.');return;}
   if(!window.confirm('Preparar '+count+' itens de rascunho com os dados da prescrição anterior? Confira dose, via e frequência de CADA item antes de salvar.'))return;
   const fields=['medicamento','dose','via','frequencia','duracao','orientacoes'];
-  const draft=Object.fromEntries(fields.map(k=>[k,String(selected.item[k]||'')]));
+  const draft={...blankItem(),...Object.fromEntries(fields.map(k=>[k,String(selected.item[k]||'')]))};
   setItems(Array.from({length:count},()=>({...draft})));
   setOpen(true);
   setSuccess(count+' itens preenchidos como RASCUNHO. Selecione uma consulta e revise TODOS os itens. Nada foi prescrito ou registrado automaticamente.');
@@ -46,16 +55,42 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
   e.preventDefault();setError('');setSuccess('');
   if(!canWrite||busy)return;
   if(!consultations.some(c=>c.id===consultation)){setError('Selecione uma consulta deste paciente.');return;}
-  if(!items.length||items.some(i=>['medicamento','dose','via','frequencia'].some(k=>!i[k].trim()))){setError('Preencha medicamento, dose, via e frequência de todos os itens.');return;}
+  if(!items.length||items.some(i=>['medicamento','dose','via','frequencia'].some(k=>!i[k].trim()))){
+   setError('Preencha medicamento, dose, via e frequência de todos os itens.');return;
+  }
+  for(const [index,i] of items.entries()){
+   if(!i.produto_id&&i.quantidade_estoque){setError('Item '+(index+1)+': selecione um produto do estoque ou retire a quantidade.');return;}
+   if(i.produto_id){
+    const n=Number(i.quantidade_estoque);
+    if(!stockProducts.some(p=>p.id===i.produto_id)||!Number.isFinite(n)||n<=0||n>100000||
+      Math.abs(Math.round(n*1000)-n*1000)>0.000001){
+     setError('Item '+(index+1)+': escolha medicamento ativo e quantidade com até três casas decimais.');return;
+    }
+   }
+  }
+  const linkedCount=items.filter(i=>Boolean(i.produto_id)).length;
+  if(linkedCount>0&&!window.confirm('Salvar a prescrição fictícia com '+linkedCount+' item(ns) vinculado(s) ao estoque? Confira medicamento, apresentação e quantidade. O estoque NÃO será descontado agora.'))return;
   setBusy(true);
-  const {error,id,data}=await (async()=>{const r=await supabase.rpc('salvar_prescricao_teste',{p_paciente_id:patientId,p_consulta_id:consultation,p_itens:items.map(i=>Object.fromEntries(Object.entries(i).map(([k,v])=>[k,v.trim()]))),p_observacoes:notes.trim()||null});return {error:r.error,id:r.data};})();
-  if(error){setError('Não foi possível salvar: '+error.message+'. Verifique se a função salvar_prescricao_teste foi instalada no Supabase.');setBusy(false);return;}
-  setSuccess('Prescrição fictícia registrada. Código: '+id);setConsultation('');setItems([blankItem()]);setNotes('');setOpen(false);await load();setBusy(false);
+  try{
+   const payload=items.map(i=>({
+    medicamento:i.medicamento.trim(),dose:i.dose.trim(),via:i.via.trim(),
+    frequencia:i.frequencia.trim(),duracao:i.duracao.trim(),orientacoes:i.orientacoes.trim(),
+    ...(i.produto_id?{produto_id:i.produto_id,quantidade_estoque:i.quantidade_estoque}:{})
+   }));
+   const {data:id,error:err}=await supabase.rpc('salvar_prescricao_com_estoque_teste',{
+    p_paciente_id:patientId,p_consulta_id:consultation,p_itens:payload,p_observacoes:notes.trim()||null
+   });
+   if(err)throw err;
+   setConsultation('');setItems([blankItem()]);setNotes('');setOpen(false);
+   await load();
+   setSuccess('Prescrição fictícia salva com sucesso. '+linkedCount+' item(ns) preparado(s) para baixa futura, sem descontar estoque. Código: '+id);
+  }catch(err){setError('Não foi possível salvar a prescrição ou os vínculos: '+err.message+'. Verifique a migração de prescrição com estoque. Nenhum dado deve ser confirmado parcialmente.');}
+  finally{setBusy(false);}
  }
  return <section className="premium-panel prescription-panel">
  <div className="panel-title"><span className="title-icon" aria-hidden="true">✚</span><div><h3>Prescrições de teste</h3><p>Medicamentos fictícios vinculados ao paciente e a uma consulta registrada.</p></div></div>
  {!canWrite?<p className="profile-notice">Acesso restrito ao perfil médico autorizado.</p>:<>
-  <p className="profile-notice">Somente testes. Nenhuma prescrição é assinada ou enviada; medicamentos precisam de vínculo com estoque antes da checagem. Itens repetidos são apenas sugestões copiadas para revisão médica obrigatória, não uma prescrição automática.</p>
+  <p className="profile-notice">Somente testes. É possível associar cada item à quantidade do estoque durante esta prescrição. Nenhum saldo será descontado até a checagem fictícia pela enfermagem. Itens repetidos são rascunhos para revisão médica obrigatória, sem replicação automática de vínculos ao estoque.</p>
   {error&&<p className="form-message" role="alert">{error}</p>}
   {success&&<p className="form-message" role="status">{success}</p>}
   <div className="record-top"><h4>Prescrições de {patientName}</h4><button type="button" className="gold-button" disabled={loading||!consultations.length} onClick={()=>setOpen(x=>!x)}>{open?'Fechar formulário':'+ Nova prescrição'}</button></div>
@@ -86,12 +121,26 @@ export default function TestPrescriptions({supabase,patientId,patientName,canWri
     {[['medicamento','Nome do medicamento',200],['dose','Dose / apresentação',150],['via','Via de administração',100],['frequencia','Frequência / intervalo',150],['duracao','Duração',150]].map(([k,label,max])=><label key={k}>{label}{k!=='duracao'?' *':''}<input type="text" maxLength={max} required={k!=='duracao'} placeholder={label} value={item[k]} onChange={e=>updateItem(index,k,e.target.value)}/></label>)}
     <label className="full-span">Orientações fictícias<textarea rows={3} maxLength={3000} value={item.orientacoes} onChange={e=>updateItem(index,'orientacoes',e.target.value)}/></label>
     </div>
+    <div className="prescription-stock-link"><strong>Vincular medicamento ao estoque (opcional)</strong>
+     <p>Selecione manualmente o produto correspondente à prescrição e a quantidade a descontar somente quando a enfermagem confirmar a checagem.</p>
+     <div className="prescription-stock-fields">
+      <label>Produto cadastrado no estoque<select value={item.produto_id} onChange={e=>updateItem(index,'produto_id',e.target.value)}>
+       <option value="">Sem vínculo agora — Dra. Carol poderá vincular depois</option>
+       {stockProducts.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.unidade})</option>)}
+      </select></label>
+      {item.produto_id&&<label>Quantidade consumida por aplicação ({stockProducts.find(p=>p.id===item.produto_id)?.unidade||'un.'})
+       <input type="number" required min="0.001" max="100000" step="0.001" value={item.quantidade_estoque}
+        onChange={e=>updateItem(index,'quantidade_estoque',e.target.value)} placeholder="Ex.: 1"/>
+      </label>}
+     </div>
+     {!stockProducts.length&&<small>Nenhum medicamento ativo no estoque. Você poderá salvar sem vínculo e cadastrar o produto posteriormente.</small>}
+    </div>
    </div>)}</div>
    <button type="button" className="outline-gold" disabled={items.length>=20} onClick={()=>setItems(old=>[...old,blankItem()])}>+ Adicionar medicamento</button>
    <label className="prescription-label">Observações gerais<textarea value={notes} rows={3} maxLength={3000} onChange={e=>setNotes(e.target.value)}/></label>
    <div className="form-actions"><button type="button" className="outline-gold" onClick={()=>setOpen(false)}>Cancelar</button><button type="submit" className="gold-button" disabled={busy}>{busy?'Salvando...':'Salvar prescrição de teste'}</button></div>
   </form>}
-  {loading?<p>Carregando prescrições...</p>:prescriptions.length===0?<p className="record-empty">Nenhuma prescrição de teste registrada.</p>:<div className="record-list">{prescriptions.map(p=><details className="record-entry" key={p.id}><summary><span>{formatStamp(p.criado_em)} · {itemsById[p.id]?.length||0} item(ns)</span><span>Ver medicamentos</span></summary><div className="record-content">{p.observacoes&&<div><strong>Observações gerais</strong><p>{p.observacoes}</p></div>}{(itemsById[p.id]||[]).map((item,i)=><div key={i} className="prescription-preview"><strong>{i+1}. {item.medicamento}</strong><p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}</div>)}</div></details>)}</div>}
+  {loading?<p>Carregando prescrições...</p>:prescriptions.length===0?<p className="record-empty">Nenhuma prescrição de teste registrada.</p>:<div className="record-list">{prescriptions.map(p=><details className="record-entry" key={p.id}><summary><span>{formatStamp(p.criado_em)} · {itemsById[p.id]?.length||0} item(ns)</span><span>Ver medicamentos</span></summary><div className="record-content">{p.observacoes&&<div><strong>Observações gerais</strong><p>{p.observacoes}</p></div>}{(itemsById[p.id]||[]).map((item,i)=><div key={i} className="prescription-preview"><strong>{i+1}. {item.medicamento}</strong><p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}{stockLinks[item.id]?<p><strong>Estoque preparado:</strong> {stockLinks[item.id].quantidade} {stockProducts.find(x=>x.id===stockLinks[item.id].produto_id)?.unidade||'un.'} de {stockProducts.find(x=>x.id===stockLinks[item.id].produto_id)?.nome||'medicamento cadastrado'}. Baixa somente na checagem.</p>:<p>Estoque ainda não vinculado — preparação poderá ser feita pela enfermagem.</p>}</div>)}</div></details>)}</div>}
  </>}
  </section>;
 }
