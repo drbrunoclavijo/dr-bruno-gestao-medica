@@ -472,3 +472,26 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
  .dashboard-agenda-row button{width:100%}
  .dashboard-shortcuts button{flex:1;min-width:180px}
 }
+
+/* Agenda compartilhada de atendimentos - somente testes */
+.clinic-calendar{display:grid;gap:16px}
+.calendar-tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;align-items:end;margin:17px 0}
+.calendar-tools label{display:flex;flex-direction:column;gap:7px;color:#e1caa1;font-size:12px;font-weight:600;min-width:0}
+.calendar-tools :is(input,select){width:100%;min-width:0;min-height:46px}
+.calendar-tools .calendar-note{grid-column:1/-1}
+.calendar-tools .calendar-form-actions{grid-column:1/-1}
+.calendar-entries{display:grid;gap:10px;margin-top:14px}
+.calendar-entry{display:grid;grid-template-columns:125px minmax(180px,1fr) auto;align-items:center;gap:14px;padding:15px;border-radius:13px;border:1px solid #5f5038;background:linear-gradient(110deg,#161a1e,#27231c);min-width:0}
+.calendar-entry-time,.calendar-entry-detail{display:flex;flex-direction:column;gap:5px;min-width:0}
+.calendar-entry-time strong{color:#f1d1a0;font-variant-numeric:tabular-nums;font-size:13px}
+.calendar-entry-time span{color:#ede6da;font-size:13px}
+.calendar-entry-detail strong{color:#f0ece4;font-size:14px;overflow-wrap:anywhere}
+.calendar-entry-detail span{color:#c5b8a2;font-size:12px;overflow-wrap:anywhere}
+.calendar-entry-detail small{color:#aeb3b4;font-size:11px;line-height:1.5}
+.calendar-entry-actions{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;max-width:260px}
+.calendar-entry-actions button,.calendar-entry>button{font-size:11px;padding:8px 10px}
+.dashboard-appointments{display:grid;gap:16px}
+.dashboard-appointments .dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dashboard-appointments .dashboard-agenda-title{margin-bottom:2px}
+@media(max-width:760px){.calendar-entry{grid-template-columns:1fr;gap:11px}.calendar-entry-actions{max-width:none;justify-content:flex-start}.calendar-entry-actions button{flex:1;min-width:130px}}
+@media(max-width:500px){.dashboard-appointments .dashboard-kpis{grid-template-columns:1fr}.calendar-tools{grid-template-columns:1fr}}
