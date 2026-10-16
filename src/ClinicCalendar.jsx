@@ -25,6 +25,15 @@ export default function ClinicCalendar({supabase,role}){
  const [from,setFrom]=useState(localDate()),[view,setView]=useState('semana'),[filter,setFilter]=useState(''),[term,setTerm]=useState('');
  const to=view==='dia'?from:view==='semana'?shiftDay(from,6):shiftDay(from,29);
  const {rows,loading,error,refresh}=useAppointments(supabase,from,to);
+ const [applications,setApplications]=useState([]),[applicationsLoading,setApplicationsLoading]=useState(true),[applicationsError,setApplicationsError]=useState('');
+ async function reloadApplications(){
+  setApplicationsLoading(true);setApplicationsError('');
+  const {data,error:err}=await supabase.rpc('agenda_aplicacoes_administrativa_teste',{p_de:from,p_ate:to});
+  if(err){setApplicationsError('Agenda de aplicações indisponível: '+err.message);setApplications([]);}
+  else setApplications(data||[]);
+  setApplicationsLoading(false);
+ }
+ useEffect(()=>{reloadApplications();},[from,to]);
  const [patients,setPatients]=useState([]),[professionals,setProfessionals]=useState([]),[form,setForm]=useState(initial),[open,setOpen]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[formError,setFormError]=useState('');
  useEffect(()=>{(async()=>{
   const [p,pro]=await Promise.all([supabase.from('pacientes').select('id,nome').order('nome').limit(300),supabase.rpc('agenda_profissionais_teste')]);
@@ -66,15 +75,15 @@ export default function ClinicCalendar({supabase,role}){
  const today=localDate();
  return <section className="clinic-calendar">
   <div className="premium-panel">
-   <div className="panel-title"><span className="title-icon" aria-hidden="true">▦</span><div><h3>Agenda compartilhada</h3><p>Consultas, retornos e procedimentos fictícios · Horário de Foz do Iguaçu</p></div></div>
-   <p className="profile-notice">Agenda disponível ao médico, enfermagem e equipe administrativa. Confirmações feitas aqui são MANUAIS. Envio e recebimento automático de mensagens ainda não estão conectados.</p>
+   <div className="panel-title"><span className="title-icon" aria-hidden="true">▦</span><div><h3>{role==='equipe'?'Agenda completa da clínica':role==='medico'?'Minha agenda — Dr. Bruno':'Minha agenda — Dra. Carol'}</h3><p>Consultas, retornos e procedimentos fictícios · Horário de Foz do Iguaçu</p></div></div>
+   <p className="profile-notice">As consultas exibidas para médico e enfermeira são somente as próprias. Amanda visualiza consultas de todos os profissionais e a agenda administrativa de aplicações. Confirmações feitas aqui são MANUAIS. Envio e recebimento automático de mensagens ainda não estão conectados.</p>
    {error&&<p className="form-message" role="alert">{error}</p>}
    {formError&&<p className="form-message" role="alert">{formError}</p>}
    {message&&<p className="form-message" role="status">{message}</p>}
    <div className="calendar-tools">
     <label>Data inicial<input type="date" value={from} onChange={e=>setFrom(e.target.value)} /></label>
     <label>Exibir<select value={view} onChange={e=>setView(e.target.value)}><option value="dia">Dia</option><option value="semana">7 dias</option><option value="mes">30 dias</option></select></label>
-    <label>Profissional<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="">Todos</option>{professionals.map(p=><option value={p.id} key={p.id}>{p.nome}</option>)}</select></label>
+    {role==='equipe'&&<label>Profissional<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="">Todos</option>{professionals.map(p=><option value={p.id} key={p.id}>{p.nome}</option>)}</select></label>}
     <label>Buscar<input type="search" placeholder="Paciente ou atendimento" value={term} onChange={e=>setTerm(e.target.value)}/></label>
    </div>
    <div className="form-actions">
@@ -111,6 +120,17 @@ export default function ClinicCalendar({supabase,role}){
       {['agendado','confirmado'].includes(a.status)&&<button className="outline-gold" disabled={busy} onClick={()=>status(a,'cancelado')}>Cancelar</button>}
      </div>
     </div>)}</div>}
+  </div>
+  <div className="premium-panel dashboard-agenda">
+   <div className="dashboard-agenda-title"><div><h3>Agenda de aplicações</h3><p>Agenda compartilhada de sessões planejadas · sem dados de medicação nesta visualização.</p></div>
+    <button type="button" className="outline-gold" disabled={applicationsLoading} onClick={reloadApplications}>Atualizar aplicações</button></div>
+   {applicationsError&&<p role="alert" className="form-message">{applicationsError}</p>}
+   {applicationsLoading?<p>Carregando sessões...</p>:applications.length===0?<p className="record-empty">Nenhuma aplicação planejada neste período.</p>:
+    <div className="calendar-entries">{applications.map(a=><div className="calendar-entry" key={a.sessao_id}>
+     <div className="calendar-entry-time"><strong>{displayDate(a.data_prevista)}</strong><span>Aplicação</span></div>
+     <div className="calendar-entry-detail"><strong>{a.paciente_nome}</strong><span>{a.profissional_nome}</span><small>{a.status==='checada'?'Checada':'Pendente'}</small></div>
+    </div>)}</div>}
+   {applications.length>=1500&&<p className="profile-notice">Limite de resultados atingido. Selecione um período menor.</p>}
   </div>
  </section>;
 }
