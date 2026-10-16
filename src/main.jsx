@@ -11,12 +11,13 @@ import TestPatientDocuments from './TestPatientDocuments.jsx';
 import TestProtocols from './TestProtocols.jsx';
 import NurseProtocols from './NurseProtocols.jsx';
 import ClinicDashboard from './ClinicDashboard.jsx';
+import ClinicCalendar from './ClinicCalendar.jsx';
 
 const url=import.meta.env.VITE_SUPABASE_URL;
 const key=import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase=url&&key?createClient(url,key):null;
-const modules=['Visão geral','Pacientes','Prescrições','Administrações','Estoque','Custos','Protocolos','Auditoria'];
-const access={medico:modules,enfermeira:['Visão geral','Pacientes','Administrações','Estoque','Protocolos'],equipe:['Visão geral','Pacientes','Estoque']};
+const modules=['Visão geral','Agenda','Pacientes','Prescrições','Administrações','Estoque','Custos','Protocolos','Auditoria'];
+const access={medico:modules,enfermeira:['Visão geral','Agenda','Pacientes','Administrações','Estoque','Protocolos'],equipe:['Visão geral','Agenda','Pacientes','Estoque']};
 const emptyPatient={nome:'',nascimento:'',telefone:'',cpf:'',email:'',cep:'',logradouro:'',numero:'',complemento:'',bairro:'',cidade:'',uf:''};
 function validCPF(value){
  const n=value.replace(/\D/g,'');
@@ -251,7 +252,7 @@ function App(){
  !session?<article className="login"><h2>Entrar no sistema</h2><form onSubmit={login}><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="active" disabled={busy}>{busy?'Entrando...':'Entrar'}</button></form>{error&&<p className="error" role="alert">{error}</p>}</article>:
  <><div className="session"><span className="session-user"><span className="user-avatar" aria-hidden="true">BC</span><span>{profile?.nome||session.user.email}<small>{profile?.ativo?profile.perfil:'Acesso restrito'}</small></span></span><button onClick={logout}>Sair</button></div>
  {!profile?.ativo||!access[profile?.perfil]?<article><h2>Acesso não liberado</h2><p>Seu usuário não possui um perfil ativo e autorizado. Solicite a configuração ao administrador.</p>{error&&<p className="error">{error}</p>}</article>:
- <><nav>{permitted.map(m=><button key={m} className={activeTab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{activeTab}</h2>{activeTab==='Visão geral'?<ClinicDashboard supabase={supabase} role={profile.perfil} onNavigate={setTab}/>:activeTab==='Pacientes'?<Patients role={profile.perfil}/>:activeTab==='Prescrições'?<PrescriptionsHub role={profile.perfil}/>:activeTab==='Administrações'?<AdministrationsHub role={profile.perfil}/>:activeTab==='Custos'?<TestCostReport supabase={supabase}/>:activeTab==='Protocolos'?(profile.perfil==='enfermeira'?<NurseProtocols supabase={supabase}/>:<TestProtocols supabase={supabase}/>):activeTab==='Estoque'?(['medico','enfermeira','equipe'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}</article></>}
+ <><nav>{permitted.map(m=><button key={m} className={activeTab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{activeTab}</h2>{activeTab==='Visão geral'?<ClinicDashboard supabase={supabase} role={profile.perfil} onNavigate={setTab}/>:activeTab==='Agenda'?<ClinicCalendar supabase={supabase} role={profile.perfil}/>:activeTab==='Pacientes'?<Patients role={profile.perfil}/>:activeTab==='Prescrições'?<PrescriptionsHub role={profile.perfil}/>:activeTab==='Administrações'?<AdministrationsHub role={profile.perfil}/>:activeTab==='Custos'?<TestCostReport supabase={supabase}/>:activeTab==='Protocolos'?(profile.perfil==='enfermeira'?<NurseProtocols supabase={supabase}/>:<TestProtocols supabase={supabase}/>):activeTab==='Estoque'?(['medico','enfermeira','equipe'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}</article></>}
  </>}
  <footer>Versão de testes. Não inserir dados de pacientes até a validação de segurança, LGPD e funcionalidades clínicas.</footer></main>;
 }
