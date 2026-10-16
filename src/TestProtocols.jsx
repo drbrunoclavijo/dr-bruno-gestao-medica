@@ -72,6 +72,18 @@ export default function TestProtocols({supabase}){
   else{await load();setMessage('Repasse da clínica atualizado no protocolo fictício.');}
   setClinicBusy('');
  }
+ const [sessionLinkDraft,setSessionLinkDraft]=useState({});
+ async function bindSession(sess,p){
+  const itemId=sessionLinkDraft[sess.sessao_id];
+  if(!itemId||sessionBusy)return;
+  setSessionBusy(sess.sessao_id);setError('');setMessage('');
+  const {error:err}=await supabase.rpc('vincular_item_sessao_teste',{
+   p_sessao_id:sess.sessao_id,p_item_id:itemId
+  });
+  if(err)setError('Não foi possível associar a prescrição à sessão: '+err.message);
+  else{setSessionLinkDraft(old=>({...old,[sess.sessao_id]:''}));await load();setMessage('Sessão vinculada ao item prescrito. Nenhuma baixa de estoque foi feita.');}
+  setSessionBusy('');
+ }
  const updateSession=(id,k,v)=>setSessionForm(old=>({...old,[id]:{...(old[id]||{}),[k]:v}}));
  async function addSession(p){
   setError('');setMessage('');
@@ -219,7 +231,16 @@ export default function TestProtocols({supabase}){
         <p>{sess.status==='cancelada'?'Cancelada':sess.checado_em?'Checagem associada registrada':'Agendada — pendente de checagem'}{sess.medicamento?' · '+sess.medicamento:' · sem item prescrito associado'}</p>
         {sess.observacao&&<small>{sess.observacao}</small>}
        </div>
-       {sess.status==='agendada'&&!sess.checado_em&&<button type="button" className="outline-gold" disabled={Boolean(sessionBusy)} onClick={()=>cancelSession(sess)}>Cancelar</button>}
+       {sess.status==='agendada'&&!sess.checado_em&&<div className="session-bind-actions">
+        {!sess.item_prescricao_id&&<label>Associar item prescrito
+         <select value={sessionLinkDraft[sess.sessao_id]||''} onChange={e=>setSessionLinkDraft(old=>({...old,[sess.sessao_id]:e.target.value}))}>
+          <option value="">Selecione item ainda pendente</option>
+          {pOptions.map(it=><option key={it.item_id} value={it.item_id}>{it.medicamento} · {it.item_id.slice(0,8)}</option>)}
+         </select>
+        </label>}
+        {!sess.item_prescricao_id&&<button type="button" className="gold-button" disabled={Boolean(sessionBusy)||!sessionLinkDraft[sess.sessao_id]} onClick={()=>bindSession(sess,p)}>Vincular item</button>}
+        <button type="button" className="outline-gold" disabled={Boolean(sessionBusy)} onClick={()=>cancelSession(sess)}>Cancelar</button>
+       </div>}
       </div>)}</div>:<p>Nenhuma sessão fictícia agendada.</p>}
       {p.status==='ativo'&&<div className="protocol-recurrence">
        <h4>Gerar calendário recorrente</h4>
