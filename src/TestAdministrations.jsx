@@ -3,6 +3,7 @@ const stamp=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'Data indis
 export default function TestAdministrations({supabase,patientId,role}){
  const [currentUserId,setCurrentUserId]=useState(null),[photos,setPhotos]=useState({}),[photoLinks,setPhotoLinks]=useState({}),[names,setNames]=useState({}),[entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
  const canCheck=role==='enfermeira';
+ const [sessionByItem,setSessionByItem]=useState({});
  const [supplies,setSupplies]=useState([]),[supplyProducts,setSupplyProducts]=useState([]),[supplyMoves,setSupplyMoves]=useState([]),[supplyPick,setSupplyPick]=useState({}),[supplyQty,setSupplyQty]=useState({});
  async function load(){
   setLoading(true);setError('');
@@ -11,7 +12,7 @@ export default function TestAdministrations({supabase,patientId,role}){
   const rx=await supabase.from('prescricoes_teste').select('id,criado_em').eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100);
   if(rx.error){setError('Não foi possível consultar prescrições: '+rx.error.message);setLoading(false);return;}
   const ids=(rx.data||[]).map(x=>x.id);
-  if(!ids.length){setEntries([]);setChecks({});setNames({});setSupplies([]);setSupplyMoves([]);setLoading(false);return;}
+  if(!ids.length){setEntries([]);setChecks({});setNames({});setSupplies([]);setSupplyMoves([]);setSessionByItem({});setLoading(false);return;}
   const it=await supabase.from('prescricao_itens_teste').select('id,prescricao_id,medicamento,dose,via,frequencia,duracao,orientacoes').in('prescricao_id',ids);
   if(it.error){setError('Não foi possível consultar medicamentos: '+it.error.message);setLoading(false);return;}
   const items=it.data||[];
@@ -53,6 +54,9 @@ export default function TestAdministrations({supabase,patientId,role}){
    movements=result.data||[];
   }
   setSupplies(planned.data||[]);setSupplyProducts(prods.data||[]);setSupplyMoves(movements);
+  const sessionData=await supabase.rpc('sessoes_paciente_enfermagem_teste',{p_paciente_id:patientId});
+  if(sessionData.error){setError('Não foi possível consultar a agenda de sessões: '+sessionData.error.message);setLoading(false);return;}
+  setSessionByItem(Object.fromEntries((sessionData.data||[]).map(x=>[x.item_prescricao_id,x])));
   setEntries(items.map(i=>({...i,prescribedAt:(rx.data||[]).find(p=>p.id===i.prescricao_id)?.criado_em})));
   setLoading(false);
  }
@@ -170,6 +174,7 @@ export default function TestAdministrations({supabase,patientId,role}){
   <div className="record-top"><h4>Itens das prescrições de teste</h4><button type="button" className="outline-gold" disabled={loading} onClick={load}>Atualizar</button></div>
   {loading?<p>Carregando...</p>:entries.length===0?<p className="record-empty">Nenhum item de prescrição encontrado.</p>:<div className="record-list">{entries.map(item=><div key={item.id} className="form-section administration-item">
    <div className="administration-heading"><strong>{item.medicamento}</strong><span>{checks[item.id]?'Checagem registrada':'Pendente no teste'}</span></div>
+   {sessionByItem[item.id]&&<p className="administration-stock"><strong>Sessão vinculada:</strong> {sessionByItem[item.id].protocolo_nome} · {sessionByItem[item.id].descricao} · Prevista para {String(sessionByItem[item.id].data_prevista).split('-').reverse().join('/')}</p>}
    <p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{links[item.id]&&<p className="administration-stock">Baixa configurada: {links[item.id].quantidade} {products.find(p=>p.id===links[item.id].produto_id)?.unidade||'un.'} de {products.find(p=>p.id===links[item.id].produto_id)?.nome||'produto de teste'}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}
    {checks[item.id]?<div className="administration-checked">
     <p>Checado em {stamp(checks[item.id].checado_em)} · Responsável: {names[checks[item.id].profissional_id]||'Profissional não identificado'}{checks[item.id].observacao?' · '+checks[item.id].observacao:''}</p>
