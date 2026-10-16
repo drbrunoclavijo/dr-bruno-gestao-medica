@@ -7,7 +7,7 @@ export const localDate=()=>{
 export const shiftDay=(s,n)=>{const d=new Date(s+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 export const displayDate=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'—';
 export const appointmentTypes={consulta:'Consulta',retorno:'Retorno',procedimento:'Procedimento',outro:'Outro agendamento'};
-export const statuses={agendado:'Aguardando confirmação',confirmado:'Confirmado',realizado:'Realizado',cancelado:'Cancelado',faltou:'Faltou'};
+export const statuses={agendado:'Aguardando confirmação',confirmado:'Confirmado',realizado:'Realizado',cancelado:'Cancelado',faltou:'Faltou',reagendamento_solicitado:'Reagendamento solicitado'};
 export const professionalDisplayName=name=>{
  const value=String(name||'').trim();
  if(/bruno.*clavijo/i.test(value))return 'Dr. Bruno Clavijo';
@@ -20,6 +20,8 @@ export const confirmationText=a=>{
  return 'Olá! Sua consulta no Majestic Santé Institute com '+name+' está agendada para '+date+', às '+time+'.\n\n'
  +'Responda 1 para confirmar sua presença ou 2 para solicitar reagendamento.\n\nAguardamos você!';
 };
+export const confirmedText=a=>'Sua consulta com '+professionalDisplayName(a.profissional_nome)+' no Majestic Santé Institute está confirmada para '+displayDate(a.inicio_local)+', às '+String(a.inicio_local||'').slice(11,16)+'.\\n\\nSerá um prazer recebê-lo(a). Até breve!';
+export const rescheduleText=()=> 'Recebemos sua solicitação de reagendamento. Nossa equipe de relacionamento entrará em contato para encontrar um novo horário que seja conveniente para você.\\n\\nMajestic Santé Institute — será um prazer recebê-lo(a)!';
 export function useAppointments(supabase,from,to){
  const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  async function refresh(){
@@ -46,6 +48,9 @@ export default function ClinicCalendar({supabase,role}){
   setApplicationsLoading(false);
  }
  useEffect(()=>{reloadApplications();},[from,to]);
+ const [replyPreview,setReplyPreview]=useState(''),[pending,setPending]=useState([]),[pendingError,setPendingError]=useState('');
+ async function loadPending(){if(role!=='equipe')return;const {data,error:err}=await supabase.rpc('listar_pendencias_agenda_teste');if(err)setPendingError(err.message);else{setPending(data||[]);setPendingError('');}}
+ useEffect(()=>{loadPending();},[role]);
  const [patients,setPatients]=useState([]),[professionals,setProfessionals]=useState([]),[form,setForm]=useState(initial),[open,setOpen]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[formError,setFormError]=useState('');
  useEffect(()=>{(async()=>{
   const [p,pro]=await Promise.all([supabase.from('pacientes').select('id,nome').order('nome').limit(300),supabase.rpc('agenda_profissionais_teste')]);
@@ -71,6 +76,7 @@ export default function ClinicCalendar({supabase,role}){
    });
    if(err)throw err;
    setOpen(false);setForm(initial());setMessage('Agendamento fictício salvo na agenda compartilhada. Nenhuma mensagem foi enviada.');
+   await loadPending();
    if(form.date<from||form.date>to){setFrom(form.date);setView('dia');}else await refresh();
   }catch(err){setFormError('Não foi possível salvar: '+err.message);}
   finally{setBusy(false);}
@@ -80,8 +86,21 @@ export default function ClinicCalendar({supabase,role}){
   setBusy(true);setFormError('');setMessage('');
   const {error:err}=await supabase.rpc('atualizar_status_agendamento_teste',{p_agendamento_id:a.id,p_status:next});
   if(err)setFormError('Não foi possível alterar: '+err.message);
-  else{setMessage('Status alterado manualmente.');await refresh();}
+  else{setMessage('Status alterado manualmente.');await refresh();await loadPending();}
   setBusy(false);
+ }
+ async function simulateReply(a,answer){
+  if(busy)return;
+  if(!window.confirm('SIMULAÇÃO — processar resposta '+answer+' do paciente fictício '+a.paciente_nome+'? Nenhuma mensagem será enviada pelo WhatsApp.'))return;
+  setBusy(true);setFormError('');setMessage('');setReplyPreview('');
+  try{
+   const {error:err}=await supabase.rpc('simular_resposta_agendamento_teste',{p_agendamento_id:a.id,p_resposta:answer});
+   if(err)throw err;
+   setReplyPreview(answer==='1'?confirmedText(a):rescheduleText());
+   setMessage(answer==='1'?'Confirmação simulada registrada. Resposta pronta, ainda NÃO enviada.':'Reagendamento solicitado na simulação. Pendência criada para Amanda; resposta pronta, NÃO enviada.');
+   await refresh();await loadPending();
+  }catch(err){setFormError('Erro ao simular resposta: '+err.message);}
+  finally{setBusy(false);}
  }
  const sort=[...selectedRows].sort((a,b)=>a.inicio_local.localeCompare(b.inicio_local));
  const today=localDate();
@@ -92,6 +111,7 @@ export default function ClinicCalendar({supabase,role}){
    {error&&<p className="form-message" role="alert">{error}</p>}
    {formError&&<p className="form-message" role="alert">{formError}</p>}
    {message&&<p className="form-message" role="status">{message}</p>}
+   {replyPreview&&<div className="form-section"><strong>Mensagem preparada — não enviada</strong><p style={{whiteSpace:'pre-line'}}>{replyPreview}</p><button className="outline-gold" type="button" onClick={()=>navigator.clipboard.writeText(replyPreview).then(()=>setMessage('Mensagem copiada.')).catch(()=>setFormError('Não foi possível copiar automaticamente.'))}>Copiar resposta</button></div>}
    <div className="calendar-tools">
     <label>Data inicial<input type="date" value={from} onChange={e=>setFrom(e.target.value)} /></label>
     <label>Exibir<select value={view} onChange={e=>setView(e.target.value)}><option value="dia">Dia</option><option value="semana">7 dias</option><option value="mes">30 dias</option></select></label>
@@ -119,6 +139,17 @@ export default function ClinicCalendar({supabase,role}){
     <div className="form-actions calendar-form-actions"><button className="outline-gold" type="button" onClick={()=>setOpen(false)}>Cancelar</button><button className="gold-button" type="submit" disabled={busy}>{busy?'Salvando...':'Salvar agendamento'}</button></div>
    </form>
   </div>}
+  {role==='equipe'&&<div className="premium-panel">
+   <div className="dashboard-agenda-title"><div><h3>Pendências para Amanda</h3><p>Pedidos de reagendamento registrados. Contate o paciente e escolha uma nova data.</p></div>
+    <button type="button" className="outline-gold" onClick={loadPending}>Atualizar pendências</button></div>
+   {pendingError&&<p role="alert" className="form-message">{pendingError}</p>}
+   {pending.length===0?<p className="record-empty">Nenhuma solicitação de reagendamento pendente.</p>:
+    <div className="calendar-entries">{pending.map(p=><div key={p.pendencia_id} className="calendar-entry">
+     <div className="calendar-entry-time"><strong>{displayDate(p.inicio_local)}</strong><span>{p.inicio_local?.slice(11,16)}</span></div>
+     <div className="calendar-entry-detail"><strong>{p.paciente_nome}</strong><span>{professionalDisplayName(p.profissional_nome)}</span><small>Solicitou reagendamento — atendimento pendente</small></div>
+     <button className="outline-gold" type="button" onClick={()=>{setFrom(p.inicio_local.slice(0,10));setView('dia');setMessage('Localize o paciente na agenda abaixo e clique em Remarcar.');}}>Localizar</button>
+    </div>)}</div>}
+  </div>}
   <div className="premium-panel">
    <h3>Atendimentos de {displayDate(from)} até {displayDate(to)}</h3>
    {loading?<p>Carregando...</p>:sort.length===0?<p className="record-empty">Nenhum atendimento encontrado para este período.</p>:
@@ -126,8 +157,9 @@ export default function ClinicCalendar({supabase,role}){
      <div className="calendar-entry-time"><strong>{displayDate(a.inicio_local)}</strong><span>{a.inicio_local.slice(11,16)}–{a.fim_local.slice(11,16)}</span></div>
      <div className="calendar-entry-detail"><strong>{a.paciente_nome}</strong><span>{appointmentTypes[a.tipo]} · {a.profissional_nome}</span><small>{statuses[a.status]||a.status}</small>{a.observacao_administrativa&&<small>{a.observacao_administrativa}</small>}</div>
      <div className="calendar-entry-actions">
-      {['agendado','confirmado'].includes(a.status)&&<button className="outline-gold" onClick={()=>edit(a)}>Remarcar</button>}
+      {['agendado','confirmado','reagendamento_solicitado'].includes(a.status)&&<button className="outline-gold" onClick={()=>edit(a)}>Remarcar</button>}
       {a.status==='agendado'&&<button className="outline-gold" disabled={busy} onClick={()=>status(a,'confirmado')}>Confirmar manualmente</button>}
+      {a.status==='agendado'&&<><button className="outline-gold" type="button" disabled={busy} onClick={()=>simulateReply(a,'1')}>Testar resposta 1</button><button className="outline-gold" type="button" disabled={busy} onClick={()=>simulateReply(a,'2')}>Testar resposta 2</button></>}}
       {['agendado','confirmado'].includes(a.status)&&<button type="button" className="outline-gold"
         onClick={async()=>{try{await navigator.clipboard.writeText(confirmationText(a));setMessage('Mensagem de confirmação copiada. Nenhum WhatsApp foi enviado pelo sistema.');}
           catch{setMessage('Não foi possível copiar automaticamente; configure a permissão da área de transferência no navegador.');}}}>Copiar mensagem WhatsApp</button>}
