@@ -113,6 +113,42 @@ function Patients({role}){
  </div>
  </section>;
 }
+function PrescriptionsHub({role}){
+ const [patients,setPatients]=useState([]),[selected,setSelected]=useState(''),[query,setQuery]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ async function load(){
+  setLoading(true);setError('');
+  const {data,error:err}=await supabase.from('pacientes').select('id,nome').order('nome').limit(300);
+  if(err)setError('Não foi possível buscar os pacientes fictícios: '+err.message);
+  else{
+   const records=data||[];
+   setPatients(records);
+   setSelected(previous=>records.some(p=>p.id===previous)?previous:'');
+  }
+  setLoading(false);
+ }
+ useEffect(()=>{load();},[]);
+ if(role!=='medico')return <p>Prescrições restritas ao perfil médico autorizado.</p>;
+ const matches=patients.filter(p=>(p.nome||'').toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR')));
+ const chosen=patients.find(p=>p.id===selected);
+ return <section className="prescriptions-hub">
+  <div className="premium-panel">
+   <div className="panel-title"><span className="title-icon" aria-hidden="true">✚</span><div><h3>Prescrições médicas — Teste</h3><p>Selecione um paciente fictício para criar ou consultar prescrições diretamente.</p></div></div>
+   <p className="profile-notice">O vínculo com consulta é opcional. É possível configurar o medicamento e a quantidade do estoque durante a prescrição; a baixa ocorre somente após a checagem fictícia da enfermagem.</p>
+   {error&&<p className="form-message" role="alert">{error}</p>}
+   <div className="nursing-toolbar">
+    <label>Buscar paciente<input type="search" maxLength={150} placeholder="Nome do paciente fictício" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+    <label>Paciente<select value={selected} disabled={loading} onChange={e=>setSelected(e.target.value)}>
+     <option value="">Selecione um paciente</option>
+     {matches.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+     {chosen&&!matches.some(p=>p.id===chosen.id)&&<option value={chosen.id}>{chosen.nome}</option>}
+    </select></label>
+   </div>
+   <div className="form-actions"><button type="button" className="outline-gold" disabled={loading} onClick={load}>{loading?'Carregando...':'Atualizar pacientes'}</button></div>
+  </div>
+  {chosen?<TestPrescriptions key={chosen.id} supabase={supabase} patientId={chosen.id} patientName={chosen.nome} canWrite={true}/>:
+   <div className="premium-panel"><p className="record-empty">Escolha um paciente fictício para consultar ou adicionar prescrições.</p></div>}
+ </section>;
+}
 function AdministrationsHub({role}){
  const [patients,setPatients]=useState([]),[selected,setSelected]=useState(''),[query,setQuery]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState('');
  async function load(){
@@ -214,7 +250,7 @@ function App(){
  !session?<article className="login"><h2>Entrar no sistema</h2><form onSubmit={login}><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="active" disabled={busy}>{busy?'Entrando...':'Entrar'}</button></form>{error&&<p className="error" role="alert">{error}</p>}</article>:
  <><div className="session"><span className="session-user"><span className="user-avatar" aria-hidden="true">BC</span><span>{profile?.nome||session.user.email}<small>{profile?.ativo?profile.perfil:'Acesso restrito'}</small></span></span><button onClick={logout}>Sair</button></div>
  {!profile?.ativo||!access[profile?.perfil]?<article><h2>Acesso não liberado</h2><p>Seu usuário não possui um perfil ativo e autorizado. Solicite a configuração ao administrador.</p>{error&&<p className="error">{error}</p>}</article>:
- <><nav>{permitted.map(m=><button key={m} className={activeTab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{activeTab}</h2>{activeTab==='Pacientes'?<Patients role={profile.perfil}/>:activeTab==='Administrações'?<AdministrationsHub role={profile.perfil}/>:activeTab==='Custos'?<TestCostReport supabase={supabase}/>:activeTab==='Protocolos'?(profile.perfil==='enfermeira'?<NurseProtocols supabase={supabase}/>:<TestProtocols supabase={supabase}/>):activeTab==='Estoque'?(['medico','enfermeira','equipe'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}{activeTab==='Visão geral'&&<div className="cards">{permitted.filter(x=>x!=='Visão geral').map(x=><div key={x}><strong>{x}</strong><p>Em preparação</p></div>)}</div>}</article></>}
+ <><nav>{permitted.map(m=><button key={m} className={activeTab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{activeTab}</h2>{activeTab==='Pacientes'?<Patients role={profile.perfil}/>:activeTab==='Prescrições'?<PrescriptionsHub role={profile.perfil}/>:activeTab==='Administrações'?<AdministrationsHub role={profile.perfil}/>:activeTab==='Custos'?<TestCostReport supabase={supabase}/>:activeTab==='Protocolos'?(profile.perfil==='enfermeira'?<NurseProtocols supabase={supabase}/>:<TestProtocols supabase={supabase}/>):activeTab==='Estoque'?(['medico','enfermeira','equipe'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}{activeTab==='Visão geral'&&<div className="cards">{permitted.filter(x=>x!=='Visão geral').map(x=><div key={x}><strong>{x}</strong><p>Em preparação</p></div>)}</div>}</article></>}
  </>}
  <footer>Versão de testes. Não inserir dados de pacientes até a validação de segurança, LGPD e funcionalidades clínicas.</footer></main>;
 }
