@@ -123,6 +123,7 @@ function App(){
   let active=true;
   let userId=null;
   let authRevision=0;
+  let profileReady=false;
   async function refresh(s){
    if(!active)return;
    const nextId=s?.user?.id||null;
@@ -130,11 +131,12 @@ function App(){
    // Só revalidamos perfil quando a identidade realmente muda.
    if(nextId===userId){
     setSession(old=>nextId?s:(old?.user?.id===nextId?null:old));
-    setLoading(false);
+    if(profileReady||!nextId)setLoading(false);
     return;
    }
    const request=++authRevision;
    userId=nextId;
+   profileReady=false;
    if(!nextId){
     setSession(null);setProfile(null);setLoading(false);
     try{sessionStorage.removeItem('majestic-patient-selection');}catch{}
@@ -147,6 +149,7 @@ function App(){
    const {data,error:profileError}=await supabase.from('profissionais')
      .select('id,nome,perfil,ativo').eq('id',nextId).single();
    if(!active||request!==authRevision)return;
+   profileReady=true;
    if(profileError||!data){
     setError('Não foi possível validar seu perfil. Verifique as permissões no Supabase.');
    }else{
