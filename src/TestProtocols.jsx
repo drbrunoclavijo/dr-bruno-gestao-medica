@@ -14,22 +14,23 @@ export default function TestProtocols({supabase}){
  const [duration,setDuration]=useState('90'),[days,setDays]=useState('90'),[price,setPrice]=useState(''),[clinic,setClinic]=useState('');
  const [clinicEdits,setClinicEdits]=useState({}),[clinicBusy,setClinicBusy]=useState('');
  const [selectedRx,setSelectedRx]=useState({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
- const [forecasts,setForecasts]=useState({});
+ const [forecasts,setForecasts]=useState({}),[sessionCosts,setSessionCosts]=useState({});
  const [sessions,setSessions]=useState([]),[sessionItems,setSessionItems]=useState([]),[sessionForm,setSessionForm]=useState({}),[sessionBusy,setSessionBusy]=useState('');
  const [recurrence,setRecurrence]=useState({});
  const [message,setMessage]=useState(''),[error,setError]=useState('');
  async function load(){
   setLoading(true);setError('');
-  const [p,pa,rx,estimates,sessionList,sessionOptions]=await Promise.all([
+  const [p,pa,rx,estimates,sessionList,sessionOptions,costs]=await Promise.all([
    supabase.rpc('listar_protocolos_com_insumos_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
    supabase.rpc('listar_prescricoes_para_protocolos_teste'),
    supabase.rpc('previsao_custos_protocolos_teste'),
    supabase.rpc('listar_sessoes_protocolos_teste'),
-   supabase.rpc('itens_sessoes_protocolos_teste')
+   supabase.rpc('itens_sessoes_protocolos_teste'),
+   supabase.rpc('custos_sessoes_protocolos_teste')
   ]);
-  if(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error)setError('Não foi possível carregar protocolos: '+(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error).message);
-  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setSessions(sessionList.data||[]);setSessionItems(sessionOptions.data||[]);setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));}
+  if(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error)setError('Não foi possível carregar protocolos: '+(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error).message);
+  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setSessions(sessionList.data||[]);setSessionItems(sessionOptions.data||[]);setSessionCosts(Object.fromEntries((costs.data||[]).map(x=>[x.sessao_id,x])));setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));}
   setLoading(false);
  }
  useEffect(()=>{load()},[]);
@@ -205,6 +206,10 @@ export default function TestProtocols({supabase}){
     const batchSelected=availableSessions.map(x=>batchSelection[x.sessao_id]).filter(Boolean);
     const hasDuplicates=new Set(batchSelected).size!==batchSelected.length;
     const doneSessions=pSessions.filter(x=>x.status==='agendada'&&x.checado_em).length;
+    const activeSessions=pSessions.filter(x=>x.status==='agendada').length;
+    const sessionProgress=activeSessions?Math.round(doneSessions/activeSessions*100):0;
+    const consumedInSessions=pSessions.filter(x=>x.status==='agendada'&&x.checado_em).reduce((sum,x)=>sum+Number(sessionCosts[x.sessao_id]?.custo_medicamentos||0)+Number(sessionCosts[x.sessao_id]?.custo_insumos||0),0);
+    const sessionMissingCosts=pSessions.reduce((sum,x)=>sum+Number(sessionCosts[x.sessao_id]?.saidas_sem_custo||0),0);
     const openSessions=pSessions.filter(x=>x.status==='agendada'&&!x.checado_em).length;
     return <div className="form-section protocol-entry" key={p.protocolo_id}>
      <div className="administration-heading"><strong>{p.nome}</strong><span>{p.status==='ativo'?'Ativo':p.status}</span></div>
@@ -251,7 +256,9 @@ export default function TestProtocols({supabase}){
      <div className="protocol-sessions">
       <h4>Sessões do protocolo — planejamento fictício</h4>
       <p>Agendar não comprova aplicação nem baixa estoque. Somente sessões com item prescrito vinculado e checagem real no módulo de testes aparecem como “Checagem confirmada”.</p>
+      <div className="protocol-session-progress"><div><strong>Progresso de checagens vinculadas</strong><span>{doneSessions} de {activeSessions} sessões ativas · {sessionProgress}%</span></div><progress max="100" value={sessionProgress} aria-label="Percentual de sessões com checagem registrada"/><small>Conta apenas sessões ativas com item prescrito e checagem registrada; não certifica a conclusão clínica do tratamento.</small></div>
       <div className="inventory-report-metrics">
+       <div><small>Custos consumidos nas sessões vinculadas</small><strong>{money(consumedInSessions)}</strong></div>
        <div><small>Sessões agendadas, sem checagem</small><strong>{openSessions}</strong></div>
        <div><small>Sessões com checagem associada</small><strong>{doneSessions}</strong></div>
        <div><small>Sessões canceladas</small><strong>{pSessions.filter(x=>x.status==='cancelada').length}</strong></div>
@@ -274,9 +281,13 @@ export default function TestProtocols({supabase}){
          {sessionBusy===p.protocolo_id?'Vinculando...':'Confirmar '+batchSelected.length+' vínculo(s)'}
        </button>
       </div>}
+      {sessionMissingCosts>0&&<p className="form-message">Há {sessionMissingCosts} movimentação(ões) associada(s) a sessões sem preço de aquisição conhecido. Os custos por sessão estão incompletos.</p>}
       {pSessions.length>0?<div className="record-list">{pSessions.map(sess=><div className="protocol-session-line" key={sess.sessao_id}>
        <div><strong>{dateBR(sess.data_prevista)} · {sess.descricao}</strong>
         <p>{sess.status==='cancelada'?'Cancelada':sess.checado_em?'Checagem associada registrada':'Agendada — pendente de checagem'}{sess.medicamento?' · '+sess.medicamento:' · sem item prescrito associado'}</p>
+        {sess.checado_em&&<p>Checagem: {new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(new Date(sess.checado_em))}</p>}
+        {sess.checado_em&&<p>Medicamentos consumidos: {money(sessionCosts[sess.sessao_id]?.custo_medicamentos)} · Insumos consumidos: {money(sessionCosts[sess.sessao_id]?.custo_insumos)}</p>}
+        {Number(sessionCosts[sess.sessao_id]?.saidas_sem_custo||0)>0&&<p className="form-message">Custos incompletos nesta sessão: existem saídas sem preço conhecido.</p>}
         {sess.observacao&&<small>{sess.observacao}</small>}
        </div>
        {sess.status==='agendada'&&!sess.checado_em&&<div className="session-bind-actions">
