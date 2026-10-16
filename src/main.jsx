@@ -26,7 +26,8 @@ function formatCPF(value){const n=String(value||'').replace(/\D/g,'').slice(0,11
 function formatPhone(value){const n=String(value||'').replace(/\D/g,'').slice(0,11);if(!n)return '';if(n.length<3)return '('+n;const d='('+n.slice(0,2)+') ';const rest=n.slice(2);if(rest.length<=4)return d+rest;const split=rest.length>8?5:4;return d+rest.slice(0,split)+(rest.length>split?'-'+rest.slice(split):'');}
 function dateBR(value){if(!value)return 'Não informado';const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:value;}
 function Patients({role}){
- const [selectedId,setSelectedId]=useState(null);
+ const [selectedId,setSelectedId]=useState(()=>{try{return sessionStorage.getItem('majestic-patient-selection')||null;}catch{return null;}});
+ useEffect(()=>{try{if(selectedId)sessionStorage.setItem('majestic-patient-selection',selectedId);else sessionStorage.removeItem('majestic-patient-selection');}catch{}},[selectedId]);
  const [items,setItems]=useState([]),[form,setForm]=useState(emptyPatient),[editing,setEditing]=useState(null),[message,setMessage]=useState(''),[working,setWorking]=useState(false),[search,setSearch]=useState(''),[cepBusy,setCepBusy]=useState(false);
  const set=(field,value)=>setForm(old=>({...old,[field]:field==='cpf'?formatCPF(value):field==='telefone'?formatPhone(value):value}));
  async function load(){
@@ -113,33 +114,67 @@ function Patients({role}){
 }
 function App(){
  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[loading,setLoading]=useState(true);
- const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[tab,setTab]=useState('Visão geral');
+ const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[tab,setTab]=useState(()=>{
+  try{const saved=sessionStorage.getItem('majestic-current-tab');return modules.includes(saved)?saved:'Visão geral';}catch{return 'Visão geral';}
+ });
+ useEffect(()=>{try{sessionStorage.setItem('majestic-current-tab',tab);}catch{}},[tab]);
  useEffect(()=>{
   if(!supabase){setLoading(false);return;}
   let active=true;
+  let userId=null;
+  let authRevision=0;
   async function refresh(s){
    if(!active)return;
-   setLoading(true);setSession(s);setProfile(null);setTab('Visão geral');
-   if(s){
-    const {data,error}=await supabase.from('profissionais').select('id,nome,perfil,ativo').eq('id',s.user.id).single();
-    if(active){if(error)setError('Não foi possível validar seu perfil. Verifique as permissões no Supabase.');else setProfile(data);}
+   const nextId=s?.user?.id||null;
+   // TOKEN_REFRESHED / SIGNED_IN em foco não podem reiniciar a navegação.
+   // Só revalidamos perfil quando a identidade realmente muda.
+   if(nextId===userId){
+    setSession(old=>nextId?s:(old?.user?.id===nextId?null:old));
+    setLoading(false);
+    return;
    }
-   if(active)setLoading(false);
+   const request=++authRevision;
+   userId=nextId;
+   if(!nextId){
+    setSession(null);setProfile(null);setLoading(false);
+    try{sessionStorage.removeItem('majestic-patient-selection');}catch{}
+    return;
+   }
+   // Não desmontar a interface ao renovar o token do MESMO usuário.
+   setLoading(true);
+   setSession(s);
+   setProfile(null);
+   const {data,error:profileError}=await supabase.from('profissionais')
+     .select('id,nome,perfil,ativo').eq('id',nextId).single();
+   if(!active||request!==authRevision)return;
+   if(profileError||!data){
+    setError('Não foi possível validar seu perfil. Verifique as permissões no Supabase.');
+   }else{
+    setError('');
+    setProfile(data);
+   }
+   setLoading(false);
   }
-  supabase.auth.getSession().then(({data})=>refresh(data.session)).catch(()=>{if(active){setError('Falha ao verificar a sessão.');setLoading(false);}});
-  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setTimeout(()=>{if(active)refresh(s)},0);});
+  supabase.auth.getSession().then(({data})=>refresh(data.session))
+    .catch(()=>{if(active){setError('Falha ao verificar a sessão.');setLoading(false);}});
+  const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{
+   // Supabase emite eventos ao trocar de aba e renovar sessão.
+   // Um refresh assíncrono não deve recolocar o usuário na tela inicial.
+   setTimeout(()=>{if(active)refresh(s);},0);
+  });
   return()=>{active=false;subscription.unsubscribe();};
  },[]);
  async function login(e){e.preventDefault();if(!supabase)return;setBusy(true);setError('');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)setError('E-mail ou senha inválidos, ou acesso indisponível.');setBusy(false);}
- async function logout(){setError('');await supabase.auth.signOut();setProfile(null);setSession(null);}
+ async function logout(){setError('');try{sessionStorage.removeItem('majestic-current-tab');sessionStorage.removeItem('majestic-patient-selection');}catch{}setTab('Visão geral');await supabase.auth.signOut();setProfile(null);setSession(null);}
  const permitted=profile?.ativo&&access[profile.perfil]||[];
+ const activeTab=permitted.includes(tab)?tab:'Visão geral';
  return <main><header><div className="brand-emblem" aria-hidden="true">✦</div><div><h1>Majestic Santé Institute</h1><small>Gestão médica | Acesso restrito</small></div></header>
  {!supabase?<div className="warning">Configuração pendente: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY na Vercel e publique novamente.</div>:
  loading?<article><p>Verificando acesso...</p></article>:
  !session?<article className="login"><h2>Entrar no sistema</h2><form onSubmit={login}><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="active" disabled={busy}>{busy?'Entrando...':'Entrar'}</button></form>{error&&<p className="error" role="alert">{error}</p>}</article>:
  <><div className="session"><span className="session-user"><span className="user-avatar" aria-hidden="true">BC</span><span>{profile?.nome||session.user.email}<small>{profile?.ativo?profile.perfil:'Acesso restrito'}</small></span></span><button onClick={logout}>Sair</button></div>
  {!profile?.ativo||!access[profile?.perfil]?<article><h2>Acesso não liberado</h2><p>Seu usuário não possui um perfil ativo e autorizado. Solicite a configuração ao administrador.</p>{error&&<p className="error">{error}</p>}</article>:
- <><nav>{permitted.map(m=><button key={m} className={tab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{tab}</h2>{tab==='Pacientes'?<Patients role={profile.perfil}/>:tab==='Custos'?<TestCostReport supabase={supabase}/>:tab==='Protocolos'?<TestProtocols supabase={supabase}/>:tab==='Estoque'?(['medico','enfermeira','equipe'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}{tab==='Visão geral'&&<div className="cards">{permitted.filter(x=>x!=='Visão geral').map(x=><div key={x}><strong>{x}</strong><p>Em preparação</p></div>)}</div>}</article></>}
+ <><nav>{permitted.map(m=><button key={m} className={activeTab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{activeTab}</h2>{activeTab==='Pacientes'?<Patients role={profile.perfil}/>:activeTab==='Custos'?<TestCostReport supabase={supabase}/>:activeTab==='Protocolos'?<TestProtocols supabase={supabase}/>:activeTab==='Estoque'?(['medico','enfermeira','equipe'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}{activeTab==='Visão geral'&&<div className="cards">{permitted.filter(x=>x!=='Visão geral').map(x=><div key={x}><strong>{x}</strong><p>Em preparação</p></div>)}</div>}</article></>}
  </>}
  <footer>Versão de testes. Não inserir dados de pacientes até a validação de segurança, LGPD e funcionalidades clínicas.</footer></main>;
 }
