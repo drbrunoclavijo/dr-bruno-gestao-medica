@@ -515,3 +515,26 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .inventory-minimum-edit>span{font-size:12px;color:#c5bcae;padding-bottom:12px}
 .inventory-test>.stock-alerts{margin:14px 0 18px}
 @media(max-width:720px){.stock-alert-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.stock-alert-entry{align-items:flex-start;flex-direction:column}.stock-alert-info{text-align:left}}
+
+/* Financeiro — contas a receber e recebimentos ficticios */
+.receivables-page{display:grid;gap:16px}
+.receivables-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.receivables-metrics>div{display:flex;flex-direction:column;gap:8px;padding:17px;border:1px solid #78613c;background:linear-gradient(125deg,#24221d,#141b1e);border-radius:13px}
+.receivables-metrics small{font-size:12px;color:#d4c4a5}
+.receivables-metrics strong{font-size:22px;color:#efd2a0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.receivables-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:15px}
+.receivables-form>label{display:flex;flex-direction:column;gap:8px;font-size:12px;color:#dfcaa5;min-width:0}
+.receivables-form :is(input,select){width:100%;min-width:0}
+.receivables-wide,.receivables-actions{grid-column:1/-1}
+.receivables-list{display:grid;gap:11px;margin-top:18px}
+.receivables-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,.6fr) auto;gap:14px;align-items:center;padding:14px;border-radius:12px;border:1px solid #61533c;background:#14191b}
+.receivables-row>div:first-child,.receivables-numbers{display:flex;flex-direction:column;gap:5px;min-width:0}
+.receivables-row strong{color:#f2dfbd;overflow-wrap:anywhere;font-size:14px}
+.receivables-row small,.receivables-numbers span{color:#c0b6a5;font-size:12px;line-height:1.5}
+.receivables-row-actions{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end;max-width:290px}
+.receivables-row-actions button{padding:9px;font-size:12px}
+.receivables-history{grid-column:1/-1;padding:11px;border:1px solid #4e4536;border-radius:9px;color:#dfd0b5;font-size:12px}
+.receivables-history p{border-bottom:1px solid #393a37;padding:8px 0;margin:0}
+.receivables-history p:last-child{border:0}
+@media(max-width:850px){.receivables-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.receivables-row{grid-template-columns:1fr}.receivables-row-actions{justify-content:flex-start;max-width:none}}
+@media(max-width:570px){.receivables-form{grid-template-columns:1fr}.receivables-metrics{grid-template-columns:1fr}}
