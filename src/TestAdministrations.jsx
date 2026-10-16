@@ -76,7 +76,7 @@ export default function TestAdministrations({supabase,patientId,role}){
   const sess=sessionByItem[item.id],newDate=dateDrafts[item.id]||'',
     reason=(dateReasons[item.id]||'').trim();
   if(!canCheck||busy||checks[item.id]||!sess)return;
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(newDate)||reason.length<5||reason.length>500){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(newDate)||reason.length<5||reason.length>500){
    setError('Informe uma nova data e o motivo do reagendamento (5 a 500 caracteres).');return;
   }
   if(newDate===sess.data_prevista){setError('Escolha uma data diferente da prevista.');return;}
