@@ -156,7 +156,7 @@ export default function TestAdministrations({supabase,patientId,role}){
  async function bindMedication(item){
   if(!canCheck||busy||checks[item.id]||links[item.id])return;
   const productId=medicationPick[item.id],quantity=Number(medicationQty[item.id]||'1');
-  if(!productId||!Number.isFinite(quantity)||quantity<=0||quantity>100000||Math.round(quantity*1000)!==quantity*1000){
+  if(!productId||!Number.isFinite(quantity)||quantity<=0||quantity>100000||Math.abs(Math.round(quantity*1000)-quantity*1000)>0.000001){
    setError('Selecione o medicamento do estoque e informe uma quantidade valida, com ate 3 casas decimais.');return;
   }
   const chosen=medicationProducts.find(p=>p.id===productId);
