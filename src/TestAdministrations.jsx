@@ -4,6 +4,10 @@ export default function TestAdministrations({supabase,patientId,role}){
  const [currentUserId,setCurrentUserId]=useState(null),[photos,setPhotos]=useState({}),[photoLinks,setPhotoLinks]=useState({}),[names,setNames]=useState({}),[entries,setEntries]=useState([]),[checks,setChecks]=useState({}),[links,setLinks]=useState({}),[products,setProducts]=useState([]),[busy,setBusy]=useState(''),[notes,setNotes]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[loading,setLoading]=useState(true);
  const canCheck=role==='enfermeira';
  const [sessionByItem,setSessionByItem]=useState({});
+ const [dateDrafts,setDateDrafts]=useState({}),[dateReasons,setDateReasons]=useState({}),[dateHistory,setDateHistory]=useState([]);
+ const dateBR=v=>String(v||'').slice(0,10).split('-').reverse().join('/');
+ const dateHistoryFor=id=>dateHistory.filter(x=>x.sessao_id===id);
+
  const [viewFilter,setViewFilter]=useState('pendentes'),[searchTerm,setSearchTerm]=useState('');
  const [supplies,setSupplies]=useState([]),[supplyProducts,setSupplyProducts]=useState([]),[supplyMoves,setSupplyMoves]=useState([]),[supplyPick,setSupplyPick]=useState({}),[supplyQty,setSupplyQty]=useState({});
  async function load(){
@@ -13,7 +17,7 @@ export default function TestAdministrations({supabase,patientId,role}){
   const rx=await supabase.from('prescricoes_teste').select('id,criado_em').eq('paciente_id',patientId).order('criado_em',{ascending:false}).limit(100);
   if(rx.error){setError('Não foi possível consultar prescrições: '+rx.error.message);setLoading(false);return;}
   const ids=(rx.data||[]).map(x=>x.id);
-  if(!ids.length){setEntries([]);setChecks({});setNames({});setSupplies([]);setSupplyMoves([]);setSessionByItem({});setLoading(false);return;}
+  if(!ids.length){setEntries([]);setChecks({});setNames({});setSupplies([]);setSupplyMoves([]);setSessionByItem({});setDateHistory([]);setLoading(false);return;}
   const it=await supabase.from('prescricao_itens_teste').select('id,prescricao_id,medicamento,dose,via,frequencia,duracao,orientacoes').in('prescricao_id',ids);
   if(it.error){setError('Não foi possível consultar medicamentos: '+it.error.message);setLoading(false);return;}
   const items=it.data||[];
@@ -55,13 +59,38 @@ export default function TestAdministrations({supabase,patientId,role}){
    movements=result.data||[];
   }
   setSupplies(planned.data||[]);setSupplyProducts(prods.data||[]);setSupplyMoves(movements);
-  const sessionData=await supabase.rpc('sessoes_paciente_enfermagem_teste',{p_paciente_id:patientId});
-  if(sessionData.error){setError('Não foi possível consultar a agenda de sessões: '+sessionData.error.message);setLoading(false);return;}
+  const [sessionData,historyData]=await Promise.all([
+   supabase.rpc('sessoes_paciente_enfermagem_teste',{p_paciente_id:patientId}),
+   supabase.rpc('historico_reagendamentos_sessoes_teste',{p_paciente_id:patientId})
+  ]);
+  if(sessionData.error||historyData.error){setError('Não foi possível consultar a agenda ou histórico: '+(sessionData.error||historyData.error).message);setLoading(false);return;}
   setSessionByItem(Object.fromEntries((sessionData.data||[]).map(x=>[x.item_prescricao_id,x])));
+  setDateHistory(historyData.data||[]);
   setEntries(items.map(i=>({...i,prescribedAt:(rx.data||[]).find(p=>p.id===i.prescricao_id)?.criado_em})));
   setLoading(false);
  }
  useEffect(()=>{load()},[patientId,role]);
+ async function reschedule(item){
+  const sess=sessionByItem[item.id],newDate=dateDrafts[item.id]||'',
+    reason=(dateReasons[item.id]||'').trim();
+  if(!canCheck||busy||checks[item.id]||!sess)return;
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(newDate)||reason.length<5||reason.length>500){
+   setError('Informe uma nova data e o motivo do reagendamento (5 a 500 caracteres).');return;
+  }
+  if(newDate===sess.data_prevista){setError('Escolha uma data diferente da prevista.');return;}
+  if(!window.confirm('Alterar a previsão de '+dateBR(sess.data_prevista)+' para '+dateBR(newDate)+'? Isso NÃO modifica a data da checagem, a prescrição ou o estoque.'))return;
+  setBusy(item.id);setError('');setMessage('');
+  try{
+   const {error:changeError}=await supabase.rpc('reagendar_sessao_enfermagem_teste',{
+    p_sessao_id:sess.sessao_id,p_nova_data:newDate,p_motivo:reason
+   });
+   if(changeError)throw new Error(changeError.message);
+   setDateDrafts(old=>({...old,[item.id]:''}));setDateReasons(old=>({...old,[item.id]:''}));
+   await load();
+   setMessage('Previsão de sessão fictícia alterada com histórico. Checagem e estoque não foram modificados.');
+  }catch(err){setError('Não foi possível reagendar: '+err.message);}
+  finally{setBusy('');}
+ }
  async function viewPhoto(item){
   const path=checks[item.id]?.foto_caminho;
   if(!path){setError('Este registro de teste não possui foto anexada.');return;}
@@ -221,7 +250,28 @@ export default function TestAdministrations({supabase,patientId,role}){
   {loading?<p>Carregando...</p>:entries.length===0?<p className="record-empty">Nenhum item de prescrição encontrado.</p>:visibleItems.length===0?<p className="record-empty">Nenhum item corresponde aos filtros escolhidos.</p>:<div className="record-list">{visibleItems.map(item=><div key={item.id} className="form-section administration-item">
    <div className="administration-heading"><strong>{item.medicamento}</strong><span>{checks[item.id]?'Checagem registrada':'Pendente no teste'}</span></div>
    {sessionByItem[item.id]&&!checks[item.id]&&sessionByItem[item.id].data_prevista<todayDate&&<p className="form-message">Data planejada anterior a hoje — conferir situação do agendamento.</p>}
-   {sessionByItem[item.id]&&<p className="administration-stock"><strong>Sessão vinculada:</strong> {sessionByItem[item.id].protocolo_nome} · {sessionByItem[item.id].descricao} · Prevista para {String(sessionByItem[item.id].data_prevista).split('-').reverse().join('/')}</p>}
+   {sessionByItem[item.id]&&<div className="administration-session-schedule">
+    <p className="administration-stock"><strong>Sessão vinculada:</strong> {sessionByItem[item.id].protocolo_nome} · {sessionByItem[item.id].descricao} · <strong>Data prevista:</strong> {dateBR(sessionByItem[item.id].data_prevista)}</p>
+    {checks[item.id]&&<p><strong>Data da checagem registrada:</strong> {stamp(checks[item.id].checado_em)} (não é alterada pelo reagendamento).</p>}
+    {canCheck&&!checks[item.id]&&<div className="administration-reschedule">
+     <label>Nova data prevista
+      <input type="date" value={dateDrafts[item.id]||sessionByItem[item.id].data_prevista} disabled={Boolean(busy)}
+       onChange={e=>setDateDrafts(old=>({...old,[item.id]:e.target.value}))}/>
+     </label>
+     <label>Motivo do reagendamento
+      <input type="text" value={dateReasons[item.id]||''} maxLength={500} disabled={Boolean(busy)}
+       placeholder="Ex.: paciente solicitou alteração" onChange={e=>setDateReasons(old=>({...old,[item.id]:e.target.value}))}/>
+     </label>
+     <button type="button" className="outline-gold" disabled={Boolean(busy)||!(dateReasons[item.id]||'').trim()||(dateDrafts[item.id]||sessionByItem[item.id].data_prevista)===sessionByItem[item.id].data_prevista}
+      onClick={()=>reschedule({...item})}>{busy===item.id?'Salvando...':'Alterar data prevista'}</button>
+    </div>}
+    {dateHistoryFor(sessionByItem[item.id].sessao_id).length>0&&<details className="administration-date-history">
+     <summary>Histórico de reagendamentos ({dateHistoryFor(sessionByItem[item.id].sessao_id).length})</summary>
+     {dateHistoryFor(sessionByItem[item.id].sessao_id).map((h,i)=><p key={h.alterado_em+'-'+i}>
+      {dateBR(h.data_anterior)} → {dateBR(h.data_nova)} · {h.motivo} · {h.profissional_nome} · {stamp(h.alterado_em)}
+     </p>)}
+    </details>}
+   </div>}
    <p>Dose: {item.dose} · Via: {item.via} · Frequência: {item.frequencia}</p>{item.duracao&&<p>Duração: {item.duracao}</p>}{links[item.id]&&<p className="administration-stock">Baixa configurada: {links[item.id].quantidade} {products.find(p=>p.id===links[item.id].produto_id)?.unidade||'un.'} de {products.find(p=>p.id===links[item.id].produto_id)?.nome||'produto de teste'}</p>}{item.orientacoes&&<p>Orientações: {item.orientacoes}</p>}
    {checks[item.id]?<div className="administration-checked">
     <p>Checado em {stamp(checks[item.id].checado_em)} · Responsável: {names[checks[item.id].profissional_id]||'Profissional não identificado'}{checks[item.id].observacao?' · '+checks[item.id].observacao:''}</p>
