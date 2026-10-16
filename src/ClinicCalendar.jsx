@@ -17,8 +17,8 @@ export const professionalDisplayName=name=>{
 export const confirmationText=a=>{
  const name=professionalDisplayName(a.profissional_nome);
  const date=displayDate(a.inicio_local),time=String(a.inicio_local||'').slice(11,16);
- return 'Olá! Sua consulta no Majestic Santé Institute com '+name+' está agendada para '+date+', às '+time+'.\\n\\n'
- +'Responda 1 para confirmar sua presença ou 2 para solicitar reagendamento.\\n\\nAguardamos você!';
+ return 'Olá! Sua consulta no Majestic Santé Institute com '+name+' está agendada para '+date+', às '+time+'.\n\n'
+ +'Responda 1 para confirmar sua presença ou 2 para solicitar reagendamento.\n\nAguardamos você!';
 };
 export function useAppointments(supabase,from,to){
  const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
