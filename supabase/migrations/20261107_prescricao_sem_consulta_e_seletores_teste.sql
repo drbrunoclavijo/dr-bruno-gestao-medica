@@ -7,14 +7,14 @@ ALTER TABLE public.prescricoes_teste ALTER COLUMN consulta_id DROP NOT NULL;
 -- Preserve cross-patient protection when a consultation is supplied.
 CREATE OR REPLACE FUNCTION public.verificar_consulta_da_prescricao_teste()
 RETURNS trigger LANGUAGE plpgsql SET search_path=''
-AS $
+AS $tag_consulta$
 BEGIN
  IF NEW.consulta_id IS NOT NULL AND NOT EXISTS(
   SELECT 1 FROM public.consultas_teste c WHERE c.id=NEW.consulta_id
     AND c.paciente_id=NEW.paciente_id
  ) THEN RAISE EXCEPTION 'Consulta nao corresponde ao paciente da prescricao'; END IF;
  RETURN NEW;
-END $;
+END $tag_consulta$;
 DROP POLICY IF EXISTS prescricoes_teste_medico_insert ON public.prescricoes_teste;
 CREATE POLICY prescricoes_teste_medico_insert ON public.prescricoes_teste
  FOR INSERT TO authenticated WITH CHECK (
