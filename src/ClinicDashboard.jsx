@@ -17,7 +17,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
  const clinical=role==='medico'||role==='enfermeira';
  const dateNow=localDate();
  const {rows:appointments,loading:appointmentsLoading,error:appointmentsError,refresh:refreshAppointments}=useAppointments(supabase,dateNow,shiftDay(dateNow,7));
- const today'sAppointments=appointments.filter(a=>a.inicio_local.slice(0,10)===dateNow&&a.status!=='cancelado');
+ const todaysAppointments=appointments.filter(a=>a.inicio_local.slice(0,10)===dateNow&&a.status!=='cancelado');
  const nextAppointments=appointments.filter(a=>a.status==='agendado'||a.status==='confirmado'||a.status==='reagendamento_solicitado').sort((a,b)=>a.inicio_local.localeCompare(b.inicio_local));
  const [adminApplications,setAdminApplications]=useState([]),[adminApplicationsError,setAdminApplicationsError]=useState('');
  const [pendingRequests,setPendingRequests]=useState([]),[pendingRequestsError,setPendingRequestsError]=useState('');
@@ -90,7 +90,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
       <button type="button" className="gold-button" onClick={()=>onNavigate('Agenda')}>Abrir agenda completa →</button></div>
     {appointmentsError&&<p className="form-message" role="alert">{appointmentsError}</p>}
     <div className="dashboard-kpis">
-      {summary('Atendimentos hoje',appointmentsLoading?'…':today'sAppointments.length,'Inclui confirmados e realizados')}
+      {summary('Atendimentos hoje',appointmentsLoading?'…':todaysAppointments.length,'Inclui confirmados e realizados')}
       {summary('Aguardando confirmação',appointmentsLoading?'…':appointments.filter(a=>a.status==='agendado').length,'Próximos oito dias')}
     </div>
     {appointmentsLoading?<p>Carregando agendamentos...</p>:nextAppointments.length===0?<p className="record-empty">Nenhuma consulta pendente cadastrada para os próximos oito dias.</p>:
