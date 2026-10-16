@@ -19,6 +19,15 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
  const {rows:appointments,loading:appointmentsLoading,error:appointmentsError,refresh:refreshAppointments}=useAppointments(supabase,dateNow,shiftDay(dateNow,7));
  const today'sAppointments=appointments.filter(a=>a.inicio_local.slice(0,10)===dateNow&&a.status!=='cancelado');
  const nextAppointments=appointments.filter(a=>a.status==='agendado'||a.status==='confirmado').sort((a,b)=>a.inicio_local.localeCompare(b.inicio_local));
+ const [adminApplications,setAdminApplications]=useState([]),[adminApplicationsError,setAdminApplicationsError]=useState('');
+ useEffect(()=>{
+  if(role!=='equipe')return;
+  let active=true;
+  supabase.rpc('agenda_aplicacoes_administrativa_teste',{p_de:dateNow,p_ate:shiftDay(dateNow,7)})
+    .then(({data,error})=>{if(!active)return;if(error)setAdminApplicationsError('Agenda de aplicações indisponível: '+error.message);
+     else{setAdminApplications(data||[]);setAdminApplicationsError('');}});
+  return()=>{active=false;};
+ },[role,dateNow]);
  const [protocols,setProtocols]=useState([]),[sessions,setSessions]=useState([]),[patientCount,setPatientCount]=useState(null);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[filter,setFilter]=useState('hoje'),[query,setQuery]=useState('');
  async function load(){
@@ -66,7 +75,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
    <div className="form-actions"><button className="outline-gold" type="button" onClick={load} disabled={loading}>{loading?'Atualizando...':'↻ Atualizar painel'}</button></div>
   </div>
   <div className="premium-panel dashboard-appointments">
-    <div className="dashboard-agenda-title"><div><h3>Agenda de consultas e atendimentos</h3><p>Próximos compromissos compartilhados · {displayDate(dateNow)}</p></div>
+    <div className="dashboard-agenda-title"><div><h3>{role==='medico'?'Minhas consultas — Dr. Bruno':role==='enfermeira'?'Meus atendimentos — Dra. Carol':'Agenda completa de consultas e atendimentos'}</h3><p>{role==='equipe'?'Todos os profissionais':'Somente os atendimentos associados ao seu usuário'} · {displayDate(dateNow)}</p></div>
       <button type="button" className="gold-button" onClick={()=>onNavigate('Agenda')}>Abrir agenda completa →</button></div>
     {appointmentsError&&<p className="form-message" role="alert">{appointmentsError}</p>}
     <div className="dashboard-kpis">
@@ -81,12 +90,22 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
       </div>)}</div>}
     <p className="profile-notice">Lembretes internos: acompanhe os atendimentos aqui ao abrir o aplicativo. Avisos automáticos ao profissional e confirmação por resposta do paciente ainda dependem de integração com mensageria.</p>
   </div>
-  {!clinical?<div className="premium-panel">
+  {!clinical?<><div className="premium-panel dashboard-agenda">
+   <div className="dashboard-agenda-title"><div><h3>Agenda de aplicações — Visão administrativa</h3>
+    <p>Todos os pacientes com sessão planejada, sem exibir medicamentos, doses ou prescrições.</p></div>
+    <button type="button" className="outline-gold" onClick={()=>onNavigate('Agenda')}>Abrir agenda completa →</button></div>
+   {adminApplicationsError&&<p role="alert" className="form-message">{adminApplicationsError}</p>}
+   {!adminApplicationsError&&adminApplications.length===0?<p className="record-empty">Nenhuma aplicação fictícia prevista nos próximos oito dias.</p>:
+    <div className="calendar-entries">{adminApplications.slice(0,30).map(a=><div className="calendar-entry" key={a.sessao_id}>
+     <div className="calendar-entry-time"><strong>{displayDate(a.data_prevista)}</strong></div>
+     <div className="calendar-entry-detail"><strong>{a.paciente_nome}</strong><span>Aplicação · {a.profissional_nome}</span><small>{a.status==='checada'?'Checagem registrada':'Pendente'}</small></div>
+    </div>)}</div>}
+  </div><div className="premium-panel">
    <h3>Atendimento e cadastros</h3>
    <div className="dashboard-kpis">{summary('Pacientes cadastrados',loading?'…':patientCount??'—','Total de registros fictícios')}</div>
    <p className="profile-notice">A equipe administrativa pode consultar a agenda compartilhada de atendimentos, sem acesso às prescrições ou às sessões clínicas dos protocolos.</p>
    <button className="gold-button" type="button" onClick={()=>onNavigate('Pacientes')}>Abrir pacientes →</button>
-  </div>:<>
+  </div></>:<>
    <div className="dashboard-kpis">
     {summary('Protocolos ativos',loading?'…':active.length,'Em andamento')}
     {summary('Aplicações hoje',loading?'…':unchecked.filter(s=>s.data_prevista===today).length,'Pendentes de checagem')}
