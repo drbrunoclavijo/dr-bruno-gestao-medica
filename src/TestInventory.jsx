@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import StockAlerts from './StockAlerts.jsx';
 export default function TestInventory({supabase,role}){
  const doctor=role==='medico';
  const canRegister=['medico','enfermeira','equipe'].includes(role);
@@ -9,16 +10,18 @@ export default function TestInventory({supabase,role}){
  const [products,setProducts]=useState([]),[lots,setLots]=useState([]),[links,setLinks]=useState([]),[items,setItems]=useState([]),[patients,setPatients]=useState([]);
  const [name,setName]=useState(''),[productType,setProductType]=useState('medicamento'),[unit,setUnit]=useState('unidade'),[product,setProduct]=useState(''),[lot,setLot]=useState(''),[expiry,setExpiry]=useState(''),[qty,setQty]=useState(''),[cost,setCost]=useState('');
  const [bindItem,setBindItem]=useState(''),[bindProduct,setBindProduct]=useState(''),[bindQty,setBindQty]=useState('1');
+ const [minDraft,setMinDraft]=useState({});
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[message,setMessage]=useState(''),[error,setError]=useState('');
  async function load(){
   setLoading(true);setError('');
   const [a,b]=await Promise.all([
-   supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto').order('nome'),
+   supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto,estoque_minimo').order('nome'),
    supabase.from('estoque_lotes_teste').select('id,produto_id,lote,validade,saldo,quantidade_inicial,custo_total_aquisicao').order('validade')
   ]);
   const first=[a,b].find(r=>r.error);
   if(first){setError('Não foi possível carregar estoque: '+first.error.message);setLoading(false);return;}
   setProducts(a.data||[]);setLots(b.data||[]);
+  setMinDraft(Object.fromEntries((a.data||[]).map(p=>[p.id,String(p.estoque_minimo??5)])));
   if(doctor){
    const vl=await supabase.from('estoque_vinculos_teste').select('item_prescricao_id,produto_id,quantidade');
    if(vl.error){setError('Falha ao carregar vínculos de prescrições: '+vl.error.message);setLinks([]);}else setLinks(vl.data||[]);
@@ -48,14 +51,26 @@ export default function TestInventory({supabase,role}){
  const knownValue=lots.reduce((sum,l)=>sum+(lotValue(l)??0),0);
  const missingCost=lots.some(l=>l.custo_total_aquisicao===null);
  const unlinked=items.filter(i=>!links.some(l=>l.item_prescricao_id===i.id));
+ async function saveMinimum(product){
+  const value=Number(minDraft[product.id]);
+  if(!Number.isFinite(value)||value<0||value>1000000||Math.abs(Math.round(value*1000)-value*1000)>0.000001){
+   setError('Informe mínimo válido com até três casas decimais.');return;
+  }
+  await call('definir_estoque_minimo_teste',{p_produto_id:product.id,p_minimo:value},'Mínimo do estoque fictício atualizado.');
+ }
  return <section className="premium-panel inventory-test">
   <div className="panel-title"><span className="title-icon" aria-hidden="true">▣</span><div><h3>Estoque de testes</h3><p>Medicamentos e insumos, com lote, custo, validade e baixa pela checagem.</p></div></div>
   <p className="profile-notice">Somente materiais e saldos fictícios. Não é um controle de dispensação ou estoque clínico validado. O desconto ocorre ao confirmar a checagem fictícia, no lote válido com vencimento mais próximo.</p>
   {error&&<p className="form-message" role="alert">{error}</p>}{message&&<p className="form-message" role="status">{message}</p>}
+  <StockAlerts supabase={supabase}/>
   <div className="record-top"><h4>Produtos e saldos</h4><button type="button" className="outline-gold" disabled={loading||busy} onClick={load}>Atualizar</button></div>
   {!loading&&<p className="inventory-cost-overview">Valor estimado do saldo (lotes com custo): <strong>{brl(knownValue)}</strong>{missingCost&&<span> · Alguns lotes antigos ainda não possuem custo cadastrado.</span>}</p>}
   {loading?<p>Carregando...</p>:products.length===0?<p className="record-empty">Nenhum produto fictício cadastrado.</p>:<div className="record-list">{products.map(p=><div key={p.id} className="form-section inventory-product">
    <div className="administration-heading"><strong>{p.nome} · {p.tipo_produto==='insumo'?'Insumo':'Medicamento'}</strong><span>{saldo(p.id)} {p.unidade} restantes (todos os lotes)</span></div>
+   {doctor&&<div className="inventory-minimum-edit"><label>Alerta quando saldo válido estiver até
+      <input type="number" min="0" max="1000000" step="0.001" value={minDraft[p.id]??'5'}
+       onChange={e=>setMinDraft(old=>({...old,[p.id]:e.target.value}))}/></label>
+     <span>{p.unidade}</span><button type="button" className="outline-gold" disabled={busy||loading} onClick={()=>saveMinimum(p)}>Salvar mínimo</button></div>}
    {lots.filter(l=>l.produto_id===p.id).map(l=><p key={l.id}>Lote {l.lote} · Validade {l.validade?.split('-').reverse().join('/')} · Saldo {l.saldo} / {l.quantidade_inicial} {p.unidade} · Custo de aquisição: {brl(l.custo_total_aquisicao)} · Custo unitário: {l.custo_total_aquisicao===null?'Não informado':brl(Number(l.custo_total_aquisicao)/Number(l.quantidade_inicial))} · Valor do saldo: {brl(lotValue(l))}</p>)}
   </div>)}</div>}
   {canRegister&&<div className="inventory-management">
