@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {infinityRates,infinityInstant,tiers,ratePct,quoteInfinity} from './PaymentRates.js';
+import {infinityRates,infinityInstant,tiers,ratePct,quoteInfinity,paymentNames,rateForPayment} from './PaymentRates.js';
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v)||0);
 const dateBR=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>new Date().toISOString().slice(0,10);
@@ -15,6 +15,7 @@ export default function TestProtocols({supabase}){
  const [patient,setPatient]=useState(''),[name,setName]=useState(''),[start,setStart]=useState(today());
  const [duration,setDuration]=useState('90'),[days,setDays]=useState('90'),[price,setPrice]=useState(''),[clinic,setClinic]=useState('0');
  const [catalog,setCatalog]=useState([]),[selection,setSelection]=useState('essential_reset'),[customDescription,setCustomDescription]=useState('');
+ const [payMethod,setPayMethod]=useState('credito');
  const [ratesBrand,setRatesBrand]=useState('visa'),[ratesTier,setRatesTier]=useState('inicial'),[ratesPlan,setRatesPlan]=useState('dia'),[installmentsCount,setInstallmentsCount]=useState('1');
  const [savedPricing,setSavedPricing]=useState({});
  const [clinicEdits,setClinicEdits]=useState({}),[clinicBusy,setClinicBusy]=useState('');
@@ -34,7 +35,7 @@ export default function TestProtocols({supabase}){
    supabase.rpc('itens_sessoes_protocolos_teste'),
    supabase.rpc('custos_sessoes_protocolos_teste'),
    supabase.rpc('listar_catalogo_servicos_teste'),
-   supabase.rpc('listar_precificacao_protocolos_teste')
+   supabase.rpc('listar_precificacao_pagamento_teste')
   ]);
   if(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error||catalogResponse.error||pricingResponse.error)setError('Não foi possível carregar protocolos e o catálogo: '+(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error||catalogResponse.error||pricingResponse.error).message+'. Verifique a migração SQL do catálogo.');
   else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setSessions(sessionList.data||[]);setSessionItems(sessionOptions.data||[]);setSessionCosts(Object.fromEntries((costs.data||[]).map(x=>[x.sessao_id,x])));setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));setCatalog(catalogResponse.data||[]);if(!price&&selection!=='outro'){const defaultService=(catalogResponse.data||[]).find(c=>c.codigo===selection);if(defaultService)setPrice(String(Math.round(Number(defaultService.valor_tabela)*100)));}setSavedPricing(Object.fromEntries((pricingResponse.data||[]).map(x=>[x.protocolo_id,x])));}
@@ -44,8 +45,8 @@ export default function TestProtocols({supabase}){
  const chosen=catalog.find(c=>c.codigo===selection);
  const isProtocol=chosen?.tipo==='protocolo';
  const agreed=parseCents(price);
- const installmentNumber=Number(installmentsCount);
- const quote=quoteInfinity(agreed,installmentNumber,ratesBrand,ratesTier,ratesPlan);
+ const installmentNumber=payMethod==='credito'?Number(installmentsCount):1;
+ const quote=quoteInfinity(agreed,installmentNumber,ratesBrand,ratesTier,ratesPlan,payMethod);
  const valuesValid=Number.isInteger(installmentNumber)&&installmentNumber>=1&&installmentNumber<=12&&
   Number.isInteger(Number(price))&&agreed>0&&quote&&Math.round(agreed*100)>=installmentNumber;
  const discount=chosen?Number(chosen.valor_tabela)-agreed:0;
@@ -71,9 +72,10 @@ export default function TestProtocols({supabase}){
   try{
    let result;
    if(isProtocol){
-    result=await supabase.rpc('criar_protocolo_catalogo_teste',{
+    result=await supabase.rpc('criar_protocolo_com_pagamento_teste',{
      p_paciente_id:patient,p_codigo:selection,p_inicio:start,p_valor_acordado:agreed,
-     p_total_cobrado:quote.gross,p_parcelas:installmentNumber,p_taxa:quote.rate,p_percentual_clinica:parsePercentage(clinic)
+     p_total_cobrado:quote.gross,p_parcelas:installmentNumber,p_taxa:quote.rate,p_percentual_clinica:parsePercentage(clinic),
+     p_forma:payMethod,p_taxa_valor:quote.fee,p_liquido:quote.net
     });
    }else{
     result=await supabase.rpc('criar_conta_parcelada_teste',{
@@ -222,25 +224,32 @@ export default function TestProtocols({supabase}){
     <label>Valor de tabela (R$)<input readOnly value={chosen?money(chosen.valor_tabela):'Personalizado'}/></label>
     <label>Valor a pagar antes de taxas (R$)<input required inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={currencyInput(price)} onChange={e=>setPrice(centsInput(e.target.value))}/><small>Preenchido pelo valor de tabela. Altere quando houver desconto.</small></label>
     {chosen&&<label>Diferença sobre a tabela<input readOnly value={money(discount)}/><small>Valor positivo indica desconto; negativo indica aumento.</small></label>}
-    <label>Bandeira InfinitePay<select value={ratesBrand} onChange={e=>setRatesBrand(e.target.value)} disabled={installmentNumber<=6}>
-     <option value="visa">Visa / Mastercard</option><option value="outras">Elo / Hipercard / Amex</option>
+    <label>Forma de pagamento<select value={payMethod} onChange={e=>{setPayMethod(e.target.value);setInstallmentsCount('1');}}>
+     {Object.entries(paymentNames).map(([code,title])=><option key={code} value={code}>{title}</option>)}
     </select></label>
-    <label>Faixa de faturamento<select value={ratesTier} onChange={e=>setRatesTier(e.target.value)} disabled={installmentNumber<=6||ratesPlan==='hora'}>
-     {Object.entries(tiers).map(([key,text])=><option key={key} value={key}>{text}</option>)}
-    </select></label>
-    <label>Prazo de recebimento<select value={ratesPlan} onChange={e=>setRatesPlan(e.target.value)} disabled={installmentNumber<=6}>
-     <option value="dia">1 dia útil</option><option value="hora">Na hora</option>
-    </select></label>
-    <label>Parcelamento Máquina InfinitePay<select value={installmentsCount} onChange={e=>setInstallmentsCount(e.target.value)}>
-     {availableRates.map((rate,i)=><option key={i} value={i+1}>{i+1}x — {i<6?'Sem juros / sem acréscimo':'Taxa '+ratePct(rate)}</option>)}
-    </select><small>Até 6x sem acréscimo ao paciente. A partir de 7x, simulação de repasse da taxa da maquininha.</small></label>
-    <label>Taxa aplicada à venda<input readOnly value={quote?ratePct(quote.rate):'—'}/></label>
-    <label>Total a cobrar (R$)<input readOnly value={money(quote?.gross||0)}/><small>{quote&&quote.rate>0?'Total estimado para preservar o valor acordado após taxa: '+money(quote.fee):'Mesmo valor acordado, sem acréscimo.'}</small></label>
-    <label>Valor aproximado por parcela<input readOnly value={money(quote?.perInstallment||0)}/></label>
+    {(payMethod==='credito'||payMethod==='debito')&&<>
+     <label>Bandeira InfinitePay<select value={ratesBrand} onChange={e=>setRatesBrand(e.target.value)}>
+      <option value="visa">Visa / Mastercard</option><option value="outras">Elo / Amex / Hipercard</option>
+     </select></label>
+     <label>Faixa de faturamento<select value={ratesTier} onChange={e=>setRatesTier(e.target.value)} disabled={ratesPlan==='hora'}>
+      {Object.entries(tiers).map(([key,title])=><option key={key} value={key}>{title}</option>)}
+     </select></label>
+     <label>Prazo de recebimento<select value={ratesPlan} onChange={e=>setRatesPlan(e.target.value)}>
+      <option value="dia">Em 1 dia útil</option><option value="hora">Na hora</option>
+     </select></label>
+    </>}
+    {payMethod==='credito'&&<label>Parcelamento Máquina InfinitePay<select value={installmentsCount} onChange={e=>setInstallmentsCount(e.target.value)}>
+     {infinityRates.visa.inicial.map((_,i)=><option key={i} value={i+1}>{i+1}x — taxa {ratePct(rateForPayment('credito',i+1,ratesBrand,ratesTier,ratesPlan))}{i<6?' (absorvida pela clínica)':' (repasse simulado)'}</option>)}
+    </select><small>A taxa sempre é descontada da clínica, mesmo em até 6x sem acréscimo ao paciente.</small></label>}
+    <label>Taxa da maquininha<input readOnly value={quote?ratePct(quote.rate):'—'}/></label>
+    <label>Total a cobrar do paciente<input readOnly value={money(quote?.gross||0)}/></label>
+    <label>Desconto da maquininha no recebimento<input readOnly value={money(quote?.fee||0)}/></label>
+    <label>Valor líquido estimado para a clínica<input readOnly value={money(quote?.net||0)}/></label>
+    {payMethod==='credito'&&<label>Valor por parcela<input readOnly value={money(quote?.perInstallment||0)}/></label>}
     {isProtocol&&<><label>Porcentagem de repasse à clínica (%)<input inputMode="decimal" placeholder="0" value={clinic} onChange={e=>setClinic(e.target.value.replace(/[^\d,.]/g,'').slice(0,6))}/><small>Repasse interno, independente da taxa da maquininha.</small></label>
      <label>Repasse calculado à clínica (R$)<input readOnly value={money(clinicAmount(Math.round((quote?.gross||0)*100),clinic))}/></label></>}
    </div>
-   <p className="profile-notice">Os protocolos ficam registrados para o planejamento clínico; consultas e “Outro” criam contas financeiras de teste, sem inventar sessões de aplicação. A tabela InfinitePay é uma simulação; confirme as condições contratadas antes de cobrar. Até 6x sem acréscimo significa que a clínica pode absorver a taxa cobrada pela operadora.</p>
+   <p className="profile-notice">Os protocolos ficam registrados para o planejamento clínico; consultas e “Outro” criam contas financeiras de teste, sem inventar sessões de aplicação. A tabela InfinitePay é uma simulação; confirme as condições contratadas antes de cobrar. Até 6x não há acréscimo ao paciente, porém a taxa da operadora é descontada da clínica e registrada como custo estimado.</p>
    <div className="form-actions"><button className="gold-button" disabled={busy||loading||!valuesValid}>{busy?'Salvando...':isProtocol?'Cadastrar protocolo':'Registrar serviço no Financeiro'}</button></div>
   </form>
   <div className="record-top"><h4>Protocolos cadastrados</h4><button type="button" className="outline-gold" disabled={loading||busy} onClick={load}>Atualizar</button></div>
@@ -273,7 +282,7 @@ export default function TestProtocols({supabase}){
     return <div className="form-section protocol-entry" key={p.protocolo_id}>
      <div className="administration-heading"><strong>{p.nome}</strong><span>{p.status==='ativo'?'Ativo':p.status}</span></div>
      <p>Paciente: <strong>{p.paciente_nome}</strong> · Início: {dateBR(p.inicio)} · Duração: {p.duracao_dias} dias</p>
-     {savedPricing[p.protocolo_id]&&<p className="profile-notice">Tabela: {money(savedPricing[p.protocolo_id].valor_tabela)} · Valor acordado: {money(savedPricing[p.protocolo_id].valor_acordado)} · {savedPricing[p.protocolo_id].parcelas}x · Taxa InfinitePay simulada: {ratePct(Number(savedPricing[p.protocolo_id].taxa_infinitepay))} · Total a cobrar: {money(savedPricing[p.protocolo_id].total_cobrado)}. Conta financeira ainda deve ser gerada no módulo Financeiro.</p>}
+     {savedPricing[p.protocolo_id]&&<p className="profile-notice">Tabela: {money(savedPricing[p.protocolo_id].valor_tabela)} · Valor acordado: {money(savedPricing[p.protocolo_id].valor_acordado)} · {savedPricing[p.protocolo_id].parcelas}x · Pagamento: {paymentNames[savedPricing[p.protocolo_id].forma_pagamento]||'Crédito'} · Taxa InfinitePay simulada: {ratePct(Number(savedPricing[p.protocolo_id].taxa_infinitepay))} · Taxa em R$: {money(savedPricing[p.protocolo_id].taxa_valor)} · Líquido estimado: {money(savedPricing[p.protocolo_id].liquido_estimado)} · Total a cobrar: {money(savedPricing[p.protocolo_id].total_cobrado)}. Conta financeira ainda deve ser gerada no módulo Financeiro.</p>}
      <div className="inventory-report-metrics">
       <div><small>Valor cobrado (não equivale a recebido)</small><strong>{money(priceTotal)}</strong></div>
       <div><small>Repasse à clínica ({formatPercentage(p.percentual_clinica)}%)</small><strong>{money(clinicValue)}</strong></div>
