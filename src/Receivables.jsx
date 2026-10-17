@@ -3,7 +3,10 @@ const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).fo
 const ptDate=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>{const d=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const p=Object.fromEntries(d.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;};
 const forms={pix:'Pix',cartao_credito:'Cartão de crédito',cartao_debito:'Cartão de débito',dinheiro:'Dinheiro',transferencia:'Transferência',outro:'Outro'};
-const amount=v=>{const n=String(v||'').trim().replace(',','.');return /^\d{1,8}(\.\d{1,2})?$/.test(n)?Number(n):NaN;};
+// Valor dos formulários armazenado como dígitos de centavos, sem ambiguidades de separador.
+const currencyDigits=v=>String(v||'').replace(/\D/g,'').replace(/^0+(?=\d)/,'').slice(0,9);
+const currencyDisplay=v=>v?brl(Number(v)/100):'';
+const amount=v=>v&&/^\d{1,9}$/.test(v)?Number(v)/100:NaN;
 export default function Receivables({supabase}){
  const [rows,setRows]=useState([]),[patients,setPatients]=useState([]),[protocols,setProtocols]=useState([]),
   [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -42,7 +45,7 @@ export default function Receivables({supabase}){
  async function create(e){
   e.preventDefault();setError('');setNotice('');
   const value=amount(total);
-  if(!patient||!description.trim()||!due||!Number.isFinite(value)||value<=0){setError('Confira paciente, descrição, valor e vencimento. Use valores como 700,00.');return;}
+  if(!patient||!description.trim()||!due||!Number.isFinite(value)||value<=0){setError('Confira paciente, descrição, valor e vencimento. Digite o valor usando o campo em reais.');return;}
   if(!window.confirm('Criar conta fictícia de '+brl(value)+' para '+patients.find(p=>p.id===patient)?.nome+'? Nenhuma cobrança será enviada.'))return;
   setBusy(true);
   try{
@@ -111,7 +114,7 @@ export default function Receivables({supabase}){
     <label>Protocolo relacionado (opcional)<select value={protocol} onChange={e=>setProtocol(e.target.value)} disabled={!patient}>
      <option value="">Sem protocolo vinculado</option>{protocolsForPatient.map(p=><option key={p.protocolo_id} value={p.protocolo_id}>{p.nome} — {brl(p.preco_cobrado)}</option>)}</select></label>
     <label>Descrição *<input required maxLength={200} minLength={3} value={description} onChange={e=>setDescription(e.target.value)} placeholder="Ex.: consulta, retorno, protocolo"/></label>
-    <label>Valor (R$) *<input required inputMode="decimal" value={total} onChange={e=>setTotal(e.target.value)} placeholder="700,00"/></label>
+    <label>Valor (R$) *<input required type="text" inputMode="numeric" autoComplete="off" value={currencyDisplay(total)} onChange={e=>setTotal(currencyDigits(e.target.value))} placeholder="R$ 0,00" aria-label="Valor da conta em reais"/></label>
     <label>Vencimento *<input type="date" required value={due} onChange={e=>setDue(e.target.value)}/></label>
     <div className="form-actions receivables-actions"><button type="submit" className="gold-button" disabled={busy||loading}>Criar conta fictícia</button></div>
    </form>
@@ -140,7 +143,7 @@ export default function Receivables({supabase}){
   {payAccount&&<div className="premium-panel">
    <h3>Registrar recebimento fictício</h3><p>{payAccount.paciente_nome} · {payAccount.descricao} · saldo de {brl(payAccount.saldo_pendente)}</p>
    <form className="receivables-form" onSubmit={pay}>
-    <label>Valor recebido (R$) *<input required inputMode="decimal" value={payAmount} onChange={e=>setPayAmount(e.target.value)} placeholder="350,00"/></label>
+    <label>Valor recebido (R$) *<input required type="text" inputMode="numeric" autoComplete="off" value={currencyDisplay(payAmount)} onChange={e=>setPayAmount(currencyDigits(e.target.value))} placeholder="R$ 0,00" aria-label="Valor recebido em reais"/></label>
     <label>Forma de pagamento *<select value={payForm} onChange={e=>setPayForm(e.target.value)}>{Object.entries(forms).map(([id,title])=><option key={id} value={id}>{title}</option>)}</select></label>
     <label>Data do pagamento *<input required type="date" value={payDate} onChange={e=>setPayDate(e.target.value)}/></label>
     <label>Parcelas do recebimento<select value={payInstallments} onChange={e=>setPayInstallments(e.target.value)}>{[...Array(12)].map((_,i)=><option key={i+1} value={i+1}>{i+1}x</option>)}</select></label>
