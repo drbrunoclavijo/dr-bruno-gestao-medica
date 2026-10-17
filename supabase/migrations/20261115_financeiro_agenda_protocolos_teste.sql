@@ -34,7 +34,7 @@ BEGIN
  FROM public.protocolos_teste pr
  JOIN public.pacientes pa ON pa.id=pr.paciente_id
  WHERE pr.status IN ('ativo','concluido') AND pr.preco_cobrado>0
- ORDER BY data_referencia DESC LIMIT 500;
+ ORDER BY 6 DESC LIMIT 500;
 END $fin$;
 
 CREATE OR REPLACE FUNCTION public.criar_conta_por_origem_teste(
