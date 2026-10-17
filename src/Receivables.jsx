@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import ClinicExpenses from './ClinicExpenses.jsx';
+import {debitRates,instantDebit,rateForPayment,ratePct as rateText} from './PaymentRates.js';
 const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
 const ptDate=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>{const d=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const p=Object.fromEntries(d.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;};
@@ -38,21 +39,23 @@ export default function Receivables({supabase}){
  const [search,setSearch]=useState(''),[filter,setFilter]=useState('abertas');
  const [payAccount,setPayAccount]=useState(null),[payAmount,setPayAmount]=useState(''),[payForm,setPayForm]=useState('pix'),
   [payInstallments,setPayInstallments]=useState('1'),[payDate,setPayDate]=useState(today()),[payReference,setPayReference]=useState('');
+ const [payBrand,setPayBrand]=useState('visa'),[payTier,setPayTier]=useState('inicial'),[payPlan,setPayPlan]=useState('dia'),[feeMonthly,setFeeMonthly]=useState([]);
  const [details,setDetails]=useState({});
  const [origins,setOrigins]=useState([]),[originKind,setOriginKind]=useState('consulta'),[originId,setOriginId]=useState(''),[originValue,setOriginValue]=useState(''),[originDue,setOriginDue]=useState(today()),[originCount,setOriginCount]=useState('1');
  const [installments,setInstallments]=useState([]),[monthly,setMonthly]=useState([]),[reportYear,setReportYear]=useState(Number(today().slice(0,4)));
  async function load(){
   setLoading(true);setError('');
-  const [a,p,pr,ins,report,linked]=await Promise.all([
+  const [a,p,pr,ins,report,linked,fees]=await Promise.all([
    supabase.rpc('listar_contas_receber_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
    supabase.rpc('listar_protocolos_com_insumos_teste'),
    supabase.rpc('listar_parcelas_receber_teste'),
    supabase.rpc('resumo_financeiro_mensal_teste',{p_ano:reportYear}),
-   supabase.rpc('origens_contas_financeiras_teste')
+   supabase.rpc('origens_contas_financeiras_teste'),
+   supabase.rpc('resumo_taxas_pagamentos_teste',{p_ano:reportYear})
   ]);
-  if(a.error||p.error||pr.error||ins.error||report.error||linked.error)setError('Não foi possível carregar o financeiro: '+(a.error||p.error||pr.error||ins.error||report.error||linked.error).message+'. Verifique a migração de parcelamento e resumo mensal.');
-  else{setRows(a.data||[]);setPatients(p.data||[]);setProtocols(pr.data||[]);setInstallments(ins.data||[]);setMonthly(report.data||[]);setOrigins(linked.data||[]);}
+  if(a.error||p.error||pr.error||ins.error||report.error||linked.error||fees.error)setError('Não foi possível carregar o financeiro: '+(a.error||p.error||pr.error||ins.error||report.error||linked.error||fees.error).message+'. Verifique a migração de parcelamento e resumo mensal.');
+  else{setRows(a.data||[]);setPatients(p.data||[]);setProtocols(pr.data||[]);setInstallments(ins.data||[]);setMonthly(report.data||[]);setOrigins(linked.data||[]);setFeeMonthly(fees.data||[]);}
   setLoading(false);
  }
  useEffect(()=>{load();},[reportYear]);
@@ -96,9 +99,10 @@ export default function Receivables({supabase}){
   if(!window.confirm('Registrar recebimento FICTÍCIO de '+brl(value)+' para '+payAccount.paciente_nome+'? Esta ação não movimenta dinheiro.'))return;
   setBusy(true);setError('');setNotice('');
   try{
-   const {error:err}=await supabase.rpc('registrar_pagamento_receber_teste',{
+   const {error:err}=await supabase.rpc('registrar_pagamento_com_taxa_teste',{
     p_conta_id:payAccount.conta_id,p_valor:value,p_forma:payForm,
-    p_pago_em:payDate+'T12:00:00-03:00',p_parcelas:Number(payInstallments),p_referencia:payReference.trim()||null
+    p_pago_em:payDate+'T12:00:00-03:00',p_parcelas:payForm==='cartao_credito'?Number(payInstallments):1,p_referencia:payReference.trim()||null,
+    p_taxa:payRate
    });
    if(err)throw err;
    setPayAccount(null);setPayAmount('');setPayInstallments('1');setPayReference('');
@@ -143,6 +147,11 @@ export default function Receivables({supabase}){
   }catch(err){setError('Não foi possível gerar conta: '+err.message);}
   finally{setBusy(false);}
  }
+ const payRate=payForm==='cartao_credito'?rateForPayment('credito',Number(payInstallments),payBrand,payTier,payPlan):
+  payForm==='cartao_debito'?rateForPayment('debito',1,payBrand,payTier,payPlan):0;
+ const paymentValue=amount(payAmount);
+ const estimatedFee=Number.isFinite(paymentValue)?Math.round(paymentValue*payRate)/100:0;
+ const paymentNet=Number.isFinite(paymentValue)?Math.round(paymentValue*100-estimatedFee*100)/100:0;
  const selectedRates=receivePlan==='hora'?infinityInstant:infinityRates[cardBrand][cardTier];
  const currentFee=selectedRates[Number(installmentCount)-1]??0;
  const grossPreview=amount(total);
@@ -153,6 +162,7 @@ export default function Receivables({supabase}){
  const selectedOrigin=availableOrigins.find(o=>o.origem_id===originId);
  const monthlyScheduled=monthly.reduce((sum,m)=>sum+Number(m.previsto||0),0);
  const monthlyReceived=monthly.reduce((sum,m)=>sum+Number(m.recebido||0),0);
+ const knownFees=feeMonthly.reduce((sum,m)=>sum+Number(m.desconto_maquininha||0),0);
  return <section className="receivables-page">
   <div className="premium-panel"><div className="panel-title"><span className="title-icon">R$</span><div><h3>Contas a receber e pagamentos</h3>
    <p>Financeiro de teste · acesso médico exclusivo nesta etapa.</p></div></div>
@@ -214,7 +224,12 @@ export default function Receivables({supabase}){
    <div className="dashboard-agenda-title"><div><h3>Resumo financeiro mensal</h3><p>Vencimentos previstos e recebimentos registrados, por mês.</p></div>
      <label>Ano<select value={reportYear} onChange={e=>setReportYear(Number(e.target.value))}>{Array.from({length:7},(_,i)=>Number(today().slice(0,4))-3+i).map(y=><option key={y} value={y}>{y}</option>)}</select></label>
    </div>
-   <div className="receivables-metrics"><div><small>Total previsto no ano</small><strong>{brl(monthlyScheduled)}</strong></div><div><small>Recebimentos no ano</small><strong>{brl(monthlyReceived)}</strong></div></div>
+   <div className="receivables-metrics">
+    <div><small>Total previsto no ano</small><strong>{brl(monthlyScheduled)}</strong></div>
+    <div><small>Recebido bruto no ano</small><strong>{brl(monthlyReceived)}</strong></div>
+    <div><small>Taxas registradas da maquininha</small><strong>{brl(knownFees)}</strong></div>
+    <div><small>Recebido após taxas registradas</small><strong>{brl(monthlyReceived-knownFees)}</strong></div>
+   </div>
    <div className="receivables-monthly-list">{monthly.map(m=><div className="receivables-month-row" key={m.mes}><strong>{monthNames[Number(m.mes)-1]}</strong><span>Previsto: {brl(m.previsto)}</span><span>Recebido: {brl(m.recebido)}</span></div>)}</div>
    <p className="profile-notice">Previsto representa o total de parcelas com vencimento naquele mês, não necessariamente receita futura garantida. Recebido considera a data do pagamento registrado. Os dois valores são independentes.</p>
   </div>
@@ -247,8 +262,18 @@ export default function Receivables({supabase}){
     <label>Valor recebido (R$) *<input required type="text" inputMode="numeric" autoComplete="off" value={currencyDisplay(payAmount)} onChange={e=>setPayAmount(currencyDigits(e.target.value))} placeholder="R$ 0,00" aria-label="Valor recebido em reais"/></label>
     <label>Forma de pagamento *<select value={payForm} onChange={e=>setPayForm(e.target.value)}>{Object.entries(forms).map(([id,title])=><option key={id} value={id}>{title}</option>)}</select></label>
     <label>Data do pagamento *<input required type="date" value={payDate} onChange={e=>setPayDate(e.target.value)}/></label>
-    <label>Parcelas no comprovante do recebimento<select value={payInstallments} onChange={e=>setPayInstallments(e.target.value)}>{[...Array(12)].map((_,i)=><option key={i+1} value={i+1}>{i+1}x</option>)}</select></label>
-    <p className="receivables-wide receivables-help">Este campo registra como o pagamento foi efetuado no cartão; não altera o cronograma de vencimentos da conta.</p>
+    {(payForm==='cartao_credito'||payForm==='cartao_debito')&&<>
+     <label>Bandeira<select value={payBrand} onChange={e=>setPayBrand(e.target.value)}><option value="visa">Visa / Mastercard</option><option value="outras">Elo / Amex / Hipercard</option></select></label>
+     <label>Faixa de faturamento<select value={payTier} onChange={e=>setPayTier(e.target.value)} disabled={payPlan==='hora'}>{Object.entries(tiers).map(([k,v])=><option value={k} key={k}>{v}</option>)}</select></label>
+     <label>Prazo de recebimento<select value={payPlan} onChange={e=>setPayPlan(e.target.value)}><option value="dia">Em 1 dia útil</option><option value="hora">Na hora</option></select></label>
+    </>}
+    {payForm==='cartao_credito'&&<label>Parcelamento InfinitePay<select value={payInstallments} onChange={e=>setPayInstallments(e.target.value)}>{[...Array(12)].map((_,i)=><option key={i+1} value={i+1}>{i+1}x — taxa {rateText(rateForPayment('credito',i+1,payBrand,payTier,payPlan))}</option>)}</select></label>}
+    <div className="receivables-wide infinity-preview"><strong>Valor recebido pela clínica (simulação)</strong>
+     <span>Taxa da operação: {rateText(payRate)}</span>
+     <span>Custo da maquininha: {brl(estimatedFee)}</span>
+     <strong>Crédito líquido estimado: {brl(paymentNet)}</strong>
+     <small>O valor integral pago pelo paciente é registrado na conta. O custo da maquininha fica registrado separadamente e descontado nos relatórios líquidos. Não registre a mesma taxa novamente em Despesas.</small>
+    </div>
     <label className="receivables-wide">Referência administrativa<input maxLength={200} value={payReference} onChange={e=>setPayReference(e.target.value)} placeholder="Opcional, sem dados bancários sensíveis"/></label>
     <div className="form-actions receivables-actions"><button type="button" className="outline-gold" onClick={()=>setPayAccount(null)}>Cancelar</button><button className="gold-button" disabled={busy}>Confirmar recebimento fictício</button></div>
    </form>
