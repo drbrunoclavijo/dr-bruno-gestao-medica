@@ -36,12 +36,13 @@ export default function Receivables({supabase}){
  const all=rows.filter(x=>x.status==='aberta');
  const pending=all.reduce((sum,x)=>sum+Number(x.saldo_pendente||0),0);
  const received=rows.reduce((sum,x)=>sum+Number(x.total_pago||0),0);
- const overdue=all.filter(x=>x.vencimento<t&&Number(x.saldo_pendente)>0.001);
+ const overdueInstallments=installments.filter(x=>x.vencimento<t&&Number(x.saldo)>0.001&&all.some(a=>a.conta_id===x.conta_id));
+ const overdue=all.filter(x=>overdueInstallments.some(p=>p.conta_id===x.conta_id));
  const open=all.filter(x=>Number(x.saldo_pendente)>0.001);
  const paid=all.filter(x=>Number(x.saldo_pendente)<0.001);
  const shown=rows.filter(x=>{
   if(filter==='abertas'&&!(x.status==='aberta'&&Number(x.saldo_pendente)>0.001))return false;
-  if(filter==='vencidas'&&!(x.status==='aberta'&&x.vencimento<t&&Number(x.saldo_pendente)>0.001))return false;
+  if(filter==='vencidas'&&!(x.status==='aberta'&&overdue.some(p=>p.conta_id===x.conta_id)))return false;
   if(filter==='quitadas'&&!(x.status==='aberta'&&Number(x.saldo_pendente)<0.001))return false;
   if(filter==='canceladas'&&x.status!=='cancelada')return false;
   return [x.paciente_nome,x.descricao,x.protocolo_nome].some(s=>String(s||'').toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
@@ -112,7 +113,7 @@ export default function Receivables({supabase}){
    <div><small>Valor cadastrado</small><strong>{loading?'…':brl(rows.filter(x=>x.status!=='cancelada').reduce((sum,x)=>sum+Number(x.valor_total),0))}</strong></div>
    <div><small>Recebido registrado</small><strong>{loading?'…':brl(received)}</strong></div>
    <div><small>Saldo a receber</small><strong>{loading?'…':brl(pending)}</strong></div>
-   <div><small>Vencido</small><strong>{loading?'…':brl(overdue.reduce((sum,x)=>sum+Number(x.saldo_pendente),0))}</strong></div>
+   <div><small>Vencido</small><strong>{loading?'…':brl(overdueInstallments.reduce((sum,x)=>sum+Number(x.saldo),0))}</strong></div>
   </div>
   <div className="premium-panel">
    <h3>Nova conta a receber</h3>
@@ -148,7 +149,7 @@ export default function Receivables({supabase}){
    {loading?<p>Carregando financeiro...</p>:shown.length===0?<p className="record-empty">Nenhuma conta fictícia encontrada para este filtro.</p>:
     <div className="receivables-list">{shown.map(row=><div className="receivables-row" key={row.conta_id}>
      <div><strong>{row.paciente_nome}</strong><small>{row.descricao}{row.protocolo_nome?' · '+row.protocolo_nome:''}</small>
-      <small>Primeiro vencimento: {ptDate(row.vencimento)} · {row.status==='cancelada'?'Cancelada':Number(row.saldo_pendente)<0.001?'Quitada':row.vencimento<t?'Vencida ou parcial':'Em aberto'}</small></div>
+      <small>Primeiro vencimento: {ptDate(row.vencimento)} · {row.status==='cancelada'?'Cancelada':Number(row.saldo_pendente)<0.001?'Quitada':overdue.some(x=>x.conta_id===row.conta_id)?'Com parcela vencida':'Em aberto'}</small></div>
      <div className="receivables-numbers"><strong>{brl(row.valor_total)}</strong><span>Recebido: {brl(row.total_pago)}</span><span>Saldo: {brl(row.saldo_pendente)}</span></div>
      <div className="receivables-row-actions">
       {row.status==='aberta'&&Number(row.saldo_pendente)>0.001&&<button type="button" className="gold-button" disabled={busy} onClick={()=>{setPayAccount(row);setPayAmount('');setPayDate(today());}}>Registrar pagamento</button>}
