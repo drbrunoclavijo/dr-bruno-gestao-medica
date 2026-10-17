@@ -10,12 +10,12 @@ export default function CarolProcedures({supabase}){
  const [patient,setPatient]=useState(''),[name,setName]=useState(''),[details,setDetails]=useState(''),
  [date,setDate]=useState(today()),[price,setPrice]=useState(''),[method,setMethod]=useState('credito'),
  [installments,setInstallments]=useState('1'),[brand,setBrand]=useState('visa'),[tier,setTier]=useState('inicial'),
- [plan,setPlan]=useState('dia');
+ [plan,setPlan]=useState('dia'),[passFee,setPassFee]=useState(false);
  async function load(){
   setLoading(true);
   const [p,r]=await Promise.all([
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
-   supabase.rpc('listar_procedimentos_carol_teste')
+   supabase.rpc('listar_procedimentos_carol_repasse_teste')
   ]);
   if(p.error||r.error)setError('Cadastro de procedimentos indisponível: '+(p.error||r.error).message+'. Execute a nova migração SQL.');
   else{setPatients(p.data||[]);setRecords(r.data||[]);setError('');}
@@ -23,7 +23,7 @@ export default function CarolProcedures({supabase}){
  }
  useEffect(()=>{load();},[]);
  const count=method==='credito'?Number(installments):1;
- const quote=quoteInfinity(Number(price||0)/100,count,brand,tier,plan,method);
+ const quote=quoteInfinity(Number(price||0)/100,count,brand,tier,plan,method,passFee);
  async function submit(e){
   e.preventDefault();setError('');setNotice('');
   if(!patient||name.trim().length<3||!quote||quote.perInstallment<0.01){
@@ -32,10 +32,11 @@ export default function CarolProcedures({supabase}){
   if(!window.confirm('Registrar o procedimento fictício '+name.trim()+'? A operação NÃO registra cobrança ou pagamento real.'))return;
   setBusy(true);
   try{
-   const {error:err}=await supabase.rpc('criar_procedimento_carol_teste',{
+   const {error:err}=await supabase.rpc('criar_procedimento_carol_repasse_teste',{
     p_paciente_id:patient,p_descricao:name.trim(),p_detalhes:details.trim()||null,p_data_prevista:date,
     p_valor_acordado:Number(price)/100,p_total_cobrado:quote.gross,p_forma:method,
-    p_parcelas:count,p_taxa:quote.rate,p_taxa_valor:quote.fee,p_liquido:quote.net
+    p_parcelas:count,p_taxa:quote.rate,p_taxa_valor:quote.fee,p_liquido:quote.net,
+    p_repassar:passFee&&(method==='credito'||method==='debito')
    });
    if(err)throw err;
    setName('');setDetails('');setPrice('');setPatient('');await load();
@@ -69,7 +70,17 @@ export default function CarolProcedures({supabase}){
      <option value="dia">Em 1 dia útil</option><option value="hora">Na hora</option></select></label>
    </>}
    {method==='credito'&&<label>Parcelamento Máquina InfinitePay<select value={installments} onChange={e=>setInstallments(e.target.value)}>
-    {Array.from({length:12},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}x — taxa {ratePct(rateForPayment('credito',n,brand,tier,plan))}{n<=6?' (clínica absorve)':' (repasse simulado)'}</option>)}</select></label>}
+    {Array.from({length:12},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}x — taxa {ratePct(rateForPayment('credito',n,brand,tier,plan))}{passFee?' (repasse ao cliente)':' (desconto da clínica)'}</option>)}</select></label>}
+   {(method==='credito'||method==='debito')&&<div className="fee-choice">
+    <strong>Repassar taxa da maquininha ao cliente?</strong>
+    <div className="fee-choice-buttons">
+     <label><input type="radio" name="carol-repassar" checked={!passFee} onChange={()=>setPassFee(false)}/> Não — clínica absorve</label>
+     <label><input type="radio" name="carol-repassar" checked={passFee} onChange={()=>setPassFee(true)}/> Sim — acrescentar ao valor do cliente</label>
+    </div>
+   </div>}
+   <p className="fee-summary">{passFee&&(method==='credito'||method==='debito')?
+    'Com repasse: o valor cobrado aumenta e o líquido estimado preserva o valor acordado.':
+    'Sem repasse: o cliente paga o valor acordado, e a operadora desconta a taxa do recebimento.'}</p>
    <label>Taxa da maquininha<input readOnly value={quote?ratePct(quote.rate):'—'}/></label>
    <label>Valor total a cobrar<input readOnly value={money(quote?.gross||0)}/></label>
    <label>Taxa descontada da clínica<input readOnly value={money(quote?.fee||0)}/></label>
@@ -82,7 +93,7 @@ export default function CarolProcedures({supabase}){
     <strong>{r.descricao}</strong><p>{r.paciente_nome} · {dateBR(r.data_prevista)}</p>
     {r.detalhes&&<p>{r.detalhes}</p>}
     <p>Valor: {money(r.valor_acordado)} · {paymentNames[r.forma_pagamento]} · {r.parcelas}x</p>
-    <p>Taxa: {ratePct(Number(r.taxa_percentual))} / {money(r.taxa_valor)} · Líquido estimado: <strong>{money(r.liquido_estimado)}</strong></p>
+    <p>Taxa: {ratePct(Number(r.taxa_percentual))} / {money(r.taxa_valor)} · Repasse ao cliente: {r.repassar_taxa?'Sim':'Não'} · Líquido estimado: <strong>{money(r.liquido_estimado)}</strong></p>
    </div>)}</div>}
   <p className="profile-notice">As taxas de cartão são estimadas com base na tabela pública InfinitePay e variam conforme o plano da clínica. Pix no QR Code da InfinitePay é 0%. Valores líquidos não substituem o extrato da operadora.</p>
  </section>;
