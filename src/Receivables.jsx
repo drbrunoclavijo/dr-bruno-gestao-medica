@@ -39,18 +39,20 @@ export default function Receivables({supabase}){
  const [payAccount,setPayAccount]=useState(null),[payAmount,setPayAmount]=useState(''),[payForm,setPayForm]=useState('pix'),
   [payInstallments,setPayInstallments]=useState('1'),[payDate,setPayDate]=useState(today()),[payReference,setPayReference]=useState('');
  const [details,setDetails]=useState({});
+ const [origins,setOrigins]=useState([]),[originKind,setOriginKind]=useState('consulta'),[originId,setOriginId]=useState(''),[originValue,setOriginValue]=useState(''),[originDue,setOriginDue]=useState(today()),[originCount,setOriginCount]=useState('1');
  const [installments,setInstallments]=useState([]),[monthly,setMonthly]=useState([]),[reportYear,setReportYear]=useState(Number(today().slice(0,4)));
  async function load(){
   setLoading(true);setError('');
-  const [a,p,pr,ins,report]=await Promise.all([
+  const [a,p,pr,ins,report,linked]=await Promise.all([
    supabase.rpc('listar_contas_receber_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
    supabase.rpc('listar_protocolos_com_insumos_teste'),
    supabase.rpc('listar_parcelas_receber_teste'),
-   supabase.rpc('resumo_financeiro_mensal_teste',{p_ano:reportYear})
+   supabase.rpc('resumo_financeiro_mensal_teste',{p_ano:reportYear}),
+   supabase.rpc('origens_contas_financeiras_teste')
   ]);
-  if(a.error||p.error||pr.error||ins.error||report.error)setError('Não foi possível carregar o financeiro: '+(a.error||p.error||pr.error||ins.error||report.error).message+'. Verifique a migração de parcelamento e resumo mensal.');
-  else{setRows(a.data||[]);setPatients(p.data||[]);setProtocols(pr.data||[]);setInstallments(ins.data||[]);setMonthly(report.data||[]);}
+  if(a.error||p.error||pr.error||ins.error||report.error||linked.error)setError('Não foi possível carregar o financeiro: '+(a.error||p.error||pr.error||ins.error||report.error||linked.error).message+'. Verifique a migração de parcelamento e resumo mensal.');
+  else{setRows(a.data||[]);setPatients(p.data||[]);setProtocols(pr.data||[]);setInstallments(ins.data||[]);setMonthly(report.data||[]);setOrigins(linked.data||[]);}
   setLoading(false);
  }
  useEffect(()=>{load();},[reportYear]);
@@ -120,12 +122,35 @@ export default function Receivables({supabase}){
   if(err)setError('Não foi possível carregar pagamentos: '+err.message);
   else setDetails(old=>({...old,[id]:data||[]}));
  }
+ async function createFromOrigin(e){
+  e.preventDefault();setError('');setNotice('');
+  const selected=origins.find(o=>o.tipo_origem===originKind&&o.origem_id===originId);
+  const value=amount(originValue);
+  const count=Number(originCount);
+  if(!selected||selected.conta_id||!Number.isFinite(value)||value<=0||count<1||count>36||!Number.isInteger(count)||Math.round(value*100)<count||!originDue){
+   setError('Selecione um atendimento ou protocolo sem conta e confira valor, vencimento e parcelas.');return;
+  }
+  if(!window.confirm('Gerar conta fictícia de '+brl(value)+' para '+selected.paciente_nome+' a partir de '+selected.descricao+'? Nenhum paciente será cobrado automaticamente.'))return;
+  setBusy(true);
+  try{
+   const {error:err}=await supabase.rpc('criar_conta_por_origem_teste',{
+    p_tipo_origem:originKind,p_origem_id:originId,p_valor:value,
+    p_primeiro_vencimento:originDue,p_numero_parcelas:count
+   });
+   if(err)throw err;
+   setOriginId('');setOriginValue('');
+   await load();setNotice('Conta financeira fictícia gerada e vinculada à origem. Nenhuma mensagem ou cobrança foi enviada.');
+  }catch(err){setError('Não foi possível gerar conta: '+err.message);}
+  finally{setBusy(false);}
+ }
  const selectedRates=receivePlan==='hora'?infinityInstant:infinityRates[cardBrand][cardTier];
  const currentFee=selectedRates[Number(installmentCount)-1]??0;
  const grossPreview=amount(total);
  const feePreview=Number.isFinite(grossPreview)?Math.round(grossPreview*currentFee)/100:0;
  const netPreview=Number.isFinite(grossPreview)?Math.round(grossPreview*100-feePreview*100)/100:0;
  const protocolsForPatient=protocols.filter(p=>p.paciente_id===patient);
+ const availableOrigins=origins.filter(o=>o.tipo_origem===originKind&&!o.conta_id);
+ const selectedOrigin=availableOrigins.find(o=>o.origem_id===originId);
  const monthlyScheduled=monthly.reduce((sum,m)=>sum+Number(m.previsto||0),0);
  const monthlyReceived=monthly.reduce((sum,m)=>sum+Number(m.recebido||0),0);
  return <section className="receivables-page">
@@ -141,6 +166,23 @@ export default function Receivables({supabase}){
    <div><small>Recebido registrado</small><strong>{loading?'…':brl(received)}</strong></div>
    <div><small>Saldo a receber</small><strong>{loading?'…':brl(pending)}</strong></div>
    <div><small>Vencido</small><strong>{loading?'…':brl(overdueInstallments.reduce((sum,x)=>sum+Number(x.saldo),0))}</strong></div>
+  </div>
+  <div className="premium-panel">
+   <h3>Gerar conta a partir da Agenda ou de um Protocolo</h3>
+   <p className="profile-notice">Somente atendimentos marcados como realizados e protocolos com valor cadastrado aparecem aqui. A conta é criada apenas quando você confirma, nunca automaticamente ao marcar a consulta.</p>
+   <form className="receivables-form" onSubmit={createFromOrigin}>
+    <label>Origem<select value={originKind} onChange={e=>{setOriginKind(e.target.value);setOriginId('');setOriginValue('');}}>
+     <option value="consulta">Agenda · atendimento realizado</option><option value="protocolo">Protocolos</option></select></label>
+    <label>Atendimento ou protocolo<select required value={originId} onChange={e=>{const id=e.target.value;setOriginId(id);const chosen=origins.find(x=>x.tipo_origem===originKind&&x.origem_id===id);setOriginValue(chosen?.valor_sugerido?String(Math.round(Number(chosen.valor_sugerido)*100)):'');}}>
+     <option value="">Selecione uma origem sem conta vinculada</option>
+     {availableOrigins.map(o=><option key={o.tipo_origem+o.origem_id} value={o.origem_id}>{o.paciente_nome} · {o.descricao} · {ptDate(o.data_referencia)}</option>)}
+    </select></label>
+    {selectedOrigin&&<p className="receivables-wide receivables-help">Paciente: {selectedOrigin.paciente_nome} · {selectedOrigin.descricao}</p>}
+    <label>Valor da conta (R$) *<input required type="text" inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={currencyDisplay(originValue)} onChange={e=>setOriginValue(currencyDigits(e.target.value))}/></label>
+    <label>Primeiro vencimento *<input type="date" required value={originDue} onChange={e=>setOriginDue(e.target.value)}/></label>
+    <label>Parcelas da conta<select value={originCount} onChange={e=>setOriginCount(e.target.value)}>{Array.from({length:36},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}x</option>)}</select></label>
+    <div className="form-actions receivables-actions"><button className="gold-button" type="submit" disabled={busy||loading||!originId}>Gerar conta vinculada</button></div>
+   </form>
   </div>
   <div className="premium-panel">
    <h3>Nova conta a receber</h3>
