@@ -16,6 +16,16 @@ const summary=(title,value,note)=> <div className="dashboard-kpi" key={title}><s
 
 export default function ClinicDashboard({supabase,role,onNavigate}){
  const clinical=role==='medico'||role==='enfermeira';
+ const [finance,setFinance]=useState(null),[financeError,setFinanceError]=useState(''),[financeLoading,setFinanceLoading]=useState(role==='medico');
+ async function loadFinance(){
+  if(role!=='medico')return;
+  setFinanceLoading(true);setFinanceError('');
+  const {data,error:err}=await supabase.rpc('resumo_financeiro_inicial_teste');
+  if(err){setFinance(null);setFinanceError('Resumo financeiro indisponível: '+err.message);}
+  else setFinance((data||[])[0]||null);
+  setFinanceLoading(false);
+ }
+ useEffect(()=>{loadFinance();},[role]);
  const dateNow=localDate();
  const {rows:appointments,loading:appointmentsLoading,error:appointmentsError,refresh:refreshAppointments}=useAppointments(supabase,dateNow,shiftDay(dateNow,7));
  const todaysAppointments=appointments.filter(a=>a.inicio_local.slice(0,10)===dateNow&&a.status!=='cancelado');
@@ -102,6 +112,22 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
       </div>)}</div>}
     <p className="profile-notice">Lembretes internos: acompanhe os atendimentos aqui ao abrir o aplicativo. Avisos automáticos ao profissional e confirmação por resposta do paciente ainda dependem de integração com mensageria.</p>
   </div>
+  {role==='medico'&&<div className="premium-panel dashboard-finance">
+   <div className="dashboard-agenda-title"><div><h3>Resumo financeiro · mês atual</h3><p>Somente perfil médico · lançamentos financeiros fictícios.</p></div>
+    <div className="form-actions"><button className="outline-gold" type="button" disabled={financeLoading} onClick={loadFinance}>Atualizar</button>
+     <button className="gold-button" type="button" onClick={()=>onNavigate('Financeiro')}>Abrir Financeiro →</button></div>
+   </div>
+   {financeError&&<p role="alert" className="form-message">{financeError}</p>}
+   <div className="dashboard-kpis">
+    {summary('Recebido no mês',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.recebido_mes||0)))}
+    {summary('Despesas pagas',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.despesa_paga_mes||0)))}
+    {summary('Resultado de caixa',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.resultado_caixa_mes||0)))}
+    {summary('A receber',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.saldo_a_receber||0)))}
+    {summary('Parcelas vencidas',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.parcelas_vencidas||0)))}
+    {summary('Contas pendentes',financeLoading?'…':finance?.contas_pendentes||0)}
+   </div>
+   <p className="profile-notice">Resultado de caixa é recebimento registrado menos despesas pagas, e não lucro líquido contábil. Não inclui custos clínicos de consumo novamente para evitar duplicidade.</p>
+  </div>}
   <StockAlerts supabase={supabase} onNavigate={onNavigate} compact/>
   {!clinical?<><div className="premium-panel dashboard-appointments">
    <div className="dashboard-agenda-title"><div><h3>Reagendamentos — Atenção, Amanda</h3>
