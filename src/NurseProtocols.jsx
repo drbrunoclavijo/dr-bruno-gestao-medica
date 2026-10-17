@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import CarolProcedures from './CarolProcedures.jsx';
 const dateBR=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const stamp=v=>v?new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(new Date(v)):'—';
 export default function NurseProtocols({supabase}){
@@ -48,6 +49,7 @@ export default function NurseProtocols({supabase}){
   <p className="profile-notice">Somente simulação fictícia. A data planejada é uma estimativa e não comprova administração. O horário da checagem é registrado separadamente. Reagendar não altera a prescrição, o protocolo clínico ou o estoque. Datas fora da vigência devem ser avaliadas pelo médico antes de qualquer procedimento.</p>
   {error&&<p className="form-message" role="alert">{error}</p>}
   {message&&<p className="form-message" role="status">{message}</p>}
+  <CarolProcedures supabase={supabase}/>
   <div className="record-top"><h4>Visão operacional</h4><button type="button" className="outline-gold" disabled={loading||Boolean(busy)} onClick={load}>Atualizar</button></div>
   {!loading&&<div className="nursing-summary">
    <div><small>Protocolos ativos</small><strong>{active.length}</strong></div>
