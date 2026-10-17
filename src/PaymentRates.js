@@ -19,9 +19,30 @@ export const infinityInstant=[5.49,10.89,11.99,12.59,13.29,13.99,14.99,15.59,16.
 export const tiers={inicial:'Até R$ 20 mil/mês',vinte:'R$ 20–40 mil/mês',quarenta:'R$ 40–80 mil/mês',oitenta:'Acima de R$ 80 mil/mês'};
 export const ratePct=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 
-export const quoteInfinity=(base,installments,brand='visa',tier='inicial',plan='dia')=>{
- const rate=installments<=6?0:(plan==='hora'?infinityInstant[installments-1]:infinityRates[brand][tier][installments-1]);
- if(!Number.isFinite(base)||base<=0||!Number.isInteger(installments)||installments<1||installments>12||!Number.isFinite(rate))return null;
- const gross=installments<=6?Math.round(base*100)/100:Math.round(base/(1-rate/100)*100)/100;
- return {rate,gross,fee:Math.round((gross-base)*100)/100,perInstallment:gross/installments};
+// Fonte: https://www.infinitepay.io/taxas (consulta 2026-10-17).
+// Taxa Pix por QR Code/app/maquininha: 0%. Taxa débito varia por bandeira e plano.
+// Valor "1 dia útil": taxas com antecipação da tabela principal da maquininha.
+export const debitRates={
+ visa:{inicial:1.37,vinte:0.85,quarenta:0.79,oitenta:0.75},
+ outras:{inicial:2.58,vinte:2.08,quarenta:1.98,oitenta:1.88}
+};
+export const instantDebit=2.29;
+export const paymentOptions=['pix','debito','credito','dinheiro','transferencia'];
+export const paymentNames={pix:'Pix',debito:'Débito na InfinitePay',credito:'Crédito na InfinitePay',dinheiro:'Dinheiro',transferencia:'Transferência'};
+export const rateForPayment=(method='credito',count=1,brand='visa',tier='inicial',plan='dia')=>{
+ if(method==='pix'||method==='dinheiro'||method==='transferencia')return 0;
+ if(method==='debito')return plan==='hora'?instantDebit:debitRates[brand][tier];
+ return plan==='hora'?infinityInstant[count-1]:infinityRates[brand][tier][count-1];
+};
+// Em até 6x os custos operacionais são absorvidos pela clínica;
+// do 7x em diante, a simulação repassa a taxa ao valor cobrado.
+export const quoteInfinity=(base,installments=1,brand='visa',tier='inicial',plan='dia',method='credito')=>{
+ const count=method==='credito'?installments:1;
+ const rate=rateForPayment(method,count,brand,tier,plan);
+ if(!Number.isFinite(base)||base<=0||!Number.isInteger(count)||count<1||count>12||!Number.isFinite(rate)||rate<0||rate>=100)return null;
+ const absorb=method!=='credito'||count<=6;
+ const gross=absorb?Math.round(base*100)/100:Math.round(base/(1-rate/100)*100)/100;
+ const fee=Math.round(gross*rate)/100;
+ const net=Math.round(gross*100-fee*100)/100;
+ return {rate,gross,fee,net,absorbed:absorb,perInstallment:gross/count};
 };
