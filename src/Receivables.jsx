@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useState} from 'react';
+import ClinicExpenses from './ClinicExpenses.jsx';
 const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n)||0);
 const ptDate=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>{const d=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const p=Object.fromEntries(d.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;};
@@ -175,6 +176,7 @@ export default function Receivables({supabase}){
    <div className="receivables-monthly-list">{monthly.map(m=><div className="receivables-month-row" key={m.mes}><strong>{monthNames[Number(m.mes)-1]}</strong><span>Previsto: {brl(m.previsto)}</span><span>Recebido: {brl(m.recebido)}</span></div>)}</div>
    <p className="profile-notice">Previsto representa o total de parcelas com vencimento naquele mês, não necessariamente receita futura garantida. Recebido considera a data do pagamento registrado. Os dois valores são independentes.</p>
   </div>
+  <ClinicExpenses supabase={supabase} year={reportYear}/>
   <div className="premium-panel">
    <div className="dashboard-agenda-title"><div><h3>Contas registradas</h3><p>{open.length} com saldo pendente · {paid.length} quitadas · {overdue.length} vencidas</p></div></div>
    <div className="receivables-form">
