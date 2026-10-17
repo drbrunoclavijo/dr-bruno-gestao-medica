@@ -553,3 +553,9 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .receivables-month-row span{overflow-wrap:anywhere}
 @media(max-width:800px){.receivables-monthly-list{grid-template-columns:1fr}}
 @media(max-width:550px){.receivables-installment{grid-template-columns:1fr}.receivables-month-row{grid-template-columns:42px minmax(0,1fr);gap:6px}.receivables-month-row span:last-child{grid-column:2}}
+
+/* Simulador de taxas da maquininha InfinitePay no financeiro ficticio */
+.infinity-preview{display:flex;flex-direction:column;gap:8px;padding:15px 18px;border:1px solid #76603d;border-radius:12px;background:linear-gradient(115deg,#29241c,#171b1c);color:#d8c9ae;font-size:13px}
+.infinity-preview strong{color:#f4d9a6}
+.infinity-preview small{color:#bfb4a3;line-height:1.6}
+.infinity-preview a{color:#efd19b;text-decoration:underline;text-underline-offset:3px}
