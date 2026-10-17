@@ -8,15 +8,16 @@ const today=()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/
 const categories={aluguel:'Aluguel',pessoal:'Equipe e pessoal',energia:'Energia',agua:'Água',internet:'Internet',marketing:'Marketing',manutencao:'Manutenção',material_escritorio:'Material administrativo',impostos:'Impostos',taxa_cartao:'Taxas de cartão',medicamentos:'Medicamentos (compra)',insumos:'Insumos (compra)',outros:'Outras despesas'};
 const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 export default function ClinicExpenses({supabase,year}){
- const [expenses,setExpenses]=useState([]),[monthsReport,setMonthsReport]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [expenses,setExpenses]=useState([]),[monthsReport,setMonthsReport]=useState([]),[cardFees,setCardFees]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [description,setDescription]=useState(''),[category,setCategory]=useState('aluguel'),[value,setValue]=useState(''),
  [due,setDue]=useState(today()),[paid,setPaid]=useState(false),[paidDate,setPaidDate]=useState(today()),[notes,setNotes]=useState(''),[filter,setFilter]=useState('todas');
  async function load(){
   setLoading(true);setError('');
-  const [a,b]=await Promise.all([supabase.rpc('listar_despesas_financeiras_teste',{p_ano:year}),
-    supabase.rpc('resumo_resultado_financeiro_teste',{p_ano:year})]);
-  if(a.error||b.error){setError('Não foi possível carregar as despesas: '+(a.error||b.error).message+'. Verifique a migração SQL de despesas.');setExpenses([]);setMonthsReport([]);}
-  else{setExpenses(a.data||[]);setMonthsReport(b.data||[]);}
+  const [a,b,c]=await Promise.all([supabase.rpc('listar_despesas_financeiras_teste',{p_ano:year}),
+    supabase.rpc('resumo_resultado_financeiro_teste',{p_ano:year}),
+    supabase.rpc('resumo_taxas_pagamentos_teste',{p_ano:year})]);
+  if(a.error||b.error||c.error){setError('Não foi possível carregar as despesas e taxas: '+(a.error||b.error||c.error).message+'. Verifique as migrações SQL.');setExpenses([]);setMonthsReport([]);setCardFees([]);}
+  else{setExpenses(a.data||[]);setMonthsReport(b.data||[]);setCardFees(c.data||[]);}
   setLoading(false);
  }
  useEffect(()=>{load();},[year]);
@@ -53,10 +54,11 @@ export default function ClinicExpenses({supabase,year}){
  const paidTotal=monthsReport.reduce((sum,m)=>sum+Number(m.despesas_pagas),0);
  const expected=monthsReport.reduce((sum,m)=>sum+Number(m.despesas_previstas),0);
  const received=monthsReport.reduce((sum,m)=>sum+Number(m.recebido),0);
+ const totalFees=cardFees.reduce((sum,m)=>sum+Number(m.desconto_maquininha||0),0);
  const shown=expenses.filter(e=>filter==='todas'||(filter==='pagas'?!!e.pago_em:filter==='pendentes'?e.status==='ativa'&&!e.pago_em:filter==='canceladas'?e.status==='cancelada':e.categoria===filter));
  return <div className="clinic-expenses">
   <section className="premium-panel"><div className="panel-title"><span className="title-icon">−</span><div><h3>Despesas e resultado de caixa · {year}</h3><p>Registro de custos operacionais, taxas de maquininha e saída de caixa.</p></div></div>
-   <p className="profile-notice">O resultado exibido é recebido MENOS despesas pagas registradas neste módulo, não lucro líquido contábil. Aquisição de estoque e consumo por atendimento têm bases diferentes: não some os custos de consumo novamente quando a compra do estoque já estiver registrada como despesa. Taxas InfinitePay simuladas não viram despesa automaticamente.</p>
+   <p className="profile-notice">O resultado exibido é recebido MENOS despesas pagas e taxas efetivamente registradas em pagamentos neste sistema, não lucro líquido contábil. Aquisição de estoque e consumo por atendimento têm bases diferentes: não some os custos de consumo novamente quando a compra do estoque já estiver registrada como despesa. Taxas InfinitePay simuladas não viram despesa automaticamente.</p>
    {error&&<p className="form-message" role="alert">{error}</p>}{notice&&<p className="form-message" role="status">{notice}</p>}
    <div className="form-actions"><button className="outline-gold" onClick={load} disabled={loading||busy}>Atualizar despesas</button></div>
   </section>
@@ -64,7 +66,8 @@ export default function ClinicExpenses({supabase,year}){
    <div><small>Recebido no ano</small><strong>{loading?'…':brl(received)}</strong></div>
    <div><small>Despesas pagas</small><strong>{loading?'…':brl(paidTotal)}</strong></div>
    <div><small>Despesas pendentes</small><strong>{loading?'…':brl(expected)}</strong></div>
-   <div><small>Resultado de caixa registrado</small><strong>{loading?'…':brl(received-paidTotal)}</strong></div>
+   <div><small>Taxas da maquininha registradas</small><strong>{loading?'…':brl(totalFees)}</strong></div>
+   <div><small>Resultado de caixa após taxas</small><strong>{loading?'…':brl(received-paidTotal-totalFees)}</strong></div>
   </div>
   <section className="premium-panel"><h3>Registrar despesa fictícia</h3>
    <form className="receivables-form" onSubmit={create}>
@@ -80,7 +83,7 @@ export default function ClinicExpenses({supabase,year}){
   </section>
   <section className="premium-panel"><h3>Resultado mensal de caixa · {year}</h3>
    <div className="receivables-monthly-list">{monthsReport.map(m=><div key={m.mes} className="receivables-month-row expense-month-row">
-    <strong>{months[Number(m.mes)-1]}</strong><span>Recebido: {brl(m.recebido)}</span><span>Pago: {brl(m.despesas_pagas)}</span><span>Resultado: {brl(m.resultado_caixa)}</span>
+    <strong>{months[Number(m.mes)-1]}</strong><span>Recebido: {brl(m.recebido)}</span><span>Pago: {brl(m.despesas_pagas)}</span><span>Taxas: {brl(cardFees.find(f=>Number(f.mes)===Number(m.mes))?.desconto_maquininha||0)}</span><span>Resultado após taxas: {brl(Number(m.resultado_caixa)-(Number(cardFees.find(f=>Number(f.mes)===Number(m.mes))?.desconto_maquininha)||0))}</span>
    </div>)}</div>
   </section>
   <section className="premium-panel"><div className="dashboard-agenda-title"><div><h3>Despesas cadastradas</h3><p>Registros fictícios por vencimento e situação.</p></div></div>
