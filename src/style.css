@@ -538,3 +538,18 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .receivables-history p:last-child{border:0}
 @media(max-width:850px){.receivables-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.receivables-row{grid-template-columns:1fr}.receivables-row-actions{justify-content:flex-start;max-width:none}}
 @media(max-width:570px){.receivables-form{grid-template-columns:1fr}.receivables-metrics{grid-template-columns:1fr}}
+
+/* Cronograma de parcelas e movimento mensal de contas ficticias */
+.receivables-help{color:#c5b7a0;font-size:12px;line-height:1.6;margin:0}
+.receivables-installments{grid-column:1/-1;display:grid;gap:7px;background:rgba(115,90,48,.09);border:1px solid #564832;border-radius:10px;padding:12px}
+.receivables-installments>strong{color:#e8c897;margin-bottom:4px}
+.receivables-installment{display:grid;grid-template-columns:minmax(100px,.7fr) minmax(100px,.6fr) minmax(160px,1.2fr);gap:8px;padding:8px 10px;background:#151b1e;border-radius:8px;color:#dfd6c6;font-size:12px}
+.receivables-installment span:last-child{color:#b9b3a9}
+.receivables-monthly{display:grid;gap:15px}
+.receivables-monthly .dashboard-agenda-title label{display:flex;flex-direction:column;gap:6px;color:#e2cda7;font-size:12px;min-width:105px}
+.receivables-monthly-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.receivables-month-row{display:grid;grid-template-columns:50px minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:center;padding:12px;border:1px solid #554a38;background:#15191b;border-radius:9px;color:#c7b8a1;font-size:12px}
+.receivables-month-row strong{color:#f0d29a}
+.receivables-month-row span{overflow-wrap:anywhere}
+@media(max-width:800px){.receivables-monthly-list{grid-template-columns:1fr}}
+@media(max-width:550px){.receivables-installment{grid-template-columns:1fr}.receivables-month-row{grid-template-columns:42px minmax(0,1fr);gap:6px}.receivables-month-row span:last-child{grid-column:2}}
