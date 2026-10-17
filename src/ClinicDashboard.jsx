@@ -16,13 +16,13 @@ const summary=(title,value,note)=> <div className="dashboard-kpi" key={title}><s
 
 export default function ClinicDashboard({supabase,role,onNavigate}){
  const clinical=role==='medico'||role==='enfermeira';
- const [finance,setFinance]=useState(null),[financeError,setFinanceError]=useState(''),[financeLoading,setFinanceLoading]=useState(role==='medico');
+ const [finance,setFinance]=useState(null),[machineFees,setMachineFees]=useState(0),[financeError,setFinanceError]=useState(''),[financeLoading,setFinanceLoading]=useState(role==='medico');
  async function loadFinance(){
   if(role!=='medico')return;
   setFinanceLoading(true);setFinanceError('');
-  const {data,error:err}=await supabase.rpc('resumo_financeiro_inicial_teste');
-  if(err){setFinance(null);setFinanceError('Resumo financeiro indisponível: '+err.message);}
-  else setFinance((data||[])[0]||null);
+  const [base,fees]=await Promise.all([supabase.rpc('resumo_financeiro_inicial_teste'),supabase.rpc('taxas_resumo_atual_teste')]);
+  if(base.error||fees.error){setFinance(null);setMachineFees(0);setFinanceError('Resumo financeiro indisponível: '+(base.error||fees.error).message);}
+  else {setFinance((base.data||[])[0]||null);setMachineFees(Number(fees.data?.[0]?.taxas_mes||0));}
   setFinanceLoading(false);
  }
  useEffect(()=>{loadFinance();},[role]);
@@ -121,12 +121,13 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
    <div className="dashboard-kpis">
     {summary('Recebido no mês',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.recebido_mes||0)))}
     {summary('Despesas pagas',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.despesa_paga_mes||0)))}
-    {summary('Resultado de caixa',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.resultado_caixa_mes||0)))}
+    {summary('Taxas da maquininha',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(machineFees))}
+    {summary('Resultado após taxas',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.resultado_caixa_mes||0)-machineFees))}
     {summary('A receber',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.saldo_a_receber||0)))}
     {summary('Parcelas vencidas',financeLoading?'…':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(finance?.parcelas_vencidas||0)))}
     {summary('Contas pendentes',financeLoading?'…':finance?.contas_pendentes||0)}
    </div>
-   <p className="profile-notice">Resultado de caixa é recebimento registrado menos despesas pagas, e não lucro líquido contábil. Não inclui custos clínicos de consumo novamente para evitar duplicidade.</p>
+   <p className="profile-notice">Resultado após taxas = recebimento registrado menos despesas pagas e taxas de pagamentos com cartão registradas no sistema. Não é lucro líquido contábil. Não lance a taxa da operadora também em Despesas.</p>
   </div>}
   <StockAlerts supabase={supabase} onNavigate={onNavigate} compact/>
   {!clinical?<><div className="premium-panel dashboard-appointments">
