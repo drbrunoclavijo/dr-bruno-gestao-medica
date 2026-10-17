@@ -559,3 +559,11 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .infinity-preview strong{color:#f4d9a6}
 .infinity-preview small{color:#bfb4a3;line-height:1.6}
 .infinity-preview a{color:#efd19b;text-decoration:underline;text-underline-offset:3px}
+
+/* Despesas operacionais de teste e resultado de caixa por periodo */
+.clinic-expenses{display:grid;gap:16px}
+.clinic-expenses .expense-check{flex-direction:row;align-items:center;gap:10px;align-self:end;padding-bottom:10px}
+.clinic-expenses .expense-check input{width:20px;height:20px;min-width:20px;accent-color:#bd9854}
+.clinic-expenses .expense-filter{display:flex;flex-direction:column;gap:8px;max-width:320px;color:#d9c398;font-size:12px}
+.clinic-expenses .expense-month-row{grid-template-columns:42px 1fr 1fr 1fr}
+@media(max-width:680px){.clinic-expenses .expense-month-row{grid-template-columns:42px 1fr 1fr}.clinic-expenses .expense-month-row span:last-child{grid-column:2/-1}}
