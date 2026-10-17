@@ -3,6 +3,26 @@ const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).fo
 const ptDate=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>{const d=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const p=Object.fromEntries(d.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;};
 const monthNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+// Taxas publicadas pela InfinitePay em 2026 — Maquininha/InfiniteTap.
+// No plano 1 dia util, os indices incluem antecipacao conforme tabela oficial.
+// Nao sao cobrancas nem taxas contratuais garantidas; confirme no app do estabelecimento.
+const infinityRates={
+ visa:{
+  inicial:[3.15,5.39,6.12,6.85,7.57,8.28,8.99,9.69,10.38,11.06,11.74,12.40],
+  vinte:[2.89,4.22,4.83,5.44,6.05,6.64,7.24,7.82,8.41,8.98,9.56,10.12],
+  quarenta:[2.79,4.08,4.65,5.21,5.77,6.32,6.87,7.42,7.96,8.49,9.03,9.56],
+  oitenta:[2.69,3.94,4.46,4.98,5.49,5.99,6.51,6.99,7.51,7.99,8.49,8.99]
+ },
+ outras:{
+  inicial:[4.91,6.47,7.20,7.92,8.63,9.33,10.03,10.72,11.41,12.08,12.75,13.41],
+  vinte:[4.65,6.09,6.69,7.28,7.87,8.46,9.05,9.63,10.20,10.76,11.33,11.88],
+  quarenta:[4.56,5.95,6.50,7.05,7.60,8.15,8.69,9.23,9.76,10.29,10.81,11.33],
+  oitenta:[4.46,5.81,6.32,6.83,7.33,7.83,8.34,8.83,9.32,9.81,10.29,10.77]
+ }
+};
+const infinityInstant=[5.49,10.89,11.99,12.59,13.29,13.99,14.99,15.59,16.19,16.89,17.89,18.29];
+const tiers={inicial:'Até R$ 20 mil/mês',vinte:'R$ 20–40 mil/mês',quarenta:'R$ 40–80 mil/mês',oitenta:'Acima de R$ 80 mil/mês'};
+const ratePct=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 const forms={pix:'Pix',cartao_credito:'Cartão de crédito',cartao_debito:'Cartão de débito',dinheiro:'Dinheiro',transferencia:'Transferência',outro:'Outro'};
 // Valor dos formulários armazenado como dígitos de centavos, sem ambiguidades de separador.
 const currencyDigits=v=>String(v||'').replace(/\D/g,'').replace(/^0+(?=\d)/,'').slice(0,9);
@@ -12,7 +32,8 @@ export default function Receivables({supabase}){
  const [rows,setRows]=useState([]),[patients,setPatients]=useState([]),[protocols,setProtocols]=useState([]),
   [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [patient,setPatient]=useState(''),[protocol,setProtocol]=useState(''),[description,setDescription]=useState(''),
-  [total,setTotal]=useState(''),[due,setDue]=useState(today()),[installmentCount,setInstallmentCount]=useState('1');
+  [total,setTotal]=useState(''),[due,setDue]=useState(today()),[installmentCount,setInstallmentCount]=useState('1'),
+  [cardBrand,setCardBrand]=useState('visa'),[cardTier,setCardTier]=useState('inicial'),[receivePlan,setReceivePlan]=useState('dia');
  const [search,setSearch]=useState(''),[filter,setFilter]=useState('abertas');
  const [payAccount,setPayAccount]=useState(null),[payAmount,setPayAmount]=useState(''),[payForm,setPayForm]=useState('pix'),
   [payInstallments,setPayInstallments]=useState('1'),[payDate,setPayDate]=useState(today()),[payReference,setPayReference]=useState('');
@@ -98,6 +119,11 @@ export default function Receivables({supabase}){
   if(err)setError('Não foi possível carregar pagamentos: '+err.message);
   else setDetails(old=>({...old,[id]:data||[]}));
  }
+ const selectedRates=receivePlan==='hora'?infinityInstant:infinityRates[cardBrand][cardTier];
+ const currentFee=selectedRates[Number(installmentCount)-1]??0;
+ const grossPreview=amount(total);
+ const feePreview=Number.isFinite(grossPreview)?Math.round(grossPreview*currentFee)/100:0;
+ const netPreview=Number.isFinite(grossPreview)?Math.round(grossPreview*100-feePreview*100)/100:0;
  const protocolsForPatient=protocols.filter(p=>p.paciente_id===patient);
  const monthlyScheduled=monthly.reduce((sum,m)=>sum+Number(m.previsto||0),0);
  const monthlyReceived=monthly.reduce((sum,m)=>sum+Number(m.recebido||0),0);
@@ -125,8 +151,19 @@ export default function Receivables({supabase}){
     <label>Descrição *<input required maxLength={200} minLength={3} value={description} onChange={e=>setDescription(e.target.value)} placeholder="Ex.: consulta, retorno, protocolo"/></label>
     <label>Valor (R$) *<input required type="text" inputMode="numeric" autoComplete="off" value={currencyDisplay(total)} onChange={e=>setTotal(currencyDigits(e.target.value))} placeholder="R$ 0,00" aria-label="Valor da conta em reais"/></label>
     <label>Primeiro vencimento *<input type="date" required value={due} onChange={e=>setDue(e.target.value)}/></label>
-    <label>Parcelamento<select value={installmentCount} onChange={e=>setInstallmentCount(e.target.value)}>{Array.from({length:36},(_,i)=>i+1).map(n=><option key={n} value={n}>{n}x {n===1?'— à vista':'— mensal'}</option>)}</select></label>
-    <p className="receivables-wide receivables-help">As parcelas seguintes vencem mensalmente no mesmo dia, ajustado ao último dia do mês quando necessário. Diferenças de centavos são distribuídas nas primeiras parcelas.</p>
+    <label>Bandeira do cartão (estimativa)<select value={cardBrand} onChange={e=>setCardBrand(e.target.value)}><option value="visa">Visa / Mastercard</option><option value="outras">Elo / Hipercard / Amex</option></select></label>
+    <label>Faturamento mensal considerado<select value={cardTier} onChange={e=>setCardTier(e.target.value)} disabled={receivePlan==='hora'}>{Object.entries(tiers).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
+    <label>Prazo de recebimento<select value={receivePlan} onChange={e=>setReceivePlan(e.target.value)}><option value="dia">Em 1 dia útil</option><option value="hora">Na hora (taxa padrão publicada)</option></select></label>
+    <label>Parcelamento Maquina InfinityPay<select value={installmentCount} onChange={e=>setInstallmentCount(e.target.value)}>{selectedRates.map((fee,i)=><option key={i+1} value={i+1}>{i+1}x — taxa {ratePct(fee)}</option>)}</select></label>
+    <div className="receivables-wide infinity-preview">
+      <strong>Simulação da taxa da maquininha</strong>
+      <span>Valor da venda: {Number.isFinite(grossPreview)?brl(grossPreview):'R$ 0,00'}</span>
+      <span>Taxa ({ratePct(currentFee)}): {brl(feePreview)}</span>
+      <strong>Líquido estimado: {brl(netPreview)}</strong>
+      <small>As taxas são estimativas oficiais e podem variar por contrato, bandeira e plano. A conta é registrada pelo valor informado, sem desconto ou repasse automático. Até 12x na maquininha; planos administrativos acima de 12x não entram nesta simulação.</small>
+      <a href="https://www.infinitepay.io/taxas" target="_blank" rel="noopener noreferrer">Consultar taxas oficiais InfinitePay ↗</a>
+    </div>
+    <p className="receivables-wide receivables-help">Cronograma interno da conta: parcelas mensais com vencimentos próprios. A taxa exibida refere-se à operação de cartão e não ao custo de financiamento mensal.</p>
     <div className="form-actions receivables-actions"><button type="submit" className="gold-button" disabled={busy||loading}>Criar conta fictícia</button></div>
    </form>
   </div>
