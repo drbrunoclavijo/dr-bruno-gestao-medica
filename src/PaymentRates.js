@@ -34,15 +34,16 @@ export const rateForPayment=(method='credito',count=1,brand='visa',tier='inicial
  if(method==='debito')return plan==='hora'?instantDebit:debitRates[brand][tier];
  return plan==='hora'?infinityInstant[count-1]:infinityRates[brand][tier][count-1];
 };
-// Em até 6x os custos operacionais são absorvidos pela clínica;
-// do 7x em diante, a simulação repassa a taxa ao valor cobrado.
-export const quoteInfinity=(base,installments=1,brand='visa',tier='inicial',plan='dia',method='credito')=>{
+// A decisão de repassar a taxa é livre em qualquer parcela.
+// Sem repasse: cliente paga valor acordado e clínica absorve o desconto.
+// Com repasse: gross-up para que o líquido estimado preserve o valor acordado.
+export const quoteInfinity=(base,installments=1,brand='visa',tier='inicial',plan='dia',method='credito',passFee=false)=>{
  const count=method==='credito'?installments:1;
  const rate=rateForPayment(method,count,brand,tier,plan);
  if(!Number.isFinite(base)||base<=0||!Number.isInteger(count)||count<1||count>12||!Number.isFinite(rate)||rate<0||rate>=100)return null;
- const absorb=method!=='credito'||count<=6;
- const gross=absorb?Math.round(base*100)/100:Math.round(base/(1-rate/100)*100)/100;
+ const passed=Boolean(passFee)&&(method==='credito'||method==='debito');
+ const gross=passed?Math.round(base/(1-rate/100)*100)/100:Math.round(base*100)/100;
  const fee=Math.round(gross*rate)/100;
  const net=Math.round(gross*100-fee*100)/100;
- return {rate,gross,fee,net,absorbed:absorb,perInstallment:gross/count};
+ return {rate,gross,fee,net,passed,absorbed:!passed,perInstallment:gross/count};
 };
