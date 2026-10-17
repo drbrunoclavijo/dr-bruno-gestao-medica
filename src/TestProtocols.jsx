@@ -37,7 +37,7 @@ export default function TestProtocols({supabase}){
    supabase.rpc('listar_precificacao_protocolos_teste')
   ]);
   if(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error||catalogResponse.error||pricingResponse.error)setError('Não foi possível carregar protocolos e o catálogo: '+(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error||catalogResponse.error||pricingResponse.error).message+'. Verifique a migração SQL do catálogo.');
-  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setSessions(sessionList.data||[]);setSessionItems(sessionOptions.data||[]);setSessionCosts(Object.fromEntries((costs.data||[]).map(x=>[x.sessao_id,x])));setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));setCatalog(catalogResponse.data||[]);setSavedPricing(Object.fromEntries((pricingResponse.data||[]).map(x=>[x.protocolo_id,x])));}
+  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setSessions(sessionList.data||[]);setSessionItems(sessionOptions.data||[]);setSessionCosts(Object.fromEntries((costs.data||[]).map(x=>[x.sessao_id,x])));setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));setCatalog(catalogResponse.data||[]);if(!price&&selection!=='outro'){const defaultService=(catalogResponse.data||[]).find(c=>c.codigo===selection);if(defaultService)setPrice(String(Math.round(Number(defaultService.valor_tabela)*100)));}setSavedPricing(Object.fromEntries((pricingResponse.data||[]).map(x=>[x.protocolo_id,x])));}
   setLoading(false);
  }
  useEffect(()=>{load()},[]);
@@ -237,7 +237,7 @@ export default function TestProtocols({supabase}){
     <label>Taxa aplicada à venda<input readOnly value={quote?ratePct(quote.rate):'—'}/></label>
     <label>Total a cobrar (R$)<input readOnly value={money(quote?.gross||0)}/><small>{quote&&quote.rate>0?'Total estimado para preservar o valor acordado após taxa: '+money(quote.fee):'Mesmo valor acordado, sem acréscimo.'}</small></label>
     <label>Valor aproximado por parcela<input readOnly value={money(quote?.perInstallment||0)}/></label>
-    {isProtocol&&<><label>Porcentagem de repasse à clínica (%)<input inputMode="decimal" placeholder="0" value={clinic} onChange={e=>setClinic(e.target.value.replace(/[^\\d,.]/g,'').slice(0,6))}/><small>Repasse interno, independente da taxa da maquininha.</small></label>
+    {isProtocol&&<><label>Porcentagem de repasse à clínica (%)<input inputMode="decimal" placeholder="0" value={clinic} onChange={e=>setClinic(e.target.value.replace(/[^\d,.]/g,'').slice(0,6))}/><small>Repasse interno, independente da taxa da maquininha.</small></label>
      <label>Repasse calculado à clínica (R$)<input readOnly value={money(clinicAmount(Math.round((quote?.gross||0)*100),clinic))}/></label></>}
    </div>
    <p className="profile-notice">Os protocolos ficam registrados para o planejamento clínico; consultas e “Outro” criam contas financeiras de teste, sem inventar sessões de aplicação. A tabela InfinitePay é uma simulação; confirme as condições contratadas antes de cobrar. Até 6x sem acréscimo significa que a clínica pode absorver a taxa cobrada pela operadora.</p>
