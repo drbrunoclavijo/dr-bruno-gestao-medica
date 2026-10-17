@@ -1,9 +1,11 @@
 import React,{useEffect,useState} from 'react';
+import {infinityRates,infinityInstant,tiers,ratePct,quoteInfinity} from './PaymentRates.js';
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v)||0);
 const dateBR=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>new Date().toISOString().slice(0,10);
 const parseCents=s=>Number(s||'0')/100;
-const currencyInput=s=>(Number(s||'0')/100).toFixed(2).replace('.',',');
+const currencyInput=s=>s?money(Number(s)/100):'';
+const centsInput=v=>String(v||'').replace(/\D/g,'').replace(/^0+(?=\d)/,'').slice(0,9);
 const parsePercentage=v=>Number(String(v||'0').replace(',','.'));
 const formatPercentage=v=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const validPercentage=v=>/^\d{1,3}([.,]\d{1,2})?$/.test(String(v||'0'))&&parsePercentage(v)>=0&&parsePercentage(v)<=100;
@@ -11,7 +13,10 @@ const clinicAmount=(priceCents,rate)=>Math.round(Number(priceCents||0)*parsePerc
 export default function TestProtocols({supabase}){
  const [protocols,setProtocols]=useState([]),[patients,setPatients]=useState([]),[rxs,setRxs]=useState([]);
  const [patient,setPatient]=useState(''),[name,setName]=useState(''),[start,setStart]=useState(today());
- const [duration,setDuration]=useState('90'),[days,setDays]=useState('90'),[price,setPrice]=useState(''),[clinic,setClinic]=useState('');
+ const [duration,setDuration]=useState('90'),[days,setDays]=useState('90'),[price,setPrice]=useState(''),[clinic,setClinic]=useState('0');
+ const [catalog,setCatalog]=useState([]),[selection,setSelection]=useState('essential_reset'),[customDescription,setCustomDescription]=useState('');
+ const [ratesBrand,setRatesBrand]=useState('visa'),[ratesTier,setRatesTier]=useState('inicial'),[ratesPlan,setRatesPlan]=useState('dia'),[installmentsCount,setInstallmentsCount]=useState('1');
+ const [savedPricing,setSavedPricing]=useState({});
  const [clinicEdits,setClinicEdits]=useState({}),[clinicBusy,setClinicBusy]=useState('');
  const [selectedRx,setSelectedRx]=useState({}),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [forecasts,setForecasts]=useState({}),[sessionCosts,setSessionCosts]=useState({});
@@ -20,35 +25,68 @@ export default function TestProtocols({supabase}){
  const [message,setMessage]=useState(''),[error,setError]=useState('');
  async function load(){
   setLoading(true);setError('');
-  const [p,pa,rx,estimates,sessionList,sessionOptions,costs]=await Promise.all([
+  const [p,pa,rx,estimates,sessionList,sessionOptions,costs,catalogResponse,pricingResponse]=await Promise.all([
    supabase.rpc('listar_protocolos_com_insumos_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
    supabase.rpc('listar_prescricoes_para_protocolos_teste'),
    supabase.rpc('previsao_custos_protocolos_teste'),
    supabase.rpc('listar_sessoes_protocolos_teste'),
    supabase.rpc('itens_sessoes_protocolos_teste'),
-   supabase.rpc('custos_sessoes_protocolos_teste')
+   supabase.rpc('custos_sessoes_protocolos_teste'),
+   supabase.rpc('listar_catalogo_servicos_teste'),
+   supabase.rpc('listar_precificacao_protocolos_teste')
   ]);
-  if(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error)setError('Não foi possível carregar protocolos: '+(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error).message);
-  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setSessions(sessionList.data||[]);setSessionItems(sessionOptions.data||[]);setSessionCosts(Object.fromEntries((costs.data||[]).map(x=>[x.sessao_id,x])));setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));}
+  if(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error||catalogResponse.error||pricingResponse.error)setError('Não foi possível carregar protocolos e o catálogo: '+(p.error||pa.error||rx.error||estimates.error||sessionList.error||sessionOptions.error||costs.error||catalogResponse.error||pricingResponse.error).message+'. Verifique a migração SQL do catálogo.');
+  else{setProtocols(p.data||[]);setPatients(pa.data||[]);setRxs(rx.data||[]);setForecasts(Object.fromEntries((estimates.data||[]).map(x=>[x.protocolo_id,x])));setSessions(sessionList.data||[]);setSessionItems(sessionOptions.data||[]);setSessionCosts(Object.fromEntries((costs.data||[]).map(x=>[x.sessao_id,x])));setClinicEdits(Object.fromEntries((p.data||[]).map(x=>[x.protocolo_id,formatPercentage(x.percentual_clinica)])));setCatalog(catalogResponse.data||[]);setSavedPricing(Object.fromEntries((pricingResponse.data||[]).map(x=>[x.protocolo_id,x])));}
   setLoading(false);
  }
  useEffect(()=>{load()},[]);
+ const chosen=catalog.find(c=>c.codigo===selection);
+ const isProtocol=chosen?.tipo==='protocolo';
+ const agreed=parseCents(price);
+ const installmentNumber=Number(installmentsCount);
+ const quote=quoteInfinity(agreed,installmentNumber,ratesBrand,ratesTier,ratesPlan);
+ const valuesValid=Number.isInteger(installmentNumber)&&installmentNumber>=1&&installmentNumber<=12&&
+  Number.isInteger(Number(price))&&agreed>0&&quote&&Math.round(agreed*100)>=installmentNumber;
+ const discount=chosen?Number(chosen.valor_tabela)-agreed:0;
+ const availableRates=ratesPlan==='hora'?infinityInstant:infinityRates[ratesBrand][ratesTier];
+ function selectService(key){
+  setSelection(key);setError('');setMessage('');
+  const item=catalog.find(c=>c.codigo===key);
+  setPrice(item?String(Math.round(Number(item.valor_tabela)*100)):'');
+  setDuration(item?.duracao_dias?String(item.duracao_dias):'90');
+  if(key!=='outro')setCustomDescription('');
+ }
  async function create(e){
   e.preventDefault();setError('');setMessage('');
-  const effectiveDays=duration==='custom'?Number(days):Number(duration);
-  if(!patient||!name.trim()||!start||!Number.isInteger(effectiveDays)||effectiveDays<1||effectiveDays>730){
-   setError('Preencha paciente, nome, início e duração válida (1 a 730 dias).');return;
+  if(!patient||!start||!chosen&&selection!=='outro'||selection==='outro'&&!customDescription.trim()){
+   setError('Selecione um serviço, paciente e data. Para Outro, informe a descrição.');return;
   }
-  if(!/^\d+$/.test(price)||Number(price)<0){setError('Informe o valor total em reais.');return;}
-  if(!validPercentage(clinic)){setError('Informe uma porcentagem entre 0 e 100, com até duas casas decimais.');return;}
+  if(selection==='outro'&&customDescription.trim().length<3){setError('Descreva o serviço com pelo menos 3 caracteres.');return;}
+  if(!valuesValid){setError('Informe valor maior que zero e até 12 parcelas. Cada parcela precisa ter pelo menos R$ 0,01.');return;}
+  if(isProtocol&&!validPercentage(clinic)){setError('Informe uma porcentagem válida de repasse à clínica (0 a 100).');return;}
+  const label=chosen?.nome||customDescription.trim();
+  if(!window.confirm('Registrar '+label+' para o paciente fictício em '+installmentNumber+'x, total '+money(quote.gross)+'? '+(isProtocol?'Um protocolo será criado, sem cobrança automática.':'Uma conta a receber de teste será criada no Financeiro, sem marcar atendimento como realizado.')))return;
   setBusy(true);
-  const {error:err}=await supabase.rpc('criar_protocolo_com_percentual_teste',{
-   p_paciente_id:patient,p_nome:name.trim(),p_inicio:start,p_duracao_dias:effectiveDays,p_preco_cobrado:parseCents(price),p_percentual_clinica:parsePercentage(clinic)
-  });
-  if(err)setError('Falha ao cadastrar protocolo: '+err.message);
-  else{setMessage('Protocolo fictício criado. Agora vincule as prescrições correspondentes.');setName('');setPrice('');setClinic('');await load();}
-  setBusy(false);
+  try{
+   let result;
+   if(isProtocol){
+    result=await supabase.rpc('criar_protocolo_catalogo_teste',{
+     p_paciente_id:patient,p_codigo:selection,p_inicio:start,p_valor_acordado:agreed,
+     p_total_cobrado:quote.gross,p_parcelas:installmentNumber,p_taxa:quote.rate,p_percentual_clinica:parsePercentage(clinic)
+    });
+   }else{
+    result=await supabase.rpc('criar_conta_parcelada_teste',{
+     p_paciente_id:patient,p_protocolo_id:null,p_descricao:label,p_valor:quote.gross,
+     p_primeiro_vencimento:start,p_numero_parcelas:installmentNumber
+    });
+   }
+   if(result.error)throw result.error;
+   setPatient('');selectService(selection);
+   await load();
+   setMessage(isProtocol?'Protocolo fictício criado com valor acordado, parcelas e taxa registrados. Nenhuma conta foi gerada automaticamente.':'Serviço fictício registrado como conta a receber no Financeiro, não como protocolo clínico.');
+  }catch(err){setError('Não foi possível registrar: '+err.message);}
+  finally{setBusy(false);}
  }
  async function link(p){
   setError('');setMessage('');
@@ -171,18 +209,39 @@ export default function TestProtocols({supabase}){
   {error&&<p role="alert" className="form-message">{error}</p>}
   {message&&<p role="status" className="form-message">{message}</p>}
   <form className="form-section" onSubmit={create}>
-   <h4>+ Criar protocolo fictício</h4>
+   <h4>+ Registrar protocolo, consulta ou outro serviço fictício</h4>
    <div className="clinical-fields">
+    <label>Serviço / Protocolo<select required value={selection} onChange={e=>selectService(e.target.value)}>
+     {catalog.map(c=><option key={c.codigo} value={c.codigo}>{c.nome} · {money(c.valor_tabela)}</option>)}
+     <option value="outro">Outro — descrição personalizada</option>
+    </select></label>
     <label>Paciente<select required value={patient} onChange={e=>setPatient(e.target.value)}><option value="">Selecione o paciente</option>{patients.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
-    <label>Nome do protocolo<input required maxLength={160} placeholder="Ex.: Performance 90 - teste" value={name} onChange={e=>setName(e.target.value)}/></label>
-    <label>Data de início<input required type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
-    <label>Duração<select value={duration} onChange={e=>setDuration(e.target.value)}><option value="45">45 dias</option><option value="90">3 meses (90 dias)</option><option value="180">6 meses (180 dias)</option><option value="custom">Personalizada</option></select></label>
-    {duration==='custom'&&<label>Duração em dias<input type="number" min="1" max="730" required value={days} onChange={e=>setDays(e.target.value)}/></label>}
-    <label>Valor cobrado (R$)<input required inputMode="numeric" placeholder="0,00" value={currencyInput(price)} onChange={e=>setPrice(e.target.value.replace(/\D/g,'').slice(0,11))}/><small>Digite os números; os dois últimos são centavos.</small></label>
-    <label>Porcentagem cobrada pela clínica (%)<input inputMode="decimal" placeholder="Ex.: 20" value={clinic} onChange={e=>setClinic(e.target.value.replace(/[^\d,.]/g,'').slice(0,6))}/><small>Você informa o percentual: por exemplo, 20 para 20%.</small></label>
-    <label>Repasse calculado à clínica (R$)<input readOnly value={money(clinicAmount(price,clinic))}/><small>Calculado automaticamente e descontado do saldo do protocolo.</small></label>
+    {selection==='outro'&&<label>Descreva o serviço *<input required minLength={3} maxLength={160} placeholder="Ex.: avaliação específica" value={customDescription} onChange={e=>setCustomDescription(e.target.value)}/></label>}
+    <label>{isProtocol?'Data de início':'Data do serviço / primeiro vencimento'}<input required type="date" value={start} onChange={e=>setStart(e.target.value)}/></label>
+    {isProtocol&&<label>Duração do protocolo<input readOnly value={chosen.duracao_dias+' dias'}/></label>}
+    <label>Valor de tabela (R$)<input readOnly value={chosen?money(chosen.valor_tabela):'Personalizado'}/></label>
+    <label>Valor a pagar antes de taxas (R$)<input required inputMode="numeric" autoComplete="off" placeholder="R$ 0,00" value={currencyInput(price)} onChange={e=>setPrice(centsInput(e.target.value))}/><small>Preenchido pelo valor de tabela. Altere quando houver desconto.</small></label>
+    {chosen&&<label>Diferença sobre a tabela<input readOnly value={money(discount)}/><small>Valor positivo indica desconto; negativo indica aumento.</small></label>}
+    <label>Bandeira InfinitePay<select value={ratesBrand} onChange={e=>setRatesBrand(e.target.value)} disabled={installmentNumber<=6}>
+     <option value="visa">Visa / Mastercard</option><option value="outras">Elo / Hipercard / Amex</option>
+    </select></label>
+    <label>Faixa de faturamento<select value={ratesTier} onChange={e=>setRatesTier(e.target.value)} disabled={installmentNumber<=6||ratesPlan==='hora'}>
+     {Object.entries(tiers).map(([key,text])=><option key={key} value={key}>{text}</option>)}
+    </select></label>
+    <label>Prazo de recebimento<select value={ratesPlan} onChange={e=>setRatesPlan(e.target.value)} disabled={installmentNumber<=6}>
+     <option value="dia">1 dia útil</option><option value="hora">Na hora</option>
+    </select></label>
+    <label>Parcelamento Máquina InfinitePay<select value={installmentsCount} onChange={e=>setInstallmentsCount(e.target.value)}>
+     {availableRates.map((rate,i)=><option key={i} value={i+1}>{i+1}x — {i<6?'Sem juros / sem acréscimo':'Taxa '+ratePct(rate)}</option>)}
+    </select><small>Até 6x sem acréscimo ao paciente. A partir de 7x, simulação de repasse da taxa da maquininha.</small></label>
+    <label>Taxa aplicada à venda<input readOnly value={quote?ratePct(quote.rate):'—'}/></label>
+    <label>Total a cobrar (R$)<input readOnly value={money(quote?.gross||0)}/><small>{quote&&quote.rate>0?'Total estimado para preservar o valor acordado após taxa: '+money(quote.fee):'Mesmo valor acordado, sem acréscimo.'}</small></label>
+    <label>Valor aproximado por parcela<input readOnly value={money(quote?.perInstallment||0)}/></label>
+    {isProtocol&&<><label>Porcentagem de repasse à clínica (%)<input inputMode="decimal" placeholder="0" value={clinic} onChange={e=>setClinic(e.target.value.replace(/[^\\d,.]/g,'').slice(0,6))}/><small>Repasse interno, independente da taxa da maquininha.</small></label>
+     <label>Repasse calculado à clínica (R$)<input readOnly value={money(clinicAmount(Math.round((quote?.gross||0)*100),clinic))}/></label></>}
    </div>
-   <div className="form-actions"><button className="gold-button" disabled={busy}>{busy?'Salvando...':'Cadastrar protocolo'}</button></div>
+   <p className="profile-notice">Os protocolos ficam registrados para o planejamento clínico; consultas e “Outro” criam contas financeiras de teste, sem inventar sessões de aplicação. A tabela InfinitePay é uma simulação; confirme as condições contratadas antes de cobrar. Até 6x sem acréscimo significa que a clínica pode absorver a taxa cobrada pela operadora.</p>
+   <div className="form-actions"><button className="gold-button" disabled={busy||loading||!valuesValid}>{busy?'Salvando...':isProtocol?'Cadastrar protocolo':'Registrar serviço no Financeiro'}</button></div>
   </form>
   <div className="record-top"><h4>Protocolos cadastrados</h4><button type="button" className="outline-gold" disabled={loading||busy} onClick={load}>Atualizar</button></div>
   {loading?<p>Carregando...</p>:protocols.length===0?<p className="record-empty">Ainda não existem protocolos fictícios.</p>:<div className="record-list">
@@ -214,6 +273,7 @@ export default function TestProtocols({supabase}){
     return <div className="form-section protocol-entry" key={p.protocolo_id}>
      <div className="administration-heading"><strong>{p.nome}</strong><span>{p.status==='ativo'?'Ativo':p.status}</span></div>
      <p>Paciente: <strong>{p.paciente_nome}</strong> · Início: {dateBR(p.inicio)} · Duração: {p.duracao_dias} dias</p>
+     {savedPricing[p.protocolo_id]&&<p className="profile-notice">Tabela: {money(savedPricing[p.protocolo_id].valor_tabela)} · Valor acordado: {money(savedPricing[p.protocolo_id].valor_acordado)} · {savedPricing[p.protocolo_id].parcelas}x · Taxa InfinitePay simulada: {ratePct(Number(savedPricing[p.protocolo_id].taxa_infinitepay))} · Total a cobrar: {money(savedPricing[p.protocolo_id].total_cobrado)}. Conta financeira ainda deve ser gerada no módulo Financeiro.</p>}
      <div className="inventory-report-metrics">
       <div><small>Valor cobrado (não equivale a recebido)</small><strong>{money(priceTotal)}</strong></div>
       <div><small>Repasse à clínica ({formatPercentage(p.percentual_clinica)}%)</small><strong>{money(clinicValue)}</strong></div>
