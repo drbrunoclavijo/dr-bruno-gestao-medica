@@ -25,9 +25,8 @@ function documentLines({kind,document}){
  return (document?.items||[]).map((item,index)=>({
   title:(index+1)+'. '+String(item.medicamento||'Medicamento sem nome'),
   content:[
-   'Dose/apresentação: '+String(item.dose||'—'),
-   'Via: '+String(item.via||'—'),
-   'Frequência: '+String(item.frequencia||'—'),
+   'Dose/apresentação: '+String(item.dose||item.quantidade||'—'),
+   ...(kind==='domiciliar'?['Posologia: '+String(item.posologia||'—')]:['Via: '+String(item.via||'—'),'Frequência: '+String(item.frequencia||'—')]),
    item.duracao?'Duração: '+item.duracao:null,
    item.orientacoes?'Orientações: '+item.orientacoes:null
   ].filter(Boolean).join('\n')
@@ -36,7 +35,7 @@ function documentLines({kind,document}){
 export default function DocumentPreparation({kind,document,patientName,professionalName='Dr. Bruno Clavijo'}){
  const [open,setOpen]=useState(false),[notice,setNotice]=useState('');
  const isEvolution=kind==='evolucao';
- const title=isEvolution?'Evolução médica':'Receita médica';
+ const title=isEvolution?'Evolução médica':kind==='domiciliar'?'Receita domiciliar':'Prescrição médica de aplicação';
  const lines=documentLines({kind,document});
  const date=isEvolution?datePt(document.data_consulta):stampPt(document.criado_em);
  const notes=!isEvolution?String(document.observacoes||'').trim():'';
