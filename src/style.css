@@ -777,3 +777,24 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
  .patient-overview-columns{grid-template-columns:minmax(0,1fr)}
  .patient-overview-heading>button{width:100%}
 }
+
+/* Acesso rápido: navegação contextual da ficha, sem ampliar permissões */
+.patient-quick-access{display:grid;gap:12px;padding:16px;border:1px solid #755e3c;background:linear-gradient(125deg,#24231f,#12191b);border-radius:14px}
+.patient-quick-access-heading{display:flex;gap:7px;flex-direction:column}
+.patient-quick-access-heading strong{color:#efd3a0;font-size:15px}
+.patient-quick-access-heading small{color:#c7beae;font-size:12px}
+.patient-quick-access .patient-section-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px;width:100%}
+.patient-quick-access .patient-section-nav a{display:flex;align-items:center;justify-content:flex-start;gap:10px;min-height:54px;padding:12px;border:1px solid #75603c;background:#151b1d;font-size:13px;text-align:left}
+.patient-quick-access .patient-section-nav a:focus-visible{outline:2px solid #ecc986;outline-offset:2px}
+.patient-quick-access .patient-section-nav a>span:first-child{font-size:20px;min-width:24px;text-align:center;color:#eac88c}
+.patient-quick-access .patient-section-nav a>span:nth-child(2){flex:1}
+.patient-quick-access .patient-quick-arrow{opacity:.65}
+.patient-quick-target{scroll-margin-top:18px}
+@media(max-width:767px){
+ .patient-quick-access{padding:12px}
+ .patient-quick-access .patient-section-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .patient-quick-access .patient-section-nav a{min-width:0;min-height:55px;padding:9px;gap:6px;font-size:12px}
+ .patient-quick-access .patient-section-nav a>span:first-child{min-width:19px;font-size:17px}
+ .patient-quick-access .patient-quick-arrow{display:none}
+}
+@media(max-width:345px){.patient-quick-access .patient-section-nav{grid-template-columns:minmax(0,1fr)}}
