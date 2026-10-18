@@ -7,7 +7,7 @@ const adminRoles=['equipe','administrativo'];
 export const patientSectionsFor=role=>[
  ['acompanhamento','Agenda e retornos'],
  ['cadastro','Cadastro'],
- ...(role==='medico'?[['prontuario','Prontuário'],['documentos','Documentos'],['prescricoes','Prescrições'],['protocolos','Protocolos']]:[]),
+ ...(role==='medico'?[['prontuario','Prontuário'],['documentos','Documentos'],['termos','Termos'],['receitas','Receita domiciliar'],['prescricoes','Prescrições injetáveis'],['protocolos','Protocolos']]:[]),
  ...(role==='enfermeira'?[['protocolos','Protocolos']]:[]),
  ...(clinicalRoles.includes(role)?[['administracoes','Administrações']]:[])
 ];
