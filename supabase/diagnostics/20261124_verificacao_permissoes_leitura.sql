@@ -2,7 +2,7 @@
 -- Executar EXCLUSIVAMENTE no Supabase de homologacao.
 -- Verifica configuracao de RLS e seguranca basica das RPCs.
 WITH objetos AS (
- SELECT schemaname,tablename,rowsecurity,forcerowsecurity
+ SELECT t.schemaname,t.tablename,c.relrowsecurity AS rowsecurity,c.relforcerowsecurity AS forcerowsecurity
  FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename
  JOIN pg_namespace n ON n.oid=c.relnamespace AND n.nspname=t.schemaname
  WHERE t.schemaname='public' AND t.tablename IN (
