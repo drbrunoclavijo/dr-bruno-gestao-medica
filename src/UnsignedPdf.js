@@ -10,7 +10,7 @@ const cp1252Extra=new Map([[0x20ac,0x80],[0x201a,0x82],[0x192,0x83],[0x201e,0x84
  [0x153,0x9c],[0x17e,0x9e],[0x178,0x9f]]);
 const asWinAnsi=s=>Array.from(String(s||'')).map(c=>{
  const n=c.codePointAt(0);
- if(n>=32&&n<=126)return c==='\\'?'\\\\':c==='('? '\\(' : c===')'?'\\)':c;
+ if(n>=32&&n<=126)return c==='\\'?'\\\\':c==='('?'\\(' : c===')'?'\\)':c;
  const b=n>=160&&n<=255?n:cp1252Extra.get(n);
  return b===undefined?'?':'\\'+b.toString(8).padStart(3,'0');
 }).join('');
