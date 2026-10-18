@@ -99,8 +99,7 @@ BEGIN
  FOR n IN SELECT unnest(ARRAY[
   'agenda_profissionais_teste','listar_agendamentos_teste',
   'agenda_aplicacoes_administrativa_teste','salvar_agendamento_teste',
-  'atualizar_status_agendamento_teste','simular_resposta_agendamento_teste',
-  'listar_pendencias_agenda_teste'
+  'atualizar_status_agendamento_teste','simular_resposta_agendamento_teste'
  ]) LOOP
   SELECT p.oid,p.proname INTO f FROM pg_proc p
    JOIN pg_namespace ns ON ns.oid=p.pronamespace
@@ -118,6 +117,31 @@ BEGIN
   EXECUTE patched;
  END LOOP;
 END $adm$;
+
+-- Funcao de pendencias: reescrita EXPLICITA para os dois papeis administrativos.
+-- Nao reescrever via regexp pg_get_functiondef: o PostgreSQL normaliza expressoes.
+CREATE OR REPLACE FUNCTION public.listar_pendencias_agenda_teste()
+RETURNS TABLE(pendencia_id uuid,agendamento_id uuid,paciente_nome text,
+ profissional_nome text,inicio_local text,aberta_em timestamptz)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $agenda$
+BEGIN
+ IF NOT EXISTS(
+  SELECT 1 FROM public.profissionais p
+  WHERE p.id=auth.uid() AND p.ativo
+   AND p.perfil IN ('equipe','administrativo')
+ ) THEN RAISE EXCEPTION 'Painel exclusivo da equipe administrativa'; END IF;
+ RETURN QUERY SELECT pe.id,a.id,pa.nome::text,pr.nome::text,
+  to_char(a.inicio AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD"T"HH24:MI')::text,
+  pe.aberta_em
+ FROM public.pendencias_agenda_teste pe
+ JOIN public.agendamentos_teste a ON a.id=pe.agendamento_id
+ JOIN public.pacientes pa ON pa.id=a.paciente_id
+ JOIN public.profissionais pr ON pr.id=a.profissional_id
+ WHERE pe.status='aberta' ORDER BY pe.aberta_em DESC LIMIT 300;
+END $agenda$;
+REVOKE ALL ON FUNCTION public.listar_pendencias_agenda_teste() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.listar_pendencias_agenda_teste() TO authenticated;
 
 -- Exposicao minima de metadados financeiros de protocolos, sem detalhes de prescricao.
 CREATE OR REPLACE FUNCTION public.listar_protocolos_financeiro_admin_teste()
