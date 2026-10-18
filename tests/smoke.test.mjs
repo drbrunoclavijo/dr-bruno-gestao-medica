@@ -78,3 +78,30 @@ test('Registros Carol e Bruno tem verificacao de perfis independentes',()=>{
  assert.match(sql,/perfil='enfermeira'/);
  assert.match(sql,/CREATE OR REPLACE FUNCTION public\.validar_repasse_maquininha_teste/);
 });
+
+test('Relatorios nao devem excluir consultas faturadas nem duplicar protocolos',()=>{
+ const sql=readFileSync('supabase/migrations/20261122_corrigir_relatorio_consultas_teste.sql','utf8');
+ assert.match(sql,/FROM public.contas_receber_teste c/);
+ assert.match(sql,/c\.protocolo_id IS NULL/);
+ assert.match(sql,/c\.criado_por=auth\.uid\(\)/);
+ assert.match(sql,/FROM public.protocolos_teste pr/);
+ assert.match(sql,/NULL::numeric,NULL::numeric/);
+ assert.match(sql,/REVOKE ALL ON FUNCTION/);
+});
+test('Estoque realiza baixa de insumos durante checagem em transacao do banco',()=>{
+ const sql=readFileSync('supabase/migrations/20261027_insumos_estoque_checagem_teste.sql','utf8');
+ assert.match(sql,/CREATE TRIGGER baixar_insumos_checagem_teste AFTER INSERT ON public.administracoes_teste/);
+ assert.match(sql,/IF v_saldo<v_ins.quantidade THEN/);
+ assert.match(sql,/FOR UPDATE/);
+ assert.match(sql,/UPDATE public.estoque_lotes_teste SET saldo=saldo-v_retirada/);
+ assert.match(sql,/INSERT INTO public.insumos_movimentos_teste/);
+});
+test('Protecoes de autenticacao da integração sao so leitura',()=>{
+ const source=readFileSync('tests/supabase.integration.test.mjs','utf8');
+ assert.match(source,/persistSession:false/);
+ assert.match(source,/signInWithPassword/);
+ for(const method of ['.insert(','.delete(','.update(','.upsert(']){
+  assert.ok(!source.includes(method),'Os testes autenticados não devem modificar dados: '+method);
+ }
+ for(const role of ['medico','enfermeira','equipe'])assert.ok(source.includes(role));
+});
