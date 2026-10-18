@@ -320,3 +320,24 @@ test('Todos os termos e receitas exibem identificacao profissional e contato ofi
  assert.match(body,/Rua Quito, 145/);
  assert.match(body,/99832-7711/);
 });
+
+test('Receitas de teste identificam CPF e endereco e nao liberam controlados', async()=>{
+ const {patientIdentification}=await import('../src/PatientPrescriptionIdentity.js');
+ const id=patientIdentification({cpf:'52998224725',logradouro:'Rua Exemplo',numero:'12',bairro:'Centro',cidade:'Foz do Iguaçu',uf:'PR'});
+ assert.equal(id.cpf,'529.982.247-25');
+ assert.match(id.address,/Rua Exemplo, 12/);
+ const {generateUnsignedPdf}=await import('../src/UnsignedPdf.js');
+ const pdf=generateUnsignedPdf({title:'Rascunho',patientName:'Paciente ficticio',patientCpf:id.cpf,patientAddress:id.address,professionalName:'Dr. Bruno Clavijo',date:'18/10/2026',sections:[]});
+ const data=await pdf.text();
+ assert.ok(data.includes('529.982.247-25'));
+ assert.ok(data.includes('Rua Exemplo, 12'));
+ assert.ok(data.includes('NAO ASSINADO'));
+ const preview=readFileSync('src/DocumentPreparation.jsx','utf8');
+ assert.match(preview,/CPF do paciente/);
+ assert.match(preview,/Endereço do paciente/);
+ assert.match(preview,/RECEITUÁRIO CONTROLADO NÃO HABILITADO/);
+ const plans=readFileSync('docs/bird-id-assinatura-e-receituario-controlado-homologacao.md','utf8');
+ assert.match(plans,/PKCE S256/);
+ assert.match(plans,/NÃO CONECTADO, NÃO ASSINADO, NÃO HOMOLOGADO/);
+ assert.match(plans,/SNCR/);
+});
