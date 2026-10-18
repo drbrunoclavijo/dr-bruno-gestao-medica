@@ -816,3 +816,28 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .document-draft-actions button{font-size:12px;min-height:42px}
 .document-draft-preview>small{color:#52595a}
 @media(max-width:650px){.document-draft-preview{padding:14px}.document-draft-actions{display:grid}.document-draft-actions button{width:100%}}
+
+/* Receitas domiciliares e termos: preparo e impressão somente ambiente de testes */
+.home-rx-panel{display:grid;gap:14px}
+.patient-terms{display:grid;gap:15px}
+.terms-controls textarea{white-space:pre-wrap;line-height:1.55}
+.terms-actions{display:flex;gap:10px;flex-wrap:wrap}
+.terms-print-sheet{background:#fff;color:#1b1b1b;border:1px solid #ac9668;border-radius:10px;padding:28px;line-height:1.65;max-width:900px}
+.terms-paper-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;border-bottom:2px solid #c6aa75;padding-bottom:12px}
+.terms-paper-header strong{font-size:17px;font-family:Georgia,serif;color:#252525}
+.terms-paper-header span{font-size:10px;color:#9c2727;font-weight:700}
+.terms-print-sheet h3{font-size:19px;line-height:1.4;color:#1e1e1e;margin:16px 0}
+.terms-print-sheet p,.terms-print-sheet strong{color:#1b1b1b}
+.terms-identification{display:flex;gap:16px;flex-wrap:wrap}
+.terms-body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;font-size:13px;color:#161616;margin:16px 0 24px}
+.terms-signatures{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:60px}
+.terms-signatures>div{border-top:1px solid #333;text-align:center;padding-top:7px;font-size:11px;color:#333}
+.terms-paper-warning{color:#a12727!important;font-size:10px!important;font-weight:700;text-align:center;border-top:1px dashed #9d6e6e;margin-top:24px;padding-top:10px}
+@media(max-width:680px){.terms-print-sheet{padding:15px}.terms-signatures{grid-template-columns:1fr;gap:55px}.terms-actions button{flex:1 1 100%}}
+@media print{
+ body:has(.terms-print-target) *{visibility:hidden!important}
+ body:has(.terms-print-target) .terms-print-target,body:has(.terms-print-target) .terms-print-target *{visibility:visible!important}
+ body:has(.terms-print-target) .terms-print-target{display:block!important;position:absolute;top:0;left:0;right:0;width:100%;max-width:100%;padding:8mm;border:0;box-shadow:none;background:#fff!important;color:#111!important}
+ body:has(.terms-print-target) .terms-print-target .terms-body{font-size:11pt}
+ body:has(.terms-print-target) .terms-print-target .terms-paper-warning{color:#9c2727!important}
+}
