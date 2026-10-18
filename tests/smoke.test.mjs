@@ -125,5 +125,7 @@ test('SQL do gerente reconhece tambem a verificacao p.perfil=equipe em pendencia
  assert.match(base,/p\.perfil='equipe'/);
  assert.match(sql,/v_perfil\|p\\\\\.perfil/);
  assert.match(sql,/listar_pendencias_agenda_teste/);
+ assert.match(sql,/CREATE OR REPLACE FUNCTION public\.listar_pendencias_agenda_teste\(\)/);
+ assert.match(sql,/p\.perfil IN \('equipe','administrativo'\)/);
  assert.ok(!sql.includes("'resolver_pendencia_ao_reagendar_teste'\n ]"),'Trigger nao deve ser reescrito como RPC de agenda');
 });
