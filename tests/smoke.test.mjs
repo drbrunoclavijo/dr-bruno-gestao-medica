@@ -272,3 +272,27 @@ test('Termos clinicos tem finalidade distinta e impressao sem consentimento auto
  assert.match(terms,/window\.print\(\)/);
  assert.ok(!terms.includes('supabase.from('),'O termo nao deve gravar consentimento automatico');
 });
+
+test('PDF de teste pode ser exportado e arquivado em bucket privado sem afirmar assinatura',async ()=>{
+ const {generateUnsignedPdf}=await import('../src/UnsignedPdf.js');
+ const pdf=generateUnsignedPdf({title:'Receita domiciliar',patientName:'Paciente Fictício',professionalName:'Dr. Bruno Clavijo',date:'18/10/2026',sections:[{title:'Medicamento',content:'Dose e posologia ilustrativas, sem prescrição real.'}]});
+ assert.equal(pdf.type,'application/pdf');
+ const contents=await pdf.text();
+ assert.ok(contents.startsWith('%PDF-1.4'));
+ assert.match(contents,/NAO ASSINADO/);
+ assert.match(contents,/xref/);
+ assert.match(contents,/startxref/);
+ assert.ok(pdf.size>300);
+ const preparation=readFileSync('src/DocumentPreparation.jsx','utf8');
+ assert.match(preparation,/Baixar PDF não assinado/);
+ assert.match(preparation,/Salvar PDF no aplicativo/);
+ assert.match(preparation,/registrar_documento_paciente_teste/);
+ assert.match(preparation,/documentos-pacientes-teste/);
+ assert.match(preparation,/p_categoria:'outro'/);
+ assert.match(preparation,/Assinar com Bird ID — em preparação/);
+ assert.match(preparation,/Enviar pelo WhatsApp — indisponível/);
+ for(const moduleName of ['HomePrescriptions','TestPrescriptions','ClinicalRecord']){
+  const view=readFileSync('src/'+moduleName+'.jsx','utf8');
+  assert.match(view,/patientId=\{patientId\} supabase=\{supabase\}/);
+ }
+});
