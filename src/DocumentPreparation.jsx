@@ -51,9 +51,9 @@ export default function DocumentPreparation({kind,document,patientName,patientId
  function exportPdf(){
   const blob=preparePdf();
   const href=URL.createObjectURL(blob);
-  const link=document.createElement('a');
+  const link=window.document.createElement('a');
   link.href=href;link.download=(kind==='domiciliar'?'receita-domiciliar':kind==='evolucao'?'evolucao':'prescricao')+'-RASCUNHO-'+String(document.id||'teste').slice(0,8)+'.pdf';
-  document.body.appendChild(link);link.click();link.remove();
+  window.document.body.appendChild(link);link.click();link.remove();
   window.setTimeout(()=>URL.revokeObjectURL(href),60000);
   setNotice('PDF de TESTE NÃO ASSINADO preparado para salvar no dispositivo. Não é receita válida.');
  }
