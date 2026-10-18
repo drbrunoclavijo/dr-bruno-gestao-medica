@@ -155,3 +155,17 @@ test('Interface pode ser aberta em navegadores móveis',()=>{
  assert.match(html,/name="viewport" content="width=device-width, initial-scale=1"/);
  assert.match(css,/@media\(max-width:650px\)/);
 });
+
+test('PWA publica manifesto, icone e registro sem armazenar dados clinicos offline',()=>{
+ const manifest=JSON.parse(readFileSync('public/manifest.webmanifest','utf8'));
+ const html=readFileSync('index.html','utf8');
+ const sw=readFileSync('public/service-worker.js','utf8');
+ const reg=readFileSync('src/registerPwa.js','utf8');
+ assert.equal(manifest.display,'standalone');
+ assert.ok(manifest.icons.length>0);
+ for(const icon of manifest.icons)assert.ok(readFileSync('public'+icon.src).length>10);
+ assert.match(html,/rel="manifest"/);
+ assert.match(reg,/serviceWorker\.register/);
+ assert.ok(!sw.includes("caches.open("),'Evitar caching de dados de pacientes');
+ assert.ok(!sw.includes("addEventListener('fetch'"),'PWA deve continuar online-only');
+});
