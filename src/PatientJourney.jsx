@@ -5,9 +5,10 @@ import {displayDate,appointmentTypes,statuses,professionalDisplayName,localDate,
 const clinicalRoles=['medico','enfermeira'];
 const adminRoles=['equipe','administrativo'];
 export const patientSectionsFor=role=>[
- ['acompanhamento','Acompanhamento'],
+ ['acompanhamento','Agenda e retornos'],
  ['cadastro','Cadastro'],
- ...(role==='medico'?[['prontuario','Prontuário'],['documentos','Documentos'],['prescricoes','Prescrições']]:[]),
+ ...(role==='medico'?[['prontuario','Prontuário'],['documentos','Documentos'],['prescricoes','Prescrições'],['protocolos','Protocolos']]:[]),
+ ...(role==='enfermeira'?[['protocolos','Protocolos']]:[]),
  ...(clinicalRoles.includes(role)?[['administracoes','Administrações']]:[])
 ];
 export const currentAgendaWindow=()=>{
@@ -84,7 +85,7 @@ export default function PatientJourney({supabase,patientId,role}){
     <span>{appointmentTypes[a.tipo]||a.tipo} · {professionalDisplayName(a.profissional_nome)}</span>
     <small>{statuses[a.status]||a.status}</small>
    </div>)}</div>}
-  {clinicalRoles.includes(role)&&<><h4>Protocolos em acompanhamento</h4>
+  {clinicalRoles.includes(role)&&<><h4 id="paciente-protocolos" className="patient-quick-target">Protocolos em acompanhamento</h4>
    {loading?<p>Carregando protocolos...</p>:protocols.length===0?<p className="record-empty">Nenhum protocolo clínico visível para este perfil.</p>:
     <div className="patient-follow-up-list">{protocols.map((p,i)=><div className="patient-follow-up-entry" key={p.protocolo_id||i}>
      <strong>{p.nome||'Protocolo'}</strong>
