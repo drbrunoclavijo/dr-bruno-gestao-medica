@@ -4,6 +4,7 @@ import {createRoot} from 'react-dom/client';
 import {createClient} from '@supabase/supabase-js';
 import './style.css';
 import ClinicalRecord from './ClinicalRecord.jsx';
+import PatientJourney,{patientSectionsFor} from './PatientJourney.jsx';
 import TestPrescriptions from './TestPrescriptions.jsx';
 import TestAdministrations from './TestAdministrations.jsx';
 import TestInventory from './TestInventory.jsx';
@@ -76,15 +77,23 @@ function Patients({role}){
  const addressOf=p=>[p.logradouro,[p.numero,p.complemento].filter(Boolean).join(' - '),p.bairro,[p.cidade,p.uf].filter(Boolean).join(' / ')].filter(Boolean).join(', ');
  if(selected) return <section className="patients-page patient-profile">
   <div className="profile-toolbar"><button type="button" className="outline-gold" onClick={()=>setSelectedId(null)}>← Voltar para pacientes</button><span className="profile-test-label">FICHA CADASTRAL · AMBIENTE DE TESTES</span></div>
-  <div className="premium-panel">
+  <nav className="patient-section-nav" aria-label="Seções da ficha do paciente">
+   {patientSectionsFor(role).map(([id,label])=><a key={id} href={'#paciente-'+id}>{label}</a>)}
+  </nav>
+  <PatientJourney key={'journey-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
+  <div className="premium-panel" id="paciente-cadastro">
    <div className="profile-heading"><div className="patient-avatar" aria-hidden="true">♙</div><div className="profile-name"><p className="eyebrow">FICHA DO PACIENTE</p><h3>{selected.nome}</h3><p>Informações cadastrais disponíveis no sistema</p></div><button type="button" className="gold-button" onClick={()=>edit(selected)}>✎ Editar cadastro</button></div>
    <div className="form-section"><h4>◈ Dados pessoais</h4><div className="detail-grid">{detail('Nome completo',selected.nome)}{detail('Nascimento',dateBR(selected.nascimento))}{detail('CPF',formatCPF(selected.cpf))}</div></div>
    <div className="form-section"><h4>✧ Contato</h4><div className="detail-grid">{detail('Telefone / WhatsApp',formatPhone(selected.telefone))}{detail('E-mail',selected.email)}</div></div>
    <div className="form-section"><h4>⌖ Endereço</h4><div className="detail-grid">{detail('CEP',selected.cep)}{detail('Rua / Avenida',selected.logradouro)}{detail('Número',selected.numero)}{detail('Complemento',selected.complemento)}{detail('Bairro',selected.bairro)}{detail('Cidade',selected.cidade)}{detail('Estado (UF)',selected.uf)}</div></div>
   </div>
+  {role==='medico'&&<div id="paciente-prontuario" className="patient-section-label">Prontuário médico</div>}
   {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
+  {role==='medico'&&<div id="paciente-documentos" className="patient-section-label">Documentos clínicos</div>}
   {role==='medico'&&<TestPatientDocuments key={'docs-'+selected.id} supabase={supabase} patientId={selected.id}/>}
+  {role==='medico'&&<div id="paciente-prescricoes" className="patient-section-label">Prescrições</div>}
   {role==='medico'&&<TestPrescriptions key={'rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>}
+  {(role==='medico'||role==='enfermeira')&&<div id="paciente-administracoes" className="patient-section-label">Administrações e checagens</div>}
   {(role==='medico'||role==='enfermeira')&&<TestAdministrations key={'admin-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>}
  </section>;
 
