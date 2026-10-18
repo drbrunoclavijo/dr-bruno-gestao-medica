@@ -118,3 +118,12 @@ test('Gerente standby tem financeiro e auditoria sem acesso clinico',()=>{
  assert.match(sql,/listar_protocolos_financeiro_admin_teste/);
  assert.ok(!sql.includes('INSERT INTO public.profissionais('),'Nao ativar usuario automatico');
 });
+
+test('SQL do gerente reconhece tambem a verificacao p.perfil=equipe em pendencias',()=>{
+ const sql=readFileSync('supabase/migrations/20261123_perfil_gerente_administrativo_standby_teste.sql','utf8');
+ const base=readFileSync('supabase/migrations/20261110_fluxo_respostas_whatsapp_simulado_teste.sql','utf8');
+ assert.match(base,/p\.perfil='equipe'/);
+ assert.match(sql,/v_perfil\|p\\\\\.perfil/);
+ assert.match(sql,/listar_pendencias_agenda_teste/);
+ assert.ok(!sql.includes("'resolver_pendencia_ao_reagendar_teste'\n ]"),'Trigger nao deve ser reescrito como RPC de agenda');
+});
