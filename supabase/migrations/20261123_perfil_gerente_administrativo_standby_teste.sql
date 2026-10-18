@@ -110,8 +110,10 @@ BEGIN
   IF def NOT ILIKE '%SECURITY DEFINER%' THEN RAISE EXCEPTION 'Agenda com definicao inesperada: %',n; END IF;
   patched:=regexp_replace(def, '''medico''\s*,\s*''enfermeira''\s*,\s*''equipe''',
    '''medico'',''enfermeira'',''equipe'',''administrativo''','gi');
-  patched:=regexp_replace(patched, 'v_perfil\s*=\s*''equipe''',
-   'v_perfil IN (''equipe'',''administrativo'')','gi');
+  -- A funcao de pendencias usa p.perfil='equipe', e outras usam v_perfil='equipe'.
+  -- Substituir as duas formas, sem afetar validacoes medicas de outras areas.
+  patched:=regexp_replace(patched, '(v_perfil|p\\.perfil)\\s*=\\s*''equipe''',
+   '\\1 IN (''equipe'',''administrativo'')','gi');
   IF patched=def THEN RAISE EXCEPTION 'Acesso da equipe nao localizado em %; revise antes.',n; END IF;
   EXECUTE patched;
  END LOOP;
