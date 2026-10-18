@@ -750,3 +750,30 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .patient-follow-up-entry small{font-size:11px}
 #paciente-cadastro{scroll-margin-top:20px}
 @media(max-width:767px){.patient-section-nav{justify-content:center}.patient-follow-up-metrics{grid-template-columns:1fr}.patient-follow-up .dashboard-agenda-title{flex-wrap:wrap}.patient-follow-up .dashboard-agenda-title button{width:100%}}
+
+/* Ficha unificada de paciente: resumo responsivo, sem expandir privilegios */
+.patient-overview{display:grid;gap:17px}
+.patient-overview-heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.patient-overview-heading h3{margin:0 0 5px;color:#e9ca91}
+.patient-overview-heading p{margin:0}
+.patient-overview-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
+.patient-overview-stats>div{display:flex;flex-direction:column;gap:8px;padding:13px;border:1px solid #64523a;border-radius:10px;background:#171d1e}
+.patient-overview-stats small{font-size:12px;color:#d4c8b5}
+.patient-overview-stats strong{font-size:23px;color:#f1d5a5}
+.patient-overview-section{display:grid;gap:9px;min-width:0;border-top:1px solid #574931;padding-top:15px}
+.patient-overview-section h4{margin:0;color:#ebcb95}
+.patient-overview-list{display:grid;gap:8px}
+.patient-overview-item{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:11px;background:#171c1d;border-radius:9px;border:1px solid #4c4436;font-size:13px}
+.patient-overview-item strong{color:#e9cd9d;min-width:130px}
+.patient-overview-item span{flex:1;min-width:120px}
+.patient-overview-item small{color:#c9b99e}
+.patient-overview-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.patient-overview-columns>div{background:#151a1c;border:1px solid #4d4639;border-radius:9px;padding:12px;min-width:0}
+.patient-overview-columns>div>strong{color:#e9cb96}
+.patient-overview-columns p{font-size:13px;overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:650px){
+ .patient-overview-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .patient-overview-item{display:grid;gap:5px}
+ .patient-overview-columns{grid-template-columns:minmax(0,1fr)}
+ .patient-overview-heading>button{width:100%}
+}
