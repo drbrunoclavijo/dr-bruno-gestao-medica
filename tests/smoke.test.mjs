@@ -241,3 +241,34 @@ test('Previa de receita e evolucao nao finge assinatura digital ou envio',()=>{
  assert.ok(!draft.includes('localStorage'),'Não armazenar documentos clinicos no navegador');
  assert.ok(!draft.includes('fetch('),'Nenhum envio externo de documentos');
 });
+
+test('Receita domiciliar permanece separada e nao assinada',()=>{
+ const rx=readFileSync('src/HomePrescriptions.jsx','utf8');
+ const migration=readFileSync('supabase/migrations/20261018_receitas_domiciliares_teste.sql','utf8');
+ const main=readFileSync('src/main.jsx','utf8');
+ assert.match(main,/HomePrescriptions/);
+ assert.match(rx,/salvar_receita_domiciliar_teste/);
+ assert.match(rx,/DocumentPreparation kind="domiciliar"/);
+ assert.match(rx,/SEM assinatura Bird ID/);
+ assert.match(migration,/ENABLE ROW LEVEL SECURITY/);
+ assert.match(migration,/medico_id=auth\.uid\(\)/);
+ assert.match(migration,/p\.perfil='medico'/);
+ assert.match(migration,/CHECK\(status_assinatura='nao_assinada'\)/);
+ assert.ok(!migration.includes('http_post'),'Sem envio por WhatsApp na receita');
+});
+test('Termos clinicos tem finalidade distinta e impressao sem consentimento automatico',()=>{
+ const terms=readFileSync('src/PatientTerms.jsx','utf8');
+ const main=readFileSync('src/main.jsx','utf8');
+ const journey=readFileSync('src/PatientJourney.jsx','utf8');
+ assert.match(main,/PatientTerms/);
+ assert.match(main,/id="paciente-receitas"/);
+ assert.match(journey,/\['termos','Termos'\]/);
+ assert.match(terms,/imagem-assistencia/);
+ assert.match(terms,/imagem-divulgacao/);
+ assert.match(terms,/injetaveis/);
+ assert.match(terms,/offlabel/);
+ assert.match(terms,/medicamentos injetáveis/);
+ assert.match(terms,/NÃO COMPROVA CONSENTIMENTO/);
+ assert.match(terms,/window\.print\(\)/);
+ assert.ok(!terms.includes('supabase.from('),'O termo nao deve gravar consentimento automatico');
+});
