@@ -296,3 +296,27 @@ test('PDF de teste pode ser exportado e arquivado em bucket privado sem afirmar 
   assert.match(view,/patientId=\{patientId\} supabase=\{supabase\}/);
  }
 });
+
+test('Todos os termos e receitas exibem identificacao profissional e contato oficial',async ()=>{
+ const identity=await import('../src/ClinicIdentity.js');
+ assert.equal(identity.CLINIC_IDENTITY.crm,'CRM/PR 34466');
+ assert.equal(identity.CLINIC_IDENTITY.phone,'(45) 99832-7711');
+ assert.match(identity.CLINIC_IDENTITY.address,/Rua Quito, 145, Beverly Falls Park/);
+ const terms=readFileSync('src/PatientTerms.jsx','utf8');
+ const preview=readFileSync('src/DocumentPreparation.jsx','utf8');
+ const generator=readFileSync('src/UnsignedPdf.js','utf8');
+ assert.match(terms,/terms-professional-crm/);
+ assert.match(terms,/terms-paper-footer/);
+ assert.match(terms,/CLINIC_IDENTITY.crm/);
+ assert.match(terms,/CLINIC_IDENTITY.address/);
+ assert.match(preview,/document-clinic-contact/);
+ assert.match(preview,/CLINIC_IDENTITY.phone/);
+ assert.match(generator,/CLINIC_IDENTITY.address/);
+ assert.match(generator,/CLINIC_IDENTITY.phone/);
+ const {generateUnsignedPdf}=await import('../src/UnsignedPdf.js');
+ const pdf=generateUnsignedPdf({title:'Receita domiciliar',patientName:'Paciente Exemplo',professionalName:'Dr. Bruno Clavijo',date:'18/10/2026',sections:[]});
+ const body=await pdf.text();
+ assert.match(body,/CRM\\/PR 34466/);
+ assert.match(body,/Rua Quito, 145/);
+ assert.match(body,/99832-7711/);
+});
