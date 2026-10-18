@@ -180,3 +180,19 @@ test('Cabecalho e navegacao sao centralizados somente na tela mobile',()=>{
  assert.match(section,/justify-content:center/);
  assert.match(section,/main > \.session\{/);
 });
+
+test('Ficha integrada respeita secoes por perfil e fontes de dados',()=>{
+ const main=readFileSync('src/main.jsx','utf8');
+ const journey=readFileSync('src/PatientJourney.jsx','utf8');
+ assert.match(main,/patientSectionsFor\(role\)/);
+ assert.match(main,/PatientJourney key=/);
+ assert.match(journey,/\['acompanhamento','Acompanhamento'\]/);
+ assert.match(journey,/role==='medico'\?/);
+ assert.match(journey,/role==='enfermeira'\?/);
+ assert.match(journey,/listar_agendamentos_teste/);
+ assert.match(journey,/protocolos_operacionais_enfermagem_teste/);
+ assert.match(journey,/listar_protocolos_com_insumos_teste/);
+ assert.match(journey,/if\(a\.paciente_id===patientId\)/);
+ assert.match(journey,/p=>p\.paciente_id===patientId/);
+ assert.ok(!journey.includes('from(\'prescricoes_teste\')'),'Não consultar prescrições para equipe');
+});
