@@ -16,9 +16,9 @@ const summary=(title,value,note)=> <div className="dashboard-kpi" key={title}><s
 
 export default function ClinicDashboard({supabase,role,onNavigate}){
  const clinical=role==='medico'||role==='enfermeira';
- const [finance,setFinance]=useState(null),[machineFees,setMachineFees]=useState(0),[financeError,setFinanceError]=useState(''),[financeLoading,setFinanceLoading]=useState(role==='medico');
+ const [finance,setFinance]=useState(null),[machineFees,setMachineFees]=useState(0),[financeError,setFinanceError]=useState(''),[financeLoading,setFinanceLoading]=useState(['medico','administrativo'].includes(role));
  async function loadFinance(){
-  if(role!=='medico')return;
+  if(!['medico','administrativo'].includes(role))return;
   setFinanceLoading(true);setFinanceError('');
   const [base,fees]=await Promise.all([supabase.rpc('resumo_financeiro_inicial_teste'),supabase.rpc('taxas_resumo_atual_teste')]);
   if(base.error||fees.error){setFinance(null);setMachineFees(0);setFinanceError('Resumo financeiro indisponível: '+(base.error||fees.error).message);}
@@ -33,7 +33,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
  const [adminApplications,setAdminApplications]=useState([]),[adminApplicationsError,setAdminApplicationsError]=useState('');
  const [pendingRequests,setPendingRequests]=useState([]),[pendingRequestsError,setPendingRequestsError]=useState('');
  useEffect(()=>{
-  if(role!=='equipe')return;
+  if(!['equipe','administrativo'].includes(role))return;
   let active=true;
   supabase.rpc('listar_pendencias_agenda_teste').then(({data,error})=>{
    if(!active)return;
@@ -43,7 +43,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
   return()=>{active=false;};
  },[role]);
  useEffect(()=>{
-  if(role!=='equipe')return;
+  if(!['equipe','administrativo'].includes(role))return;
   let active=true;
   supabase.rpc('agenda_aplicacoes_administrativa_teste',{p_de:dateNow,p_ate:shiftDay(dateNow,7)})
     .then(({data,error})=>{if(!active)return;if(error)setAdminApplicationsError('Agenda de aplicações indisponível: '+error.message);
@@ -62,7 +62,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
     ]);
     if(p.error||s.error)throw p.error||s.error;
     setProtocols(p.data||[]);setSessions(s.data||[]);
-   }else if(role==='equipe'){
+   }else if(['equipe','administrativo'].includes(role)){
     // Somente contagem agregada, sem histórico médico, protocolo, prescrição ou agenda clínica.
     const {count,error:err}=await supabase.from('pacientes').select('id',{count:'exact',head:true});
     if(err)throw err;
@@ -97,7 +97,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
    <div className="form-actions"><button className="outline-gold" type="button" onClick={load} disabled={loading}>{loading?'Atualizando...':'↻ Atualizar painel'}</button></div>
   </div>
   <div className="premium-panel dashboard-appointments">
-    <div className="dashboard-agenda-title"><div><h3>{role==='medico'?'Minhas consultas — Dr. Bruno':role==='enfermeira'?'Meus atendimentos — Dra. Carol':'Agenda completa de consultas e atendimentos'}</h3><p>{role==='equipe'?'Todos os profissionais':'Somente os atendimentos associados ao seu usuário'} · {displayDate(dateNow)}</p></div>
+    <div className="dashboard-agenda-title"><div><h3>{role==='medico'?'Minhas consultas — Dr. Bruno':role==='enfermeira'?'Meus atendimentos — Dra. Carol':'Agenda completa de consultas e atendimentos'}</h3><p>{['equipe','administrativo'].includes(role)?'Todos os profissionais':'Somente os atendimentos associados ao seu usuário'} · {displayDate(dateNow)}</p></div>
       <button type="button" className="gold-button" onClick={()=>onNavigate('Agenda')}>Abrir agenda completa →</button></div>
     {appointmentsError&&<p className="form-message" role="alert">{appointmentsError}</p>}
     <div className="dashboard-kpis">
@@ -112,8 +112,8 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
       </div>)}</div>}
     <p className="profile-notice">Lembretes internos: acompanhe os atendimentos aqui ao abrir o aplicativo. Avisos automáticos ao profissional e confirmação por resposta do paciente ainda dependem de integração com mensageria.</p>
   </div>
-  {role==='medico'&&<div className="premium-panel dashboard-finance">
-   <div className="dashboard-agenda-title"><div><h3>Resumo financeiro · mês atual</h3><p>Somente perfil médico · lançamentos financeiros fictícios.</p></div>
+  {['medico','administrativo'].includes(role)&&<div className="premium-panel dashboard-finance">
+   <div className="dashboard-agenda-title"><div><h3>Resumo financeiro · mês atual</h3><p>Somente médico e gerente autorizado · lançamentos fictícios.</p></div>
     <div className="form-actions"><button className="outline-gold" type="button" disabled={financeLoading} onClick={loadFinance}>Atualizar</button>
      <button className="gold-button" type="button" onClick={()=>onNavigate('Financeiro')}>Abrir Financeiro →</button></div>
    </div>
@@ -131,7 +131,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
   </div>}
   <StockAlerts supabase={supabase} onNavigate={onNavigate} compact/>
   {!clinical?<><div className="premium-panel dashboard-appointments">
-   <div className="dashboard-agenda-title"><div><h3>Reagendamentos — Atenção, Amanda</h3>
+   <div className="dashboard-agenda-title"><div><h3>Reagendamentos — Atendimento administrativo</h3>
     <p>Pedidos feitos por pacientes fictícios na simulação de confirmação.</p></div>
     <button type="button" className="gold-button" onClick={()=>onNavigate('Agenda')}>Abrir pendências →</button></div>
    {pendingRequestsError&&<p role="alert" className="form-message">{pendingRequestsError}</p>}
