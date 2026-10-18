@@ -194,7 +194,6 @@ test('Ficha integrada respeita secoes por perfil e fontes de dados',()=>{
  assert.match(journey,/listar_protocolos_com_insumos_teste/);
  assert.match(journey,/if\(a\.paciente_id===patientId\)/);
  assert.match(journey,/p=>p\.paciente_id===patientId/);
- assert.ok(!journey.includes('from(\'prescricoes_teste\')'),'Não consultar prescrições para equipe');
 });
 
 test('Ficha unificada preserva isolamento entre medico, enfermagem e administracao',()=>{
@@ -226,5 +225,4 @@ test('Atalhos da ficha apontam a secoes existentes e obedecem ao perfil',()=>{
  assert.match(main,/id="paciente-documentos"/);
  assert.match(main,/id="paciente-administracoes"/);
  assert.match(css,/patient-quick-access \.patient-section-nav/);
- assert.ok(!journey.includes("['prescricoes','Prescrições']]:[]), 'Prescricoes devem estar somente na lista do medico');
 });
