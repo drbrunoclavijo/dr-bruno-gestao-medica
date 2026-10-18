@@ -10,18 +10,6 @@
   "theme_color": "#162122",
   "icons": [
     {
-      "src": "/icons/majestic-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/majestic-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
       "src": "/icons/majestic.svg",
       "sizes": "any",
       "type": "image/svg+xml",
