@@ -49,7 +49,7 @@ export default function ClinicCalendar({supabase,role}){
  }
  useEffect(()=>{reloadApplications();},[from,to]);
  const [replyPreview,setReplyPreview]=useState(''),[pending,setPending]=useState([]),[pendingError,setPendingError]=useState('');
- async function loadPending(){if(role!=='equipe')return;const {data,error:err}=await supabase.rpc('listar_pendencias_agenda_teste');if(err)setPendingError(err.message);else{setPending(data||[]);setPendingError('');}}
+ async function loadPending(){if(!['equipe','administrativo'].includes(role))return;const {data,error:err}=await supabase.rpc('listar_pendencias_agenda_teste');if(err)setPendingError(err.message);else{setPending(data||[]);setPendingError('');}}
  useEffect(()=>{loadPending();},[role]);
  const [patients,setPatients]=useState([]),[professionals,setProfessionals]=useState([]),[form,setForm]=useState(initial),[open,setOpen]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[formError,setFormError]=useState('');
  useEffect(()=>{(async()=>{
@@ -106,8 +106,8 @@ export default function ClinicCalendar({supabase,role}){
  const today=localDate();
  return <section className="clinic-calendar">
   <div className="premium-panel">
-   <div className="panel-title"><span className="title-icon" aria-hidden="true">▦</span><div><h3>{role==='equipe'?'Agenda completa da clínica':role==='medico'?'Minha agenda — Dr. Bruno':'Minha agenda — Dra. Carol'}</h3><p>Consultas, retornos e procedimentos fictícios · Horário de Foz do Iguaçu</p></div></div>
-   <p className="profile-notice">As consultas exibidas para médico e enfermeira são somente as próprias. Amanda visualiza consultas de todos os profissionais e a agenda administrativa de aplicações. Confirmações feitas aqui são MANUAIS. Envio e recebimento automático de mensagens ainda não estão conectados.</p>
+   <div className="panel-title"><span className="title-icon" aria-hidden="true">▦</span><div><h3>{['equipe','administrativo'].includes(role)?'Agenda completa da clínica':role==='medico'?'Minha agenda — Dr. Bruno':'Minha agenda — Dra. Carol'}</h3><p>Consultas, retornos e procedimentos fictícios · Horário de Foz do Iguaçu</p></div></div>
+   <p className="profile-notice">As consultas exibidas para médico e enfermeira são somente as próprias. A equipe administrativa visualiza consultas de todos os profissionais e a agenda administrativa de aplicações. Confirmações feitas aqui são MANUAIS. Envio e recebimento automático de mensagens ainda não estão conectados.</p>
    {error&&<p className="form-message" role="alert">{error}</p>}
    {formError&&<p className="form-message" role="alert">{formError}</p>}
    {message&&<p className="form-message" role="status">{message}</p>}
@@ -115,7 +115,7 @@ export default function ClinicCalendar({supabase,role}){
    <div className="calendar-tools">
     <label>Data inicial<input type="date" value={from} onChange={e=>setFrom(e.target.value)} /></label>
     <label>Exibir<select value={view} onChange={e=>setView(e.target.value)}><option value="dia">Dia</option><option value="semana">7 dias</option><option value="mes">30 dias</option></select></label>
-    {role==='equipe'&&<label>Profissional<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="">Todos</option>{professionals.map(p=><option value={p.id} key={p.id}>{p.nome}</option>)}</select></label>}
+    {['equipe','administrativo'].includes(role)&&<label>Profissional<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="">Todos</option>{professionals.map(p=><option value={p.id} key={p.id}>{p.nome}</option>)}</select></label>}
     <label>Buscar<input type="search" placeholder="Paciente ou atendimento" value={term} onChange={e=>setTerm(e.target.value)}/></label>
    </div>
    <div className="form-actions">
@@ -139,8 +139,8 @@ export default function ClinicCalendar({supabase,role}){
     <div className="form-actions calendar-form-actions"><button className="outline-gold" type="button" onClick={()=>setOpen(false)}>Cancelar</button><button className="gold-button" type="submit" disabled={busy}>{busy?'Salvando...':'Salvar agendamento'}</button></div>
    </form>
   </div>}
-  {role==='equipe'&&<div className="premium-panel">
-   <div className="dashboard-agenda-title"><div><h3>Pendências para Amanda</h3><p>Pedidos de reagendamento registrados. Contate o paciente e escolha uma nova data.</p></div>
+  {['equipe','administrativo'].includes(role)&&<div className="premium-panel">
+   <div className="dashboard-agenda-title"><div><h3>Pendências administrativas</h3><p>Pedidos de reagendamento registrados. Contate o paciente e escolha uma nova data.</p></div>
     <button type="button" className="outline-gold" onClick={loadPending}>Atualizar pendências</button></div>
    {pendingError&&<p role="alert" className="form-message">{pendingError}</p>}
    {pending.length===0?<p className="record-empty">Nenhuma solicitação de reagendamento pendente.</p>:
