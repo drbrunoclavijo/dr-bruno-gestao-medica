@@ -40,4 +40,11 @@ WITH objetos AS (
   'listar_pendencias_agenda_teste','listar_protocolos_financeiro_admin_teste',
   'relatorio_caixa_periodo_teste')
 )
-SELECT tipo,recurso,status,detalhe FROM dados ORDER BY tipo,recurso;
+SELECT tipo,recurso,status,detalhe FROM dados
+UNION ALL
+SELECT 'Gerente standby'::text,'Perfil administrativo'::text,
+ CASE WHEN EXISTS(SELECT 1 FROM public.profissionais p WHERE p.perfil='administrativo' AND p.ativo)
+ THEN 'REVISAR' ELSE 'OK' END::text,
+ CASE WHEN EXISTS(SELECT 1 FROM public.profissionais p WHERE p.perfil='administrativo' AND p.ativo)
+ THEN 'Ha um gerente ativo: conferir autorizacao' ELSE 'Nenhum gerente ativo, conforme esperado' END::text
+ORDER BY tipo,recurso;
