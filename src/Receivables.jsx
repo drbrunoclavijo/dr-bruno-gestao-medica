@@ -30,7 +30,7 @@ const forms={pix:'Pix',cartao_credito:'Cartão de crédito',cartao_debito:'Cart�
 const currencyDigits=v=>String(v||'').replace(/\D/g,'').replace(/^0+(?=\d)/,'').slice(0,9);
 const currencyDisplay=v=>v?brl(Number(v)/100):'';
 const amount=v=>v&&/^\d{1,9}$/.test(v)?Number(v)/100:NaN;
-export default function Receivables({supabase}){
+export default function Receivables({supabase,role='medico'}){
  const [rows,setRows]=useState([]),[patients,setPatients]=useState([]),[protocols,setProtocols]=useState([]),
   [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [patient,setPatient]=useState(''),[protocol,setProtocol]=useState(''),[description,setDescription]=useState(''),
@@ -48,7 +48,7 @@ export default function Receivables({supabase}){
   const [a,p,pr,ins,report,linked,fees]=await Promise.all([
    supabase.rpc('listar_contas_receber_teste'),
    supabase.from('pacientes').select('id,nome').order('nome').limit(300),
-   supabase.rpc('listar_protocolos_com_insumos_teste'),
+   supabase.rpc(role==='administrativo'?'listar_protocolos_financeiro_admin_teste':'listar_protocolos_com_insumos_teste'),
    supabase.rpc('listar_parcelas_receber_teste'),
    supabase.rpc('resumo_financeiro_mensal_teste',{p_ano:reportYear}),
    supabase.rpc('origens_contas_financeiras_teste'),
