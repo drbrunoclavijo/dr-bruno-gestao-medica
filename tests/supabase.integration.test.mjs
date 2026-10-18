@@ -98,3 +98,16 @@ test('Perfil inativo tem RPC financeira e auditoria bloqueadas (somente se conta
   }
  }finally{await api.auth.signOut();}
 });
+
+test('Equipe e gerente nao recebem registros clinicos por consultas REST',{skip:!threeReady},async()=>{
+ for(const role of ['equipe',...(managerReady?['administrativo']:[])]){
+  const api=await createLoggedClient(role);
+  try{
+   for(const table of ['prescricoes_teste','prescricao_itens_teste','documentos_pacientes_teste']){
+    const {data,error}=await api.from(table).select('*').limit(1);
+    // Sem permissao SQL ou tabela invisivel por RLS: ambos sao aceitaveis.
+    if(!error)assert.equal(data?.length??0,0,role+' recebeu linhas clinicas de '+table);
+   }
+  }finally{await api.auth.signOut();}
+ }
+});
