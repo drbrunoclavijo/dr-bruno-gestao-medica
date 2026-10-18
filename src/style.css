@@ -731,3 +731,22 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
   main > .session .session-user > span:last-child{min-width:0;overflow-wrap:anywhere}
   main > article > h2{text-align:center}
 }
+
+/* Ficha do paciente: resumo, histórico e navegação responsiva por perfil */
+.patient-section-nav{display:flex;justify-content:flex-start;gap:9px;flex-wrap:wrap;margin:0}
+.patient-section-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 13px;border:1px solid #79603e;color:#e9c991;background:#1a2021;border-radius:10px;text-decoration:none;font-size:12px;font-weight:600}
+.patient-section-nav a:hover,.patient-section-nav a:focus-visible{background:#343027;border-color:#dfb772}
+.patient-section-label{font-size:17px;font-weight:700;color:#edcd95;scroll-margin-top:20px;padding-top:10px}
+.patient-follow-up{display:grid;gap:14px;scroll-margin-top:20px}
+.patient-follow-up h4{font-size:15px;color:#edcd95;margin:12px 0 0}
+.patient-follow-up-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.patient-follow-up-metrics>div{border:1px solid #645239;border-radius:10px;padding:13px;background:#151b1c;display:grid;gap:9px;min-width:0}
+.patient-follow-up-metrics small{font-size:12px;color:#cabaa1}
+.patient-follow-up-metrics strong{font-size:16px;color:#f1d29a;overflow-wrap:anywhere}
+.patient-follow-up-list{display:grid;gap:8px;max-height:430px;overflow-y:auto}
+.patient-follow-up-entry{border:1px solid #51442e;background:#171d1f;padding:12px;border-radius:9px;display:grid;gap:6px}
+.patient-follow-up-entry strong{font-size:13px;color:#f1d29a}
+.patient-follow-up-entry span{font-size:12px;color:#e4dace}
+.patient-follow-up-entry small{font-size:11px}
+#paciente-cadastro{scroll-margin-top:20px}
+@media(max-width:767px){.patient-section-nav{justify-content:center}.patient-follow-up-metrics{grid-template-columns:1fr}.patient-follow-up .dashboard-agenda-title{flex-wrap:wrap}.patient-follow-up .dashboard-agenda-title button{width:100%}}
