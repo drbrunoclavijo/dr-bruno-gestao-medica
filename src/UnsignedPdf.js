@@ -36,6 +36,8 @@ function streamLines(data){
   {text:'DOCUMENTO DE TESTE | RASCUNHO NAO ASSINADO',size:11,leading:24,bold:true},
   {text:data.title,size:14,leading:25,bold:true},
   {text:'Paciente fictício: '+data.patientName,size:11,leading:17},
+  {text:'CPF do paciente: '+(data.patientCpf||'Não informado'),size:10,leading:16},
+  {text:'Endereço do paciente: '+(data.patientAddress||'Não informado'),size:10,leading:22},
   {text:'Profissional: '+data.professionalName,size:11,leading:17},
   {text:'Data do registro: '+data.date,size:11,leading:24}
  ];
