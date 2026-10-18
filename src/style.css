@@ -841,3 +841,14 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
  body:has(.terms-print-target) .terms-print-target .terms-body{font-size:11pt}
  body:has(.terms-print-target) .terms-print-target .terms-paper-warning{color:#9c2727!important}
 }
+
+/* Identificação profissional e endereço nos termos e nas receitas */
+.terms-signatures>div .terms-professional-crm{display:block;font-size:11px;font-weight:600;color:#333}
+.terms-paper-footer{display:block;margin-top:28px;padding-top:9px;border-top:1px solid #d4c3a6;text-align:center;font-size:11px;font-weight:600;color:#303030;line-height:1.45}
+.document-clinic-contact{display:grid;gap:3px;text-align:center;padding:3px 0 12px;border-bottom:1px solid #d6c8af}
+.document-clinic-contact strong{font-size:12px;color:#292d2d}
+.document-clinic-contact span{font-size:12px;color:#424b4a;line-height:1.5}
+@media print{
+ .terms-print-target .terms-paper-footer{break-inside:avoid;page-break-inside:avoid}
+ .terms-print-target .terms-signatures{break-inside:avoid;page-break-inside:avoid}
+}
