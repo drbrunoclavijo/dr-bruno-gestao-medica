@@ -7,6 +7,8 @@ import ClinicalRecord from './ClinicalRecord.jsx';
 import PatientOverview from './PatientOverview.jsx';
 import PatientJourney,{patientSectionsFor} from './PatientJourney.jsx';
 import TestPrescriptions from './TestPrescriptions.jsx';
+import HomePrescriptions from './HomePrescriptions.jsx';
+import PatientTerms from './PatientTerms.jsx';
 import TestAdministrations from './TestAdministrations.jsx';
 import TestInventory from './TestInventory.jsx';
 import TestCostReport from './TestCostReport.jsx';
@@ -81,7 +83,7 @@ function Patients({role}){
   <div className="patient-quick-access">
    <div className="patient-quick-access-heading"><strong>Acesso rápido à ficha</strong><small>Escolha uma seção para ir diretamente às informações deste paciente.</small></div>
    <nav className="patient-section-nav" aria-label="Acesso rápido às seções do paciente">
-    {patientSectionsFor(role).map(([id,label])=><a key={id} href={'#paciente-'+id}><span aria-hidden="true">{({acompanhamento:'◷',cadastro:'♙',prontuario:'✚',documentos:'▤',prescricoes:'✎',protocolos:'◇',administracoes:'✓'})[id]}</span><span>{label}</span><span className="patient-quick-arrow" aria-hidden="true">→</span></a>)}
+    {patientSectionsFor(role).map(([id,label])=><a key={id} href={'#paciente-'+id}><span aria-hidden="true">{({acompanhamento:'◷',cadastro:'♙',prontuario:'✚',documentos:'▤',termos:'▧',receitas:'⌂',prescricoes:'✎',protocolos:'◇',administracoes:'✓'})[id]}</span><span>{label}</span><span className="patient-quick-arrow" aria-hidden="true">→</span></a>)}
    </nav>
   </div>
   <PatientJourney key={'journey-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
@@ -95,8 +97,11 @@ function Patients({role}){
   <PatientOverview key={'overview-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
   {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
   {role==='medico'&&<div id="paciente-documentos" className="patient-section-label">Documentos clínicos</div>}
+  {role==='medico'&&<PatientTerms key={'terms-'+selected.id} patient={selected} role={role}/>}
   {role==='medico'&&<TestPatientDocuments key={'docs-'+selected.id} supabase={supabase} patientId={selected.id}/>}
-  {role==='medico'&&<div id="paciente-prescricoes" className="patient-section-label">Prescrições</div>}
+  {role==='medico'&&<div id="paciente-receitas" className="patient-section-label">Receita domiciliar</div>}
+  {role==='medico'&&<HomePrescriptions key={'home-rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome}/>}
+  {role==='medico'&&<div id="paciente-prescricoes" className="patient-section-label">Prescrições para aplicações</div>}
   {role==='medico'&&<TestPrescriptions key={'rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>}
   {(role==='medico'||role==='enfermeira')&&<div id="paciente-administracoes" className="patient-section-label">Administrações e checagens</div>}
   {(role==='medico'||role==='enfermeira')&&<TestAdministrations key={'admin-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>}
