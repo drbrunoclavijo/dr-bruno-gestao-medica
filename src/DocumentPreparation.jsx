@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import {generateUnsignedPdf} from './UnsignedPdf.js';
+import {CLINIC_IDENTITY} from './ClinicIdentity.js';
 
 const datePt=value=>{
  if(!value)return '—';
@@ -33,14 +34,14 @@ function documentLines({kind,document}){
   ].filter(Boolean).join('\n')
  }));
 }
-export default function DocumentPreparation({kind,document,patientName,patientId,supabase,professionalName='Dr. Bruno Clavijo'}){
+export default function DocumentPreparation({kind,document,patientName,patientId,supabase,professionalName=CLINIC_IDENTITY.physician}){
  const [open,setOpen]=useState(false),[notice,setNotice]=useState(''),[savingPdf,setSavingPdf]=useState(false),[savedPdf,setSavedPdf]=useState(false);
  const isEvolution=kind==='evolucao';
  const title=isEvolution?'Evolução médica':kind==='domiciliar'?'Receita domiciliar':'Prescrição médica de aplicação';
  const lines=documentLines({kind,document});
  const date=isEvolution?datePt(document.data_consulta):stampPt(document.criado_em);
  const notes=!isEvolution?String(document.observacoes||'').trim():'';
- const content=[title,'PACIENTE FICTÍCIO: '+patientName,'Profissional: '+professionalName,'Data: '+date,...lines.flatMap(l=>[l.title,l.content]),notes?'Observações: '+notes:'','RASCUNHO DE TESTE — NÃO ASSINADO DIGITALMENTE — NÃO VÁLIDO COMO RECEITA'].filter(Boolean).join('\n\n');
+ const content=[title,'PACIENTE FICTÍCIO: '+patientName,'Profissional: '+professionalName+' · '+CLINIC_IDENTITY.crm,'Endereço: '+CLINIC_IDENTITY.address,'Contato: '+CLINIC_IDENTITY.phone,'Data: '+date,...lines.flatMap(l=>[l.title,l.content]),notes?'Observações: '+notes:'','RASCUNHO DE TESTE — NÃO ASSINADO DIGITALMENTE — NÃO VÁLIDO COMO RECEITA'].filter(Boolean).join('\n\n');
  function preparePdf(){
   return generateUnsignedPdf({
    title,patientName,professionalName,date,
@@ -92,7 +93,8 @@ export default function DocumentPreparation({kind,document,patientName,patientId
    <button type="button" className="outline-gold" onClick={()=>setOpen(v=>!v)}>{open?'Ocultar prévia':'Preparar documento para assinatura'}</button>
   </div>
   {open&&<div className="document-draft-preview">
-   <div className="document-draft-header"><span>Majestic Santé Institute</span><strong>RASCUNHO · TESTE · NÃO ASSINADO</strong></div>
+   <div className="document-draft-header"><span>{CLINIC_IDENTITY.clinic}</span><strong>RASCUNHO · TESTE · NÃO ASSINADO</strong></div>
+   <div className="document-clinic-contact"><strong>{professionalName} · {CLINIC_IDENTITY.crm}</strong><span>{CLINIC_IDENTITY.address}</span><span>Contato: {CLINIC_IDENTITY.phone}</span></div>
    <h4>{title}</h4>
    <p><strong>Paciente fictício:</strong> {patientName}</p>
    <p><strong>Profissional:</strong> {professionalName}</p>
