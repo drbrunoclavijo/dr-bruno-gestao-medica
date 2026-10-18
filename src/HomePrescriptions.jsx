@@ -54,7 +54,7 @@ export default function HomePrescriptions({supabase,patientId,patientName}){
     <div className="record-content">
      {(r.indicacoes||[]).map((m,i)=><div key={i}><strong>{i+1}. {m.medicamento}</strong><p>{m.posologia}{m.quantidade?' · '+m.quantidade:''}</p>{m.orientacoes&&<p>{m.orientacoes}</p>}</div>)}
      {r.observacoes&&<p>{r.observacoes}</p>}
-     <DocumentPreparation kind="domiciliar" document={{...r,items:r.indicacoes}} patientName={patientName}/>
+     <DocumentPreparation kind="domiciliar" document={{...r,items:r.indicacoes}} patientName={patientName} patientId={patientId} supabase={supabase}/>
     </div>
    </details>)}</div>}
  </section>;
