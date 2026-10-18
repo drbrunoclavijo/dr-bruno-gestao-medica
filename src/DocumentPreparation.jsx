@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {generateUnsignedPdf} from './UnsignedPdf.js';
 import {CLINIC_IDENTITY} from './ClinicIdentity.js';
+import {patientIdentification} from './PatientPrescriptionIdentity.js';
 
 const datePt=value=>{
  if(!value)return '—';
@@ -34,17 +35,18 @@ function documentLines({kind,document}){
   ].filter(Boolean).join('\n')
  }));
 }
-export default function DocumentPreparation({kind,document,patientName,patientId,supabase,professionalName=CLINIC_IDENTITY.physician}){
+export default function DocumentPreparation({kind,document,patientName,patient,patientId,supabase,professionalName=CLINIC_IDENTITY.physician}){
  const [open,setOpen]=useState(false),[notice,setNotice]=useState(''),[savingPdf,setSavingPdf]=useState(false),[savedPdf,setSavedPdf]=useState(false);
  const isEvolution=kind==='evolucao';
  const title=isEvolution?'Evolução médica':kind==='domiciliar'?'Receita domiciliar':'Prescrição médica de aplicação';
  const lines=documentLines({kind,document});
+ const identification=patientIdentification(patient);
  const date=isEvolution?datePt(document.data_consulta):stampPt(document.criado_em);
  const notes=!isEvolution?String(document.observacoes||'').trim():'';
- const content=[title,'PACIENTE FICTÍCIO: '+patientName,'Profissional: '+professionalName+' · '+CLINIC_IDENTITY.crm,'Endereço: '+CLINIC_IDENTITY.address,'Contato: '+CLINIC_IDENTITY.phone,'Data: '+date,...lines.flatMap(l=>[l.title,l.content]),notes?'Observações: '+notes:'','RASCUNHO DE TESTE — NÃO ASSINADO DIGITALMENTE — NÃO VÁLIDO COMO RECEITA'].filter(Boolean).join('\n\n');
+ const content=[title,'PACIENTE FICTÍCIO: '+patientName,'CPF do paciente: '+identification.cpf,'Endereço do paciente: '+identification.address,'Profissional: '+professionalName+' · '+CLINIC_IDENTITY.crm,'Endereço: '+CLINIC_IDENTITY.address,'Contato: '+CLINIC_IDENTITY.phone,'Data: '+date,...lines.flatMap(l=>[l.title,l.content]),notes?'Observações: '+notes:'','RASCUNHO DE TESTE — NÃO ASSINADO DIGITALMENTE — NÃO VÁLIDO COMO RECEITA'].filter(Boolean).join('\n\n');
  function preparePdf(){
   return generateUnsignedPdf({
-   title,patientName,professionalName,date,
+   title,patientName,professionalName,date,patientCpf:identification.cpf,patientAddress:identification.address,
    sections:[...(isEvolution&&document.motivo?[{title:'Motivo',content:document.motivo}]:[]),...lines,
     ...(notes?[{title:'Observações gerais',content:notes}]:[])]
   });
@@ -97,6 +99,8 @@ export default function DocumentPreparation({kind,document,patientName,patientId
    <div className="document-clinic-contact"><strong>{professionalName} · {CLINIC_IDENTITY.crm}</strong><span>{CLINIC_IDENTITY.address}</span><span>Contato: {CLINIC_IDENTITY.phone}</span></div>
    <h4>{title}</h4>
    <p><strong>Paciente fictício:</strong> {patientName}</p>
+   <p><strong>CPF do paciente:</strong> {identification.cpf}</p>
+   <p><strong>Endereço do paciente:</strong> {identification.address}</p>
    <p><strong>Profissional:</strong> {professionalName}</p>
    <p><strong>Data:</strong> {date}</p>
    {isEvolution&&document.motivo&&<p><strong>Motivo da consulta:</strong> {document.motivo}</p>}
@@ -104,6 +108,7 @@ export default function DocumentPreparation({kind,document,patientName,patientId
     <strong>{line.title}</strong><p>{line.content}</p>
    </div>)}
    {notes&&<div className="document-draft-line"><strong>Observações gerais</strong><p>{notes}</p></div>}
+   {kind==='domiciliar'&&<p className="document-draft-warning">RECEITUÁRIO CONTROLADO NÃO HABILITADO. Para controlados é obrigatório utilizar o modelo sanitário aplicável e integração SNCR quando exigida.</p>}
    <p className="document-draft-warning">RASCUNHO DE TESTE — NÃO ASSINADO DIGITALMENTE. NÃO UTILIZAR COMO DOCUMENTO MÉDICO VÁLIDO.</p>
    <div className="document-draft-actions">
     <button type="button" className="outline-gold" onClick={copy}>Copiar rascunho</button>
