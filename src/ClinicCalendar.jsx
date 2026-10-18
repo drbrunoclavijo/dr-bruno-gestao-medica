@@ -37,6 +37,7 @@ export function useAppointments(supabase,from,to){
 }
 const initial=()=>({id:'',patient:'',professional:'',type:'consulta',date:localDate(),hour:'09:00',duration:'30',note:''});
 export default function ClinicCalendar({supabase,role}){
+ const [calendarRevision,setCalendarRevision]=useState(0);
  const [from,setFrom]=useState(localDate()),[view,setView]=useState('semana'),[filter,setFilter]=useState(''),[term,setTerm]=useState('');
  const to=view==='dia'?from:view==='semana'?shiftDay(from,6):shiftDay(from,29);
  const {rows,loading,error,refresh}=useAppointments(supabase,from,to);
@@ -76,6 +77,7 @@ export default function ClinicCalendar({supabase,role}){
     p_observacao:form.note.trim()||null,p_agendamento_id:form.id||null
    });
    if(err)throw err;
+   setCalendarRevision(n=>n+1);
    setOpen(false);setForm(initial());setMessage('Agendamento fictício salvo na agenda compartilhada. Nenhuma mensagem foi enviada.');
    await loadPending();
    if(form.date<from||form.date>to){setFrom(form.date);setView('dia');}else await refresh();
@@ -87,7 +89,7 @@ export default function ClinicCalendar({supabase,role}){
   setBusy(true);setFormError('');setMessage('');
   const {error:err}=await supabase.rpc('atualizar_status_agendamento_teste',{p_agendamento_id:a.id,p_status:next});
   if(err)setFormError('Não foi possível alterar: '+err.message);
-  else{setMessage('Status alterado manualmente.');await refresh();await loadPending();}
+  else{setCalendarRevision(n=>n+1);setMessage('Status alterado manualmente.');await refresh();await loadPending();}
   setBusy(false);
  }
  async function simulateReply(a,answer){
@@ -99,7 +101,7 @@ export default function ClinicCalendar({supabase,role}){
    if(err)throw err;
    setReplyPreview(answer==='1'?confirmedText(a):rescheduleText());
    setMessage(answer==='1'?'Confirmação simulada registrada. Resposta pronta, ainda NÃO enviada.':'Reagendamento solicitado na simulação. Pendência criada para Amanda; resposta pronta, NÃO enviada.');
-   await refresh();await loadPending();
+   setCalendarRevision(n=>n+1);await refresh();await loadPending();
   }catch(err){setFormError('Erro ao simular resposta: '+err.message);}
   finally{setBusy(false);}
  }
@@ -127,7 +129,7 @@ export default function ClinicCalendar({supabase,role}){
     <button type="button" className="gold-button" onClick={()=>{setForm(initial());setOpen(true);setFormError('');}}>+ Novo agendamento</button>
    </div>
   </div>
-  <AppointmentCalendar supabase={supabase} role={role} onEdit={edit} onRefreshList={refresh}/>
+  <AppointmentCalendar supabase={supabase} role={role} onEdit={edit} onRefreshList={refresh} refreshSignal={calendarRevision}/>
   {open&&<div className="premium-panel">
    <h3>{form.id?'Remarcar atendimento':'Novo agendamento'}</h3>
    <form onSubmit={save} className="calendar-tools">
