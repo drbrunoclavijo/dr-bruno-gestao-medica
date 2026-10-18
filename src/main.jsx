@@ -95,12 +95,12 @@ function Patients({role}){
   </div>
   {role==='medico'&&<div id="paciente-prontuario" className="patient-section-label">Prontuário médico</div>}
   <PatientOverview key={'overview-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
-  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
+  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
   {role==='medico'&&<div id="paciente-documentos" className="patient-section-label">Documentos clínicos</div>}
   {role==='medico'&&<PatientTerms key={'terms-'+selected.id} patient={selected} role={role}/>}
   {role==='medico'&&<TestPatientDocuments key={'docs-'+selected.id} supabase={supabase} patientId={selected.id}/>}
   {role==='medico'&&<div id="paciente-receitas" className="patient-section-label">Receita domiciliar</div>}
-  {role==='medico'&&<HomePrescriptions key={'home-rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome}/>}
+  {role==='medico'&&<HomePrescriptions key={'home-rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected}/>}
   {role==='medico'&&<div id="paciente-prescricoes" className="patient-section-label">Prescrições para aplicações</div>}
   {role==='medico'&&<TestPrescriptions key={'rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>}
   {(role==='medico'||role==='enfermeira')&&<div id="paciente-administracoes" className="patient-section-label">Administrações e checagens</div>}
@@ -170,7 +170,7 @@ function PrescriptionsHub({role}){
    </div>
    <div className="form-actions"><button type="button" className="outline-gold" disabled={loading} onClick={load}>{loading?'Carregando...':'Atualizar pacientes'}</button></div>
   </div>
-  {chosen?<TestPrescriptions key={chosen.id} supabase={supabase} patientId={chosen.id} patientName={chosen.nome} canWrite={true}/>:
+  {chosen?<TestPrescriptions key={chosen.id} supabase={supabase} patientId={chosen.id} patientName={chosen.nome} patient={chosen} canWrite={true}/>:
    <div className="premium-panel"><p className="record-empty">Escolha um paciente fictício para consultar ou adicionar prescrições.</p></div>}
  </section>;
 }
