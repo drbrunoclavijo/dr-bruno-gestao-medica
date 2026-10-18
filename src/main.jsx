@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import {registerPwa} from './registerPwa.js';
 import {createRoot} from 'react-dom/client';
 import {createClient} from '@supabase/supabase-js';
 import './style.css';
@@ -260,3 +261,5 @@ function App(){
  <footer>Versão de testes. Não inserir dados de pacientes até a validação de segurança, LGPD e funcionalidades clínicas.</footer></main>;
 }
 createRoot(document.getElementById('root')).render(<App/>);
+
+registerPwa();
