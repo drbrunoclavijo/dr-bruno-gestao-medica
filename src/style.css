@@ -798,3 +798,21 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
  .patient-quick-access .patient-quick-arrow{display:none}
 }
 @media(max-width:345px){.patient-quick-access .patient-section-nav{grid-template-columns:minmax(0,1fr)}}
+
+/* Preparacao dos documentos clinicos para futura assinatura digital, somente teste */
+.document-preparation{margin-top:16px;border-top:1px solid #66543a;padding-top:15px}
+.document-preparation-actions{display:flex;flex-wrap:wrap;gap:9px}
+.document-draft-preview{display:grid;gap:11px;background:#fefdf9;color:#25292b;border:2px solid #a78b58;border-radius:11px;padding:22px;max-width:840px}
+.document-draft-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:2px solid #ad8b55;padding-bottom:12px}
+.document-draft-header span{font-family:Georgia,serif;font-weight:700;font-size:19px;color:#272e2c}
+.document-draft-header strong{font-size:11px;color:#9a2c2c;letter-spacing:.3px}
+.document-draft-preview h4{font-size:20px;color:#263031;margin:3px 0}
+.document-draft-preview p{margin:3px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5}
+.document-draft-preview p strong{color:#24312d}
+.document-draft-line{padding-top:10px;border-top:1px solid #d6c8af}
+.document-draft-line strong{font-size:13px;color:#252e2d}
+.document-draft-warning{color:#8e2424!important;border:2px dashed #bd7777;background:#fff0f0;padding:12px;border-radius:7px;font-size:12px!important;font-weight:700;text-align:center}
+.document-draft-actions{display:flex;gap:8px;flex-wrap:wrap;padding-top:5px}
+.document-draft-actions button{font-size:12px;min-height:42px}
+.document-draft-preview>small{color:#52595a}
+@media(max-width:650px){.document-draft-preview{padding:14px}.document-draft-actions{display:grid}.document-draft-actions button{width:100%}}
