@@ -1,0 +1,31 @@
+{
+  "name": "Majestic Santé Institute | Gestão Clínica",
+  "short_name": "Majestic Santé",
+  "description": "Gestão clínica integrada — acesso exclusivo à equipe autorizada",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111a1b",
+  "theme_color": "#162122",
+  "icons": [
+    {
+      "src": "/icons/majestic-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/majestic-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/majestic.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
