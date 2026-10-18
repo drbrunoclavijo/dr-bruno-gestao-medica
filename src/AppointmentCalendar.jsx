@@ -10,7 +10,7 @@ export const monthGrid=month=>{
  const count=Math.ceil((offset+Number(last.slice(8)))/7)*7;
  return Array.from({length:count},(_,i)=>shiftDay(first,i-offset));
 };
-export default function AppointmentCalendar({supabase,role,onEdit,onRefreshList}){
+export default function AppointmentCalendar({supabase,role,onEdit,onRefreshList,refreshSignal}){
  const today=localDate();
  const [month,setMonth]=useState(today.slice(0,7)),[selected,setSelected]=useState(today);
  const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
@@ -26,7 +26,7 @@ export default function AppointmentCalendar({supabase,role,onEdit,onRefreshList}
    setRows(err?[]:(data||[]));setError(err?'Calendário indisponível: '+err.message:'');setLoading(false);
   });
   return ()=>{active=false;};
- },[supabase,month,revision]);
+ },[supabase,month,revision,refreshSignal]);
  useEffect(()=>{
   if(!admin(role))return;
   let active=true;
