@@ -63,7 +63,7 @@ test('Acesso a relatorios e auditoria e checado no SQL, nao so menu',()=>{
   assert.match(sql,/GRANT EXECUTE ON FUNCTION/);
  }
  const main=readFileSync('src/main.jsx','utf8');
- assert.match(main,/Auditoria'&&profile\.perfil==='medico'/);
+ assert.match(main,/Auditoria'&&\['medico','administrativo'\]\.includes\(profile\.perfil\)/);
  assert.match(main,/Relatórios'&&\['medico','enfermeira'\]/);
 });
 test('O registro da taxa usa pagamento existente, sem segunda venda',()=>{
