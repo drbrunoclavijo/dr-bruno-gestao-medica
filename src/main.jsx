@@ -78,9 +78,12 @@ function Patients({role}){
  const addressOf=p=>[p.logradouro,[p.numero,p.complemento].filter(Boolean).join(' - '),p.bairro,[p.cidade,p.uf].filter(Boolean).join(' / ')].filter(Boolean).join(', ');
  if(selected) return <section className="patients-page patient-profile">
   <div className="profile-toolbar"><button type="button" className="outline-gold" onClick={()=>setSelectedId(null)}>← Voltar para pacientes</button><span className="profile-test-label">FICHA CADASTRAL · AMBIENTE DE TESTES</span></div>
-  <nav className="patient-section-nav" aria-label="Seções da ficha do paciente">
-   {patientSectionsFor(role).map(([id,label])=><a key={id} href={'#paciente-'+id}>{label}</a>)}
-  </nav>
+  <div className="patient-quick-access">
+   <div className="patient-quick-access-heading"><strong>Acesso rápido à ficha</strong><small>Escolha uma seção para ir diretamente às informações deste paciente.</small></div>
+   <nav className="patient-section-nav" aria-label="Acesso rápido às seções do paciente">
+    {patientSectionsFor(role).map(([id,label])=><a key={id} href={'#paciente-'+id}><span aria-hidden="true">{({acompanhamento:'◷',cadastro:'♙',prontuario:'✚',documentos:'▤',prescricoes:'✎',protocolos:'◇',administracoes:'✓'})[id]}</span><span>{label}</span><span className="patient-quick-arrow" aria-hidden="true">→</span></a>)}
+   </nav>
+  </div>
   <PatientJourney key={'journey-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
   <div className="premium-panel" id="paciente-cadastro">
    <div className="profile-heading"><div className="patient-avatar" aria-hidden="true">♙</div><div className="profile-name"><p className="eyebrow">FICHA DO PACIENTE</p><h3>{selected.nome}</h3><p>Informações cadastrais disponíveis no sistema</p></div><button type="button" className="gold-button" onClick={()=>edit(selected)}>✎ Editar cadastro</button></div>
