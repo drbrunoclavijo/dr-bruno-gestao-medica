@@ -93,7 +93,7 @@ function Patients({role}){
   </div>
   {role==='medico'&&<div id="paciente-prontuario" className="patient-section-label">Prontuário médico</div>}
   <PatientOverview key={'overview-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
-  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
+  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
   {role==='medico'&&<div id="paciente-documentos" className="patient-section-label">Documentos clínicos</div>}
   {role==='medico'&&<TestPatientDocuments key={'docs-'+selected.id} supabase={supabase} patientId={selected.id}/>}
   {role==='medico'&&<div id="paciente-prescricoes" className="patient-section-label">Prescrições</div>}
