@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from 'react';
+import AppointmentCalendar from './AppointmentCalendar.jsx';
 const tz='America/Sao_Paulo';
 export const localDate=()=>{
  const d=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
@@ -126,6 +127,7 @@ export default function ClinicCalendar({supabase,role}){
     <button type="button" className="gold-button" onClick={()=>{setForm(initial());setOpen(true);setFormError('');}}>+ Novo agendamento</button>
    </div>
   </div>
+  <AppointmentCalendar supabase={supabase} role={role} onEdit={edit} onRefreshList={refresh}/>
   {open&&<div className="premium-panel">
    <h3>{form.id?'Remarcar atendimento':'Novo agendamento'}</h3>
    <form onSubmit={save} className="calendar-tools">
