@@ -196,3 +196,18 @@ test('Ficha integrada respeita secoes por perfil e fontes de dados',()=>{
  assert.match(journey,/p=>p\.paciente_id===patientId/);
  assert.ok(!journey.includes('from(\'prescricoes_teste\')'),'Não consultar prescrições para equipe');
 });
+
+test('Ficha unificada preserva isolamento entre medico, enfermagem e administracao',()=>{
+ const dashboard=readFileSync('src/PatientOverview.jsx','utf8');
+ const main=readFileSync('src/main.jsx','utf8');
+ assert.match(main,/PatientOverview/);
+ assert.match(dashboard,/if\(clinical\(role\)\)\{/);
+ assert.match(dashboard,/if\(role==='enfermeira'\)\{/);
+ assert.match(dashboard,/listar_agendamentos_teste/);
+ assert.match(dashboard,/\.filter\(a=>a\.paciente_id===patientId\)/);
+ for(const resource of ['consultas_teste','prescricoes_teste','listar_protocolos_com_insumos_teste'])assert.ok(dashboard.includes(resource));
+ assert.match(dashboard,/role==='medico'/);
+ assert.ok(!dashboard.includes('sessionStorage'),'Dados clinicos nao devem ser armazenados em sessao');
+ assert.ok(!dashboard.includes('localStorage'),'Dados clinicos nao devem ser armazenados localmente');
+ assert.ok(!dashboard.includes('listar_protocolos_financeiro_admin_teste'),'Ficha admin nao solicita dados financeiros');
+});
