@@ -129,3 +129,29 @@ test('SQL do gerente reconhece tambem a verificacao p.perfil=equipe em pendencia
  assert.match(sql,/p\.perfil IN \('equipe','administrativo'\)/);
  assert.ok(!sql.includes("'resolver_pendencia_ao_reagendar_teste'\n ]"),'Trigger nao deve ser reescrito como RPC de agenda');
 });
+
+test('Calendario mensal tem isolamento de profissional e detalhes por dia',()=>{
+ const cal=readFileSync('src/AppointmentCalendar.jsx','utf8');
+ const app=readFileSync('src/ClinicCalendar.jsx','utf8');
+ assert.match(cal,/listar_agendamentos_teste/);
+ assert.match(cal,/role=>\['equipe','administrativo'\]\.includes\(role\)/);
+ assert.match(cal,/a\.profissional_id===scope/);
+ assert.match(cal,/a\.paciente_nome/);
+ assert.match(cal,/setSelected\(d\)/);
+ assert.match(app,/AppointmentCalendar/);
+});
+test('Confirmacao automatica permanece em rascunho sem API externa',()=>{
+ const sql=readFileSync('supabase/migrations/20261124_agenda_whatsapp_rascunhos_sem_envio_teste.sql','utf8');
+ assert.match(sql,/CREATE TABLE IF NOT EXISTS public\.agenda_mensagens_rascunho_teste/);
+ assert.match(sql,/AFTER INSERT OR UPDATE OF inicio,profissional_id,paciente_id,status/);
+ assert.match(sql,/ON CONFLICT DO NOTHING/);
+ assert.match(sql,/REVOKE ALL ON public\.agenda_mensagens_rascunho_teste FROM PUBLIC,anon,authenticated/);
+ assert.ok(!sql.includes('http_post'),'Nenhum envio HTTP na trigger');
+ assert.match(sql,/NEW\.status='agendado'/);
+});
+test('Interface pode ser aberta em navegadores móveis',()=>{
+ const html=readFileSync('index.html','utf8');
+ const css=readFileSync('src/style.css','utf8');
+ assert.match(html,/name="viewport" content="width=device-width, initial-scale=1"/);
+ assert.match(css,/@media\(max-width:650px\)/);
+});
