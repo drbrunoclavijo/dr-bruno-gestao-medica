@@ -142,7 +142,7 @@ function PrescriptionsHub({role}){
  const [patients,setPatients]=useState([]),[selected,setSelected]=useState(''),[query,setQuery]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState('');
  async function load(){
   setLoading(true);setError('');
-  const {data,error:err}=await supabase.from('pacientes').select('id,nome').order('nome').limit(300);
+  const {data,error:err}=await supabase.from('pacientes').select('id,nome,cpf,logradouro,numero,complemento,bairro,cidade,uf,cep').order('nome').limit(300);
   if(err)setError('Não foi possível buscar os pacientes fictícios: '+err.message);
   else{
    const records=data||[];
