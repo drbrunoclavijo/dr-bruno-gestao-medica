@@ -186,7 +186,7 @@ test('Ficha integrada respeita secoes por perfil e fontes de dados',()=>{
  const journey=readFileSync('src/PatientJourney.jsx','utf8');
  assert.match(main,/patientSectionsFor\(role\)/);
  assert.match(main,/PatientJourney key=/);
- assert.match(journey,/\['acompanhamento','Acompanhamento'\]/);
+ assert.match(journey,/\['acompanhamento','Agenda e retornos'\]/);
  assert.match(journey,/role==='medico'\?/);
  assert.match(journey,/role==='enfermeira'\?/);
  assert.match(journey,/listar_agendamentos_teste/);
@@ -210,4 +210,21 @@ test('Ficha unificada preserva isolamento entre medico, enfermagem e administrac
  assert.ok(!dashboard.includes('sessionStorage'),'Dados clinicos nao devem ser armazenados em sessao');
  assert.ok(!dashboard.includes('localStorage'),'Dados clinicos nao devem ser armazenados localmente');
  assert.ok(!dashboard.includes('listar_protocolos_financeiro_admin_teste'),'Ficha admin nao solicita dados financeiros');
+});
+
+test('Atalhos da ficha apontam a secoes existentes e obedecem ao perfil',()=>{
+ const main=readFileSync('src/main.jsx','utf8');
+ const journey=readFileSync('src/PatientJourney.jsx','utf8');
+ const css=readFileSync('src/style.css','utf8');
+ assert.match(main,/patient-quick-access/);
+ assert.match(main,/href=\{'#paciente-'\+id\}/);
+ assert.match(journey,/role==='medico'\?\[\['prontuario'/);
+ assert.match(journey,/role==='enfermeira'\?\[\['protocolos'/);
+ assert.match(journey,/id="paciente-protocolos"/);
+ assert.match(main,/id="paciente-cadastro"/);
+ assert.match(main,/id="paciente-prescricoes"/);
+ assert.match(main,/id="paciente-documentos"/);
+ assert.match(main,/id="paciente-administracoes"/);
+ assert.match(css,/patient-quick-access \.patient-section-nav/);
+ assert.ok(!journey.includes("['prescricoes','Prescrições']]:[]), 'Prescricoes devem estar somente na lista do medico');
 });
