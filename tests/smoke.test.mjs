@@ -316,7 +316,7 @@ test('Todos os termos e receitas exibem identificacao profissional e contato ofi
  const {generateUnsignedPdf}=await import('../src/UnsignedPdf.js');
  const pdf=generateUnsignedPdf({title:'Receita domiciliar',patientName:'Paciente Exemplo',professionalName:'Dr. Bruno Clavijo',date:'18/10/2026',sections:[]});
  const body=await pdf.text();
- assert.match(body,/CRM\\/PR 34466/);
+ assert.ok(body.includes('CRM/PR 34466'));
  assert.match(body,/Rua Quito, 145/);
  assert.match(body,/99832-7711/);
 });
