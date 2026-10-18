@@ -226,3 +226,18 @@ test('Atalhos da ficha apontam a secoes existentes e obedecem ao perfil',()=>{
  assert.match(main,/id="paciente-administracoes"/);
  assert.match(css,/patient-quick-access \.patient-section-nav/);
 });
+
+test('Previa de receita e evolucao nao finge assinatura digital ou envio',()=>{
+ const draft=readFileSync('src/DocumentPreparation.jsx','utf8');
+ const rx=readFileSync('src/TestPrescriptions.jsx','utf8');
+ const record=readFileSync('src/ClinicalRecord.jsx','utf8');
+ assert.match(rx,/DocumentPreparation kind="receita"/);
+ assert.match(record,/DocumentPreparation kind="evolucao"/);
+ assert.match(draft,/NÃO ASSINADO DIGITALMENTE/);
+ assert.match(draft,/Assinar com Bird ID — em preparação/);
+ assert.match(draft,/Enviar pelo WhatsApp — indisponível/);
+ assert.match(draft,/disabled title="Aguardando credenciais Bird ID/);
+ assert.match(draft,/disabled title="Disponível somente para PDF assinado/);
+ assert.ok(!draft.includes('localStorage'),'Não armazenar documentos clinicos no navegador');
+ assert.ok(!draft.includes('fetch('),'Nenhum envio externo de documentos');
+});
