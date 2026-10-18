@@ -100,7 +100,7 @@ BEGIN
   'agenda_profissionais_teste','listar_agendamentos_teste',
   'agenda_aplicacoes_administrativa_teste','salvar_agendamento_teste',
   'atualizar_status_agendamento_teste','simular_resposta_agendamento_teste',
-  'listar_pendencias_agenda_teste','resolver_pendencia_ao_reagendar_teste'
+  'listar_pendencias_agenda_teste'
  ]) LOOP
   SELECT p.oid,p.proname INTO f FROM pg_proc p
    JOIN pg_namespace ns ON ns.oid=p.pronamespace
