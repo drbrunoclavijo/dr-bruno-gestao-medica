@@ -1,6 +1,7 @@
 // Gerador mínimo de PDF para documentos FICTÍCIOS, sem dependências externas.
 // Usa fonte Helvetica WinAnsi e mantém marca d'água textual de NÃO ASSINADO.
 // NÃO fornece assinatura PAdES, autenticação ICP-Brasil ou validade para dispensação.
+import {CLINIC_IDENTITY} from './ClinicIdentity.js';
 const encoder=new TextEncoder();
 const cp1252Extra=new Map([[0x20ac,0x80],[0x201a,0x82],[0x192,0x83],[0x201e,0x84],
  [0x2026,0x85],[0x2020,0x86],[0x2021,0x87],[0x2c6,0x88],[0x2030,0x89],
@@ -28,7 +29,10 @@ function wrap(line,max=88){
 }
 function streamLines(data){
  const rows=[
-  {text:'MAJESTIC SANTÉ INSTITUTE',size:15,leading:27,bold:true},
+  {text:CLINIC_IDENTITY.clinic.toUpperCase(),size:15,leading:27,bold:true},
+  {text:CLINIC_IDENTITY.physician+' | '+CLINIC_IDENTITY.crm,size:10,leading:16,bold:true},
+  {text:CLINIC_IDENTITY.address,size:9,leading:15},
+  {text:'Contato: '+CLINIC_IDENTITY.phone,size:9,leading:20},
   {text:'DOCUMENTO DE TESTE | RASCUNHO NAO ASSINADO',size:11,leading:24,bold:true},
   {text:data.title,size:14,leading:25,bold:true},
   {text:'Paciente fictício: '+data.patientName,size:11,leading:17},
@@ -71,7 +75,7 @@ export function generateUnsignedPdf(data){
   const pageId=objects.length;pageIds.push(pageId);
   const contentId=pageId+1;
   objects.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents '+contentId+' 0 R >>');
-  const body=content+'\nBT /F2 9 Tf 1 0 0 1 52 32 Tm (TESTE - NAO ASSINADO - Pagina '+(index+1)+' de '+pages.length+') Tj ET';
+  const body=content+'\nBT /F1 8 Tf 1 0 0 1 52 47 Tm ('+asWinAnsi(CLINIC_IDENTITY.address)+' | '+asWinAnsi(CLINIC_IDENTITY.phone)+') Tj ET'+'\nBT /F2 9 Tf 1 0 0 1 52 32 Tm (TESTE - NAO ASSINADO - Pagina '+(index+1)+' de '+pages.length+') Tj ET';
   objects.push('<< /Length '+encoder.encode(body).length+' >>\nstream\n'+body+'\nendstream');
  }
  objects[2]='<< /Type /Pages /Count '+pageIds.length+' /Kids ['+pageIds.map(id=>id+' 0 R').join(' ')+'] >>';
