@@ -169,3 +169,14 @@ test('PWA publica manifesto, icone e registro sem armazenar dados clinicos offli
  assert.ok(!sw.includes("caches.open("),'Evitar caching de dados de pacientes');
  assert.ok(!sw.includes("addEventListener('fetch'"),'PWA deve continuar online-only');
 });
+
+test('Cabecalho e navegacao sao centralizados somente na tela mobile',()=>{
+ const css=readFileSync('src/style.css','utf8');
+ const section=css.slice(css.lastIndexOf('/* Alinhamento central do cabeçalho'));
+ assert.match(section,/@media \(max-width: 767px\)/);
+ assert.match(section,/main > header\{/);
+ assert.match(section,/flex-direction:column/);
+ assert.match(section,/main > nav\{/);
+ assert.match(section,/justify-content:center/);
+ assert.match(section,/main > \.session\{/);
+});
