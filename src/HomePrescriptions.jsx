@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 import DocumentPreparation from './DocumentPreparation.jsx';
 const blank=()=>({medicamento:'',posologia:'',quantidade:'',orientacoes:''});
 const time=v=>v?new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(new Date(v)):'—';
-export default function HomePrescriptions({supabase,patientId,patientName}){
+export default function HomePrescriptions({supabase,patientId,patientName,patient}){
  const [items,setItems]=useState([blank()]),[obs,setObs]=useState(''),[rows,setRows]=useState([]),
  [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[open,setOpen]=useState(false);
  async function load(){
@@ -54,7 +54,7 @@ export default function HomePrescriptions({supabase,patientId,patientName}){
     <div className="record-content">
      {(r.indicacoes||[]).map((m,i)=><div key={i}><strong>{i+1}. {m.medicamento}</strong><p>{m.posologia}{m.quantidade?' · '+m.quantidade:''}</p>{m.orientacoes&&<p>{m.orientacoes}</p>}</div>)}
      {r.observacoes&&<p>{r.observacoes}</p>}
-     <DocumentPreparation kind="domiciliar" document={{...r,items:r.indicacoes}} patientName={patientName} patientId={patientId} supabase={supabase}/>
+     <DocumentPreparation kind="domiciliar" document={{...r,items:r.indicacoes}} patientName={patientName} patient={patient} patientId={patientId} supabase={supabase}/>
     </div>
    </details>)}</div>}
  </section>;
