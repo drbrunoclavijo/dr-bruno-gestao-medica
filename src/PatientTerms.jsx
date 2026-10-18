@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import {CLINIC_IDENTITY} from './ClinicIdentity.js';
 
 // Minutas orientadoras. Exigem revisão jurídica, de privacidade e do responsável técnico
 // antes de serem utilizadas com pessoas reais. Nenhum campo representa consentimento dado.
@@ -102,8 +103,9 @@ export default function PatientTerms({patient,role}){
     <p>Foz do Iguaçu, ______ de ____________________ de __________.</p>
     <div className="terms-signatures">
      <div>Assinatura do paciente ou responsável</div>
-     <div>Assinatura do profissional que prestou esclarecimentos</div>
+     <div>{CLINIC_IDENTITY.physician}<span className="terms-professional-crm">{CLINIC_IDENTITY.crm}</span></div>
     </div>
+    <footer className="terms-paper-footer">{CLINIC_IDENTITY.address}</footer>
     <p className="terms-paper-warning">MINUTA DE TESTE · NÃO COMPROVA CONSENTIMENTO · NECESSITA REVISÃO ANTES DE USO REAL</p>
    </div>
    <p className="profile-notice">Depois de imprimir e obter a assinatura, digitalize o documento e utilize a seção **Documentos e imagens do paciente → Outros documentos** logo abaixo para anexá-lo à ficha. Identifique o título e a versão. O upload permanece restrito ao perfil médico conforme as permissões atuais.</p>
