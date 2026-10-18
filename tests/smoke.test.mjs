@@ -152,7 +152,7 @@ test('Confirmacao automatica permanece em rascunho sem API externa',()=>{
 test('Interface pode ser aberta em navegadores móveis',()=>{
  const html=readFileSync('index.html','utf8');
  const css=readFileSync('src/style.css','utf8');
- assert.match(html,/name="viewport" content="width=device-width, initial-scale=1"/);
+ assert.match(html,/name="viewport" content="width=device-width, initial-scale=1(?:, viewport-fit=cover)?"/);
  assert.match(css,/@media\(max-width:650px\)/);
 });
 
