@@ -105,3 +105,16 @@ test('Protecoes de autenticacao da integração sao so leitura',()=>{
  }
  for(const role of ['medico','enfermeira','equipe'])assert.ok(source.includes(role));
 });
+
+test('Gerente standby tem financeiro e auditoria sem acesso clinico',()=>{
+ const main=readFileSync('src/main.jsx','utf8');
+ const sql=readFileSync('supabase/migrations/20261123_perfil_gerente_administrativo_standby_teste.sql','utf8');
+ assert.match(main,/administrativo:\['Visão geral','Agenda','Pacientes','Estoque','Financeiro','Auditoria'\]/);
+ assert.match(main,/Auditoria'&&\['medico','administrativo'\]\.includes\(profile\.perfil\)/);
+ assert.ok(!main.includes("administrativo:['Prescrições'"));
+ assert.match(sql,/perfil IN \('medico','administrativo'\)/);
+ assert.match(sql,/SECURITY DEFINER/);
+ assert.match(sql,/CREATE POLICY pacientes_administrativo_ler_teste/);
+ assert.match(sql,/listar_protocolos_financeiro_admin_teste/);
+ assert.ok(!sql.includes('INSERT INTO public.profissionais('),'Nao ativar usuario automatico');
+});
