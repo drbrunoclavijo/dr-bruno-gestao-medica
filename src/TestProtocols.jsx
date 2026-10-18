@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {infinityRates,infinityInstant,tiers,ratePct,quoteInfinity,paymentNames,rateForPayment} from './PaymentRates.js';
 const money=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v)||0);
 const dateBR=v=>v?String(v).slice(0,10).split('-').reverse().join('/'):'—';
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>{const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const x=Object.fromEntries(p.map(v=>[v.type,v.value]));return x.year+'-'+x.month+'-'+x.day;};
 const parseCents=s=>Number(s||'0')/100;
 const currencyInput=s=>s?money(Number(s)/100):'';
 const centsInput=v=>String(v||'').replace(/\D/g,'').replace(/^0+(?=\d)/,'').slice(0,9);
