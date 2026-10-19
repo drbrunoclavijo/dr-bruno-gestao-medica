@@ -66,7 +66,7 @@ export default function VisitFinalization({supabase,patientId,appointment}){
     const {data:id,error:rpcError}=await supabase.rpc('encerrar_consulta_teste',{p_agendamento_id:appointment.appointmentId,p_consulta_id:linked[0].id,p_checks:confirmed});
     if(rpcError)throw rpcError;
     const {data:details,error:detailsError}=await supabase.rpc('consultar_encerramento_consulta_teste',{p_agendamento_id:appointment.appointmentId});
-    if(detailsError||!details||details.id!==id)throw new Error('Encerramento gravado, mas não foi possível confirmar os detalhes. Atualize o atendimento antes de tentar novamente.');
+    if(detailsError||!details||details.id!==id||details.status!=='realizado'||details.agendamento_id!==appointment.appointmentId||details.consulta_id!==linked[0].id)throw new Error('Encerramento gravado, mas não foi possível confirmar todos os detalhes. Atualize o atendimento antes de tentar novamente.');
     setClosureDetails(details);setClosureId(id);setFinished(true);
    }catch(e){setFinishError('Não foi possível encerrar a consulta: '+e.message);}
    finally{setBusy(false);}
