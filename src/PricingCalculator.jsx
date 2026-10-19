@@ -1,6 +1,7 @@
 import React,{useMemo,useState} from 'react';
 import {pricingQuote,splitProtocolRevenue} from './PricingMath.js';
 import {rateForPayment,tiers} from './PaymentRates.js';
+import ProtocolPricingSimulator from './ProtocolPricingSimulator.jsx';
 
 const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n||0);
 const initial={name:'',materials:0,minutes:45,hourCost:0,fixedMonthly:0,appointmentsMonthly:100,otherFixed:0,taxPct:0,feePct:0,commissionPct:0,marginPct:25,marketPrice:0,clinicPct:30};
@@ -60,6 +61,7 @@ export default function PricingCalculator({role}){
    <p className="profile-notice">Modelo de simulação: os custos diretos informados são descontados apenas uma vez no resultado total. A parcela da clínica é calculada sobre o valor após impostos e taxas, e não representa lucro líquido. Defina o contrato real de repasse antes de usar estes números para decisões.</p>
   </div>}
   {!split&&<p className="form-message" role="alert">Confira os percentuais de divisão de receita.</p>}
+  <ProtocolPricingSimulator/>
   <button type="button" className="outline-gold" onClick={()=>{setForm(initial);setMethod('pix');setInstallments(1);}}>Limpar simulação</button>
  </section>;
 }
