@@ -50,7 +50,7 @@ export default function VisitFinalization({supabase,patientId,appointment}){
  const summary=useMemo(()=>summarizeVisit(data,day),[data,day]);
  const complete=checks.every(x=>confirmed[x.id]);
  function finish(){
-  if(!complete||loading||busy||error||!summary.clinical)return;
+  if(!complete||loading||busy||error||!summary.clinical||!summary.evolution)return;
   if(!window.confirm('Confirmar apenas a conferência visual desta sessão de testes? Isso NÃO encerra o agendamento, NÃO assina documentos e NÃO grava uma finalização no prontuário.'))return;
   setBusy(true);setFinished(true);setBusy(false);
  }
@@ -68,17 +68,17 @@ export default function VisitFinalization({supabase,patientId,appointment}){
     <div><strong>{summary.documents}</strong><span>Anexo(s) arquivado(s)</span></div>
    </div>
    {!summary.clinical&&<p className="form-message" role="alert">Nenhuma consulta salva no período selecionado. Registre a consulta antes de concluir esta conferência.</p>}
-   {summary.clinical>0&&!summary.evolution&&<p className="form-message" role="alert">Há consulta salva, mas o campo Evolução está vazio nos registros consultados. Revise o prontuário.</p>}
+   {summary.clinical>0&&!summary.evolution&&<p className="form-message" role="alert">Há consulta salva, mas o campo Evolução está vazio nos registros consultados. Preencha e salve a evolução antes de confirmar a conferência.</p>}
    {summary.clinical>0&&!summary.returnGuidance&&<p className="profile-notice">Não há orientação de retorno registrada no campo específico. Revise se o acompanhamento foi documentado em outro campo.</p>}
    {summary.unsignedHome>0&&<p className="profile-notice">{summary.unsignedHome} receita(s) domiciliar(es) constam como não assinadas. O Bird ID ainda não está integrado.</p>}
    <div className="visit-finalization-checks">
     {checks.map(item=><label key={item.id} className="visit-finalization-check">
-     <input type="checkbox" checked={Boolean(confirmed[item.id])} disabled={finished||!summary.clinical} onChange={e=>setConfirmed(v=>({...v,[item.id]:e.target.checked}))}/>
+     <input type="checkbox" checked={Boolean(confirmed[item.id])} disabled={finished||!summary.clinical||!summary.evolution} onChange={e=>setConfirmed(v=>({...v,[item.id]:e.target.checked}))}/>
      <span><strong>{item.title}</strong><small>{item.hint}</small></span>
     </label>)}
    </div>
    {finished?<p className="visit-finalization-finished" role="status">Conferência visual registrada apenas nesta tela. O atendimento NÃO foi concluído na agenda e nenhuma informação foi gravada ou assinada. Use “Atualizar registros” para refazer a revisão.</p>:
-    <button type="button" className="gold-button" disabled={!complete||!summary.clinical||loading||busy} onClick={finish}>Confirmar conferência visual</button>}
+    <button type="button" className="gold-button" disabled={!complete||!summary.clinical||!summary.evolution||loading||busy} onClick={finish}>Confirmar conferência visual</button>}
    <small>As marcações são temporárias e desaparecem ao sair ou recarregar a ficha. Não há registro de auditoria ou fechamento clínico nesta etapa.</small>
   </>}
  </section>;
