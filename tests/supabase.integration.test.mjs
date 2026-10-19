@@ -111,3 +111,25 @@ test('Equipe e gerente nao recebem registros clinicos por consultas REST',{skip:
   }finally{await api.auth.signOut();}
  }
 });
+
+test('Encerramento: perfis nao medicos sao negados no servidor (sem gravar dados)',{skip:!threeReady},async()=>{
+ // UUID reservado a este teste, sem agendamento correspondente.
+ // Consulta a RPC deve retornar erro antes de executar qualquer escrita.
+ const nonexistent='00000000-0000-4000-8000-000000000000';
+ const checks={evolucao:true,tratamento:true,retorno:true,documentos:true};
+ for(const role of ['medico','enfermeira','equipe',...(managerReady?['administrativo']:[])]){
+  const api=await createLoggedClient(role);
+  try{
+   const {data,error}=await api.rpc('encerrar_consulta_teste',{
+    p_agendamento_id:nonexistent,p_consulta_id:nonexistent,p_checks:checks
+   });
+   assert.ok(error,'Agendamento inexistente deve falhar para '+role);
+   assert.equal(data,null,'Nenhum encerramento retornado para '+role);
+   if(role==='medico'){
+    assert.match(error.message,/Agendamento nao encontrado/i);
+   }else{
+    assert.match(error.message,/Somente medico autenticado/i,role+' nao deve passar da validacao de permissao');
+   }
+  }finally{await api.auth.signOut();}
+ }
+});
