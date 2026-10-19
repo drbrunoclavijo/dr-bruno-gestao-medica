@@ -852,3 +852,10 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
  .terms-print-target .terms-paper-footer{break-inside:avoid;page-break-inside:avoid}
  .terms-print-target .terms-signatures{break-inside:avoid;page-break-inside:avoid}
 }
+
+/* Contexto de atendimento vindo da agenda médica — sem alterações automáticas */
+.clinical-appointment-context{display:grid;gap:6px;border:1px solid #977845;border-left:4px solid #d6ad6c;border-radius:10px;background:#25251d;padding:14px;margin-bottom:12px}
+.clinical-appointment-context strong{color:#f3d49b;font-size:15px}
+.clinical-appointment-context span{color:#f0e2c8;font-size:13px}
+.clinical-appointment-context small{color:#ded1b9;line-height:1.5}
+.calendar-entry-actions .gold-button,.appointment-day-card .gold-button{min-height:38px}
