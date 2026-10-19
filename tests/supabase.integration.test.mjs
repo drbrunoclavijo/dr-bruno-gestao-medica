@@ -133,3 +133,28 @@ test('Encerramento: perfis nao medicos sao negados no servidor (sem gravar dados
   }finally{await api.auth.signOut();}
  }
 });
+
+test('Encerramento recusa checklists incompletos sem alterar dados',{skip:!threeReady},async()=>{
+ const api=await createLoggedClient('medico');
+ try{
+  const invalid='00000000-0000-4000-8000-000000000000';
+  const {data,error}=await api.rpc('encerrar_consulta_teste',{
+   p_agendamento_id:invalid,p_consulta_id:invalid,
+   p_checks:{evolucao:true,tratamento:false,retorno:true,documentos:true}
+  });
+  assert.ok(error,'Checklist incompleto deve ser recusado');
+  assert.match(error.message,/Conferencia obrigatoria ausente: tratamento/i);
+  assert.equal(data,null);
+ }finally{await api.auth.signOut();}
+});
+
+test('Encerramento nao permite chamada anonima',{skip:!Boolean(URL&&KEY)},async()=>{
+ const api=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ const invalid='00000000-0000-4000-8000-000000000000';
+ const {data,error}=await api.rpc('encerrar_consulta_teste',{
+  p_agendamento_id:invalid,p_consulta_id:invalid,
+  p_checks:{evolucao:true,tratamento:true,retorno:true,documentos:true}
+ });
+ assert.ok(error);
+ assert.equal(data,null);
+});
