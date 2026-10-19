@@ -41,7 +41,7 @@ test('Vínculo clínico com agenda é validado no servidor antes de salvar',()=>
  assert.match(sql,/v_ag\.profissional_id IS DISTINCT FROM NEW\.profissional_id/);
  assert.match(sql,/v_ag\.tipo NOT IN \('consulta','retorno'\)/);
  assert.match(sql,/v_ag\.status NOT IN \('agendado','confirmado'\)/);
- assert.match(sql,/AT TIME ZONE 'America\/Sao_Paulo'/);
+ assert.doesNotMatch(sql,/NEW\.data_consulta IS DISTINCT FROM/);
 });
 
 test('Erro de encerramento nao esconde controles da revisao e permite nova tentativa',()=>{
@@ -63,10 +63,12 @@ test('Confirmacao de encerramento exige retorno consistente do banco',()=>{
  assert.match(sql,/a\.profissional_id=auth\.uid\(\)/);
 });
 
-test('A consulta avisa divergencia de data antes de enviar ao Supabase',()=>{
+test('Inicio real da consulta nao precisa coincidir com agenda',()=>{
  const form=read('src/ClinicalRecord.jsx');
- assert.match(form,/form\.data_consulta!==appointment\.date/);
- assert.match(form,/A data da consulta não corresponde à agenda/);
  const sql=read('supabase/migrations/20261019_validar_vinculo_consulta_agenda_teste.sql');
- assert.match(sql,/NEW\.data_consulta IS DISTINCT FROM/);
+ assert.match(form,/const actualDate=/);
+ assert.match(form,/timeZone:'America\/Sao_Paulo'/);
+ assert.match(form,/iniciada_em:new Date\(\)\.toISOString\(\)/);
+ assert.doesNotMatch(form,/form\.data_consulta!==appointment\.date/);
+ assert.doesNotMatch(sql,/NEW\.data_consulta IS DISTINCT FROM/);
 });
