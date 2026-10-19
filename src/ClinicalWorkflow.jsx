@@ -1,4 +1,5 @@
 import React from 'react';
+import VisitFinalization from './VisitFinalization.jsx';
 
 // Guia visual do atendimento: aciona formulários já existentes na MESMA ficha.
 // Não altera status de agenda e não registra documentos automaticamente.
@@ -8,7 +9,7 @@ const steps=[
  {key:'aplicacoes',number:'03',name:'Prescrição de aplicações',detail:'Prescrever itens de teste e conferir vínculos com o estoque.',anchor:'paciente-prescricoes'},
  {key:'finalizacao',number:'04',name:'Revisão e documentos',detail:'Revisar registros salvos, termos, PDFs e planejar o retorno.',anchor:'paciente-documentos'}
 ];
-export default function ClinicalWorkflow({patientName,appointment,activeStep,onChoose}){
+export default function ClinicalWorkflow({patientName,patientId,supabase,appointment,activeStep,onChoose}){
  return <section className="premium-panel clinical-workflow" aria-label="Fluxo de atendimento médico de teste">
   <div className="panel-title"><span className="title-icon" aria-hidden="true">✧</span><div>
    <h3>Atendimento integrado</h3><p>{patientName} · uma sequência de trabalho sem sair da ficha</p>
@@ -32,6 +33,7 @@ export default function ClinicalWorkflow({patientName,appointment,activeStep,onC
     <a href="#paciente-prescricoes">Prescrições de aplicações</a>
     <a href="#paciente-documentos">Documentos e termos</a>
    </div>
+   <VisitFinalization supabase={supabase} patientId={patientId} appointment={appointment}/>
   </div>}
   <p className="profile-notice">Fluxo de testes com dados fictícios. Abrir uma etapa só exibe o formulário correspondente. Não há prescrição, salvamento, assinatura, envio ou conclusão automática.</p>
  </section>;
