@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {pricingQuote} from '../src/PricingMath.js';
+import {pricingQuote,splitProtocolRevenue} from '../src/PricingMath.js';
 
 test('Preco minimo e margem sobre venda seguem gross-up',()=>{
  const q=pricingQuote({materials:100,minutes:60,hourCost:50,fixedMonthly:1000,appointmentsMonthly:100,taxPct:10,feePct:5,commissionPct:10,marginPct:25});
@@ -22,4 +22,16 @@ test('Precificacao acessivel apenas para tres perfis autorizados',()=>{
  const component=readFileSync('src/PricingCalculator.jsx','utf8');
  assert.match(component,/\['medico','enfermeira','administrativo'\]\.includes\(role\)/);
  assert.doesNotMatch(component,/supabase\.from\(|supabase\.rpc\(/);
+});
+
+test('Distribuicao separa imposto, taxa, clinica e resultado sem duplicar custos',()=>{
+ const v=splitProtocolRevenue({price:1000,materials:100,professionalCost:50,otherCost:25,taxPct:10,paymentPct:5,clinicPct:30});
+ assert.equal(v.taxes,100);
+ assert.equal(v.fees,50);
+ assert.equal(v.afterDeductions,850);
+ assert.equal(v.clinicShare,255);
+ assert.equal(v.professionalShare,595);
+ assert.equal(v.directCosts,175);
+ assert.equal(v.combinedNet,675);
+ assert.equal(splitProtocolRevenue({price:1000,clinicPct:101}),null);
 });
