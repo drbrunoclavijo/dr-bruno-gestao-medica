@@ -17,10 +17,16 @@ const templates={
 };
 function brTime(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}).format(d);}
 function brDate(v){if(!v)return 'Sem data';const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]+'/'+m[1]:v;}
-export default function ClinicalRecord({supabase,patientId,patientName,patient,canWrite}){
+export default function ClinicalRecord({supabase,patientId,patientName,patient,appointment,canWrite}){
  const [template,setTemplate]=useState('geral');
  const [records,setRecords]=useState([]),[form,setForm]=useState(newForm),[error,setError]=useState(''),[success,setSuccess]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[tableMissing,setTableMissing]=useState(false),[showForm,setShowForm]=useState(false);
  const [aiNotes,setAiNotes]=useState(''),[aiDraft,setAiDraft]=useState(''),[aiError,setAiError]=useState('');
+ useEffect(()=>{
+  if(!canWrite||!appointment||appointment.patientId!==patientId||!appointment.appointmentId)return;
+  setForm({...newForm(),data_consulta:appointment.date||newForm().data_consulta,
+   motivo:appointment.type==='retorno'?'Retorno agendado':'Consulta agendada'});
+  setTemplate('geral');setShowForm(true);setError('');setSuccess('');
+ },[appointment?.appointmentId,patientId,canWrite]);
  useEffect(()=>{let active=true;setRecords([]);setLoading(true);setError('');setTableMissing(false);supabase.from('consultas_teste').select('*').eq('paciente_id',patientId).order('data_consulta',{ascending:false}).order('criado_em',{ascending:false}).limit(100).then(({data,error})=>{if(!active)return;if(error){setError('Não foi possível consultar prontuário: '+error.message);setTableMissing(error.code==='42P01'||error.code==='PGRST205');}else setRecords(data||[]);setLoading(false);});return()=>{active=false}},[patientId,supabase]);
  const change=(k,v)=>setForm(old=>({...old,[k]:v}));
  async function copyForChatGPT(){
@@ -78,6 +84,11 @@ export default function ClinicalRecord({supabase,patientId,patientName,patient,c
    {tableMissing&&<p className="form-message">A tabela de consultas ainda não está disponível. A migração precisa ser revisada e aplicada no Supabase antes de salvar.</p>}
    {error&&<p role="alert" className="form-message">{error}</p>}
    {success&&<p role="status" className="form-message">{success}</p>}
+   {appointment?.patientId===patientId&&<div className="clinical-appointment-context" role="status">
+    <strong>Atendimento aberto pela agenda</strong>
+    <span>Data: {brDate(appointment.date)} · Horário: {appointment.time||'não informado'} · {appointment.type==='retorno'?'Retorno':'Consulta'}</span>
+    <small>Os campos foram preparados para revisão. A consulta só é registrada ao clicar em “Salvar consulta de teste”. O status da agenda não é alterado automaticamente.</small>
+   </div>}
    <div className="record-top"><h4>Histórico de consultas</h4><button type="button" disabled={tableMissing} className="gold-button" onClick={()=>{if(!showForm)setForm(newForm());setShowForm(v=>!v);}}>{showForm?'Fechar formulário':'+ Nova consulta'}</button></div>
    {showForm&&<form onSubmit={save} className="clinical-form">
     <div className="consultation-template"><label htmlFor="consultation-model">Modelo de consulta
