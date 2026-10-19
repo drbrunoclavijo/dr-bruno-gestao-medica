@@ -13,6 +13,7 @@ Executar na ordem abaixo no projeto de homologação:
 1. `supabase/migrations/20261019_encerramento_consulta_teste.sql`
 2. `supabase/migrations/20261019_validar_vinculo_consulta_agenda_teste.sql`
 3. `supabase/migrations/20261019_bloquear_finalizacao_direta_agenda_teste.sql`
+4. `supabase/migrations/20261019_consultar_encerramento_consulta_teste.sql`
 
 Antes de executar, conferir o esquema real em homologação, a tipagem das colunas e os efeitos de triggers já existentes. Parar se houver conflito de versões. Os scripts estão no repositório, **não foram aplicados automaticamente**.
 
