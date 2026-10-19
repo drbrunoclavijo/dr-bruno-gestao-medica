@@ -28,6 +28,8 @@ export default function VisitFinalization({supabase,patientId,appointment}){
  const [finished,setFinished]=useState(false);
  const [closureId,setClosureId]=useState('');
  const day=appointment?.date||null;
+ const linkedRecords=appointment?.appointmentId?data.clinical.filter(x=>x.agendamento_id===appointment.appointmentId):[];
+ const linkedReady=linkedRecords.length===1&&Boolean(String(linkedRecords[0].evolucao||'').trim());
  useEffect(()=>{
   let active=true;setLoading(true);setError('');setFinished(false);setClosureId('');setConfirmed({});
   async function load(){
@@ -52,7 +54,7 @@ export default function VisitFinalization({supabase,patientId,appointment}){
  const complete=checks.every(x=>confirmed[x.id]);
  async function finish(){
   if(!complete||loading||busy||error||!summary.clinical||!summary.evolution)return;
-  const linked=appointment?.appointmentId?data.clinical.filter(x=>x.agendamento_id===appointment.appointmentId):[];
+  const linked=linkedRecords;
   if(appointment?.appointmentId){
    if(linked.length!==1||!String(linked[0].evolucao||'').trim()){setError('É necessária uma consulta salva com evolução, vinculada a este agendamento. Atualize os registros.');return;}
    if(!window.confirm('Encerrar este atendimento de TESTE e marcar o agendamento como realizado? Nenhum documento será assinado.'))return;
@@ -83,16 +85,17 @@ export default function VisitFinalization({supabase,patientId,appointment}){
    </div>
    {!summary.clinical&&<p className="form-message" role="alert">Nenhuma consulta salva no período selecionado. Registre a consulta antes de concluir esta conferência.</p>}
    {summary.clinical>0&&!summary.evolution&&<p className="form-message" role="alert">Há consulta salva, mas o campo Evolução está vazio nos registros consultados. Preencha e salve a evolução antes de confirmar a conferência.</p>}
+   {appointment?.appointmentId&&!linkedReady&&<p className="form-message" role="alert">Para encerrar este agendamento é necessário salvar uma consulta vinculada, com evolução preenchida. Registros de outras consultas na mesma data não substituem esse vínculo.</p>}
    {summary.clinical>0&&!summary.returnGuidance&&<p className="profile-notice">Não há orientação de retorno registrada no campo específico. Revise se o acompanhamento foi documentado em outro campo.</p>}
    {summary.unsignedHome>0&&<p className="profile-notice">{summary.unsignedHome} receita(s) domiciliar(es) constam como não assinadas. O Bird ID ainda não está integrado.</p>}
    <div className="visit-finalization-checks">
     {checks.map(item=><label key={item.id} className="visit-finalization-check">
-     <input type="checkbox" checked={Boolean(confirmed[item.id])} disabled={finished||!summary.clinical||!summary.evolution} onChange={e=>setConfirmed(v=>({...v,[item.id]:e.target.checked}))}/>
+     <input type="checkbox" checked={Boolean(confirmed[item.id])} disabled={finished||!summary.clinical||!summary.evolution||Boolean(appointment?.appointmentId&&!linkedReady)} onChange={e=>setConfirmed(v=>({...v,[item.id]:e.target.checked}))}/>
      <span><strong>{item.title}</strong><small>{item.hint}</small></span>
     </label>)}
    </div>
    {finished?<p className="visit-finalization-finished" role="status">{closureId?'Atendimento de teste encerrado no banco. Registro: '+closureId+'. Nenhum documento foi assinado. Atualize a agenda para visualizar o status.':'Conferência visual registrada apenas nesta tela. O atendimento NÃO foi concluído na agenda e nenhuma informação foi gravada ou assinada. Use “Atualizar registros” para refazer a revisão.'}</p>:
-    <button type="button" className="gold-button" disabled={!complete||!summary.clinical||!summary.evolution||loading||busy||Boolean(appointment?.appointmentId&&!data.clinical.some(x=>x.agendamento_id===appointment.appointmentId&&String(x.evolucao||'').trim()))} onClick={finish}>{busy?'Processando...':appointment?.appointmentId?'Encerrar atendimento de teste':'Confirmar conferência visual'}</button>}
+    <button type="button" className="gold-button" disabled={!complete||!summary.clinical||!summary.evolution||loading||busy||Boolean(appointment?.appointmentId&&!linkedReady)} onClick={finish}>{busy?'Processando...':appointment?.appointmentId?'Encerrar atendimento de teste':'Confirmar conferência visual'}</button>}
    <small>Sem agendamento selecionado, a conferência é apenas visual. Com agendamento, o encerramento exige a migração SQL de homologação, consulta explicitamente vinculada e autorização no servidor.</small>
   </>}
  </section>;
