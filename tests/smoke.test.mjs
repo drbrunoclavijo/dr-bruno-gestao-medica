@@ -381,3 +381,24 @@ test('Fluxo integrado abre os formularios existentes sem concluir nem assinar',(
  assert.ok(!flow.includes('window.location'),'Fluxo nao deve trocar de pagina');
  assert.match(flow,/Não há prescrição, salvamento, assinatura, envio ou conclusão automática/);
 });
+
+test('Finalizacao assistida le registros reais sem registrar fechamento clinico', async()=>{
+ const flow=readFileSync('src/ClinicalWorkflow.jsx','utf8');
+ const finalization=readFileSync('src/VisitFinalization.jsx','utf8');
+ const main=readFileSync('src/main.jsx','utf8');
+ assert.match(flow,/VisitFinalization supabase=\{supabase\} patientId=\{patientId\}/);
+ assert.match(flow,/activeStep==='finalizacao'/);
+ assert.match(main,/patientId=\{selected.id\} supabase=\{supabase\} appointment=/);
+ for(const table of ['consultas_teste','receitas_domiciliares_teste','prescricoes_teste','documentos_pacientes_teste'])
+  assert.ok(finalization.includes("supabase.from('"+table+"')"));
+ assert.match(finalization,/sameDay\(x.data_consulta,day\)/);
+ assert.match(finalization,/sameDay\(x.criado_em,day\)/);
+ assert.match(finalization,/checks.every\(x=>confirmed\[x.id\]\)/);
+ assert.match(finalization,/!summary.clinical/);
+ assert.match(finalization,/status_assinatura!=='assinada'/);
+ assert.match(finalization,/NÃO encerra o agendamento/);
+ assert.ok(!finalization.includes('supabase.rpc('),'A finalizacao de teste nao grava alteracoes via RPC');
+ assert.ok(!finalization.includes('.insert('),'A revisao nao grava documentos');
+ assert.ok(!finalization.includes('.update('),'A revisao nao atualiza agendamentos');
+ assert.match(finalization,/export function summarizeVisit/);
+});
