@@ -72,6 +72,7 @@ export default function ClinicalRecord({supabase,patientId,patientName,patient,a
   const {data:{user},error:authError}=await supabase.auth.getUser();
   if(authError||!user){setError('Sessão expirada. Faça login novamente.');setBusy(false);return;}
   const payload={paciente_id:patientId,profissional_id:user.id};
+  if(appointment?.appointmentId&&appointment.patientId===patientId)payload.agendamento_id=appointment.appointmentId;
   for(const [k,v] of Object.entries(form))payload[k]=v===''?null:(k==='motivo'?v.trim():v);
   const {data,error}=await supabase.from('consultas_teste').insert(payload).select('*').single();
   if(error)setError('Não foi possível salvar consulta: '+error.message);
