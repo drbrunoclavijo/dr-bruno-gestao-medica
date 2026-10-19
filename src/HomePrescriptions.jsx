@@ -2,9 +2,10 @@ import React,{useEffect,useState} from 'react';
 import DocumentPreparation from './DocumentPreparation.jsx';
 const blank=()=>({medicamento:'',posologia:'',quantidade:'',orientacoes:''});
 const time=v=>v?new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'}).format(new Date(v)):'—';
-export default function HomePrescriptions({supabase,patientId,patientName,patient}){
+export default function HomePrescriptions({supabase,patientId,patientName,patient,workflowRequest=0}){
  const [items,setItems]=useState([blank()]),[obs,setObs]=useState(''),[rows,setRows]=useState([]),
  [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[open,setOpen]=useState(false);
+ useEffect(()=>{if(workflowRequest>0)setOpen(true);},[workflowRequest]);
  async function load(){
   setLoading(true);
   const {data,error:err}=await supabase.from('receitas_domiciliares_teste')
