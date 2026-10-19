@@ -99,7 +99,7 @@ export default function AppointmentCalendar({supabase,role,userId,onOpenClinical
       <span>{appointmentTypes[a.tipo]||a.tipo} · {professionalDisplayName(a.profissional_nome)}</span>
       <small>{statuses[a.status]||a.status}</small>
      </div>
-     {role==='medico'&&a.profissional_id===userId&&a.paciente_id&&['consulta','retorno'].includes(a.tipo)&&!['cancelado','faltou'].includes(a.status)&&
+     {role==='medico'&&a.profissional_id===userId&&a.paciente_id&&['consulta','retorno'].includes(a.tipo)&&!['cancelado','faltou','realizado'].includes(a.status)&&
       <button type="button" className="gold-button" onClick={()=>onOpenClinical?.(a)}>Abrir atendimento</button>}
      {['agendado','confirmado','reagendamento_solicitado'].includes(a.status)&&
       <button type="button" className="outline-gold" onClick={()=>onEdit(a)}>Remarcar</button>}
