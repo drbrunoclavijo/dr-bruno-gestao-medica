@@ -1,5 +1,6 @@
 -- Valida o vínculo de uma consulta com a agenda no momento de salvar.
 -- Dados fictícios exclusivamente; aplicar somente em homologação após a migração de vínculo.
+-- A agenda é apenas referência: início real da consulta pode diferir do horário ou da data prevista.
 BEGIN;
 CREATE OR REPLACE FUNCTION public.validar_vinculo_consulta_agenda_teste()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
@@ -18,8 +19,6 @@ BEGIN
     OR v_ag.tipo NOT IN ('consulta','retorno')
     OR v_ag.status NOT IN ('agendado','confirmado')
  THEN RAISE EXCEPTION 'Agendamento nao e elegivel para esta consulta'; END IF;
- IF NEW.data_consulta IS DISTINCT FROM (v_ag.inicio AT TIME ZONE 'America/Sao_Paulo')::date
- THEN RAISE EXCEPTION 'Data da consulta difere do agendamento'; END IF;
  RETURN NEW;
 END;
 $$;
