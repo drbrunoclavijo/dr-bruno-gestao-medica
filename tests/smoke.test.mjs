@@ -341,3 +341,22 @@ test('Receitas de teste identificam CPF e endereco e nao liberam controlados', a
  assert.match(plans,/NÃO CONECTADO, NÃO ASSINADO, NÃO HOMOLOGADO/);
  assert.match(plans,/SNCR/);
 });
+
+test('Agenda inicia somente consulta do proprio medico e prepara rascunho sem gravar',()=>{
+ const calendar=readFileSync('src/ClinicCalendar.jsx','utf8');
+ const month=readFileSync('src/AppointmentCalendar.jsx','utf8');
+ const main=readFileSync('src/main.jsx','utf8');
+ const clinical=readFileSync('src/ClinicalRecord.jsx','utf8');
+ assert.match(calendar,/role==='medico'&&a\.profissional_id===userId/);
+ assert.match(month,/role==='medico'&&a\.profissional_id===userId/);
+ assert.match(calendar,/onOpenClinical\?\.\(a\)/);
+ assert.match(month,/onOpenClinical\?\.\(a\)/);
+ assert.match(main,/appointment\.profissional_id!==session\.user\.id/);
+ assert.match(main,/setClinicalTarget\(\{patientId:appointment\.paciente_id/);
+ assert.match(main,/setTab\('Pacientes'\)/);
+ assert.match(main,/clinicalTarget\?\.patientId===selected\.id/);
+ assert.match(clinical,/setShowForm\(true\)/);
+ assert.match(clinical,/data_consulta:appointment\.date/);
+ assert.match(clinical,/O status da agenda não é alterado automaticamente/);
+ assert.ok(!clinical.includes('atualizar_status_agendamento_teste'),'Salvar consulta não deve concluir agenda automaticamente');
+});
