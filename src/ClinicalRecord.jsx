@@ -68,6 +68,7 @@ export default function ClinicalRecord({supabase,patientId,patientName,patient,a
  async function save(e){
   e.preventDefault();setError('');setSuccess('');if(!canWrite)return;
   if(!form.motivo.trim()){setError('Informe o motivo da consulta.');return;}
+  if(appointment?.appointmentId&&appointment.patientId===patientId&&form.data_consulta!==appointment.date){setError('A data da consulta não corresponde à agenda. Para salvar este atendimento, use a data agendada ou ajuste o agendamento antes.');return;}
   setBusy(true);
   const {data:{user},error:authError}=await supabase.auth.getUser();
   if(authError||!user){setError('Sessão expirada. Faça login novamente.');setBusy(false);return;}
