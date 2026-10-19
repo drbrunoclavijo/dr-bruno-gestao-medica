@@ -24,7 +24,7 @@ export default function ProtocolPricingSimulator({supabase}){
     const candidates=(b.data||[]).filter(l=>l.produto_id===x.id&&Number(l.saldo)>0&&Number(l.quantidade_inicial)>0&&l.custo_total_aquisicao!==null&&(!l.validade||l.validade>=today));
     const totalUnits=candidates.reduce((s,l)=>s+Number(l.saldo),0);
     const sumCost=candidates.reduce((s,l)=>s+Number(l.saldo)*Number(l.custo_total_aquisicao)/Number(l.quantidade_inicial),0);
-    return {...x,cost:totalUnits>0?sumCost/totalUnits:null};
+    return {...x,cost:totalUnits>0?sumCost/totalUnits:null,missingCost:(b.data||[]).some(l=>l.produto_id===x.id&&Number(l.saldo)>0&&(!l.validade||l.validade>=today)&&l.custo_total_aquisicao===null)};
    }));
   }
   setStockBusy(false);
@@ -33,7 +33,7 @@ export default function ProtocolPricingSimulator({supabase}){
  const change=(key,v)=>setP(x=>({...x,[key]:key==='title'?v:Number(v)}));
  const chooseStock=(key,id)=>{
   const product=products.find(x=>x.id===id);
-  setItems(a=>a.map(x=>x.key===key?{...x,stockId:id,name:product?.nome||x.name,unitCost:product?.cost??x.unitCost}:x));
+  setItems(a=>a.map(x=>x.key===key?{...x,stockId:id,name:product?.nome||x.name,unitCost:product?.cost??0}:x));
  };
  const changeItem=(key,field,v)=>setItems(a=>a.map(x=>x.key===key?{...x,[field]:field==='name'?v:Number(v)}:x));
  const totals=useMemo(()=>protocolTotals(items,p.visits,p.minutes,p.hour,p.fixed,p.volume),[items,p]);
@@ -49,9 +49,9 @@ export default function ProtocolPricingSimulator({supabase}){
    {n('hour','Custo por hora do profissional (R$)')}
    {n('fixed','Despesas fixas mensais rateáveis (R$)')}{n('volume','Atendimentos mensais estimados','1')}
   </div>
-  <h4>Itens por protocolo</h4><p>Custos do estoque são uma média ponderada dos lotes válidos com saldo e custo conhecido. Revise o valor antes de utilizar. Não é realizada baixa.</p>{stockError&&<p className="form-message" role="alert">{stockError}</p>}<button type="button" className="outline-gold" disabled={stockBusy} onClick={loadStock}>{stockBusy?'Consultando...':'Atualizar custos do estoque'}</button>
+  <h4>Itens por protocolo</h4><p>Custos do estoque são uma média ponderada dos lotes válidos com saldo. Produtos com qualquer lote válido sem custo cadastrado ficam indisponíveis para seleção até a regularização. Revise o valor antes de utilizar. Não é realizada baixa.</p>{stockError&&<p className="form-message" role="alert">{stockError}</p>}<button type="button" className="outline-gold" disabled={stockBusy} onClick={loadStock}>{stockBusy?'Consultando...':'Atualizar custos do estoque'}</button>
   {items.map((item,i)=><div className="clinical-fields" key={item.key} style={{marginBottom:12}}>
-   <label>Buscar no estoque<select value={item.stockId||''} onChange={e=>chooseStock(item.key,e.target.value)}><option value="">Valor manual</option>{products.filter(x=>x.cost!==null).map(x=><option key={x.id} value={x.id}>{x.nome} ({x.unidade}) · {money(x.cost)}/unidade</option>)}</select></label>
+   <label>Buscar no estoque<select value={item.stockId||''} onChange={e=>chooseStock(item.key,e.target.value)}><option value="">Valor manual</option>{products.filter(x=>x.cost!==null&&!x.missingCost).map(x=><option key={x.id} value={x.id}>{x.nome} ({x.unidade}) · {money(x.cost)}/unidade</option>)}</select></label>
    <label>Medicamento ou insumo {i+1}<input maxLength={120} value={item.name} onChange={e=>changeItem(item.key,'name',e.target.value)} placeholder="Ex.: equipo, frasco, seringa"/></label>
    <label>Em quantas sessões?<input type="number" min="0" step="1" value={item.sessions} onChange={e=>changeItem(item.key,'sessions',e.target.value)}/></label>
    <label>Quantidade por sessão<input type="number" min="0" step="0.01" value={item.quantity} onChange={e=>changeItem(item.key,'quantity',e.target.value)}/></label>
