@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react';
 import StockAlerts from './StockAlerts.jsx';
 export default function TestInventory({supabase,role}){
  const doctor=role==='medico';
+ const showCosts=['medico','enfermeira','administrativo'].includes(role);
  const canRegister=['medico','enfermeira','equipe'].includes(role);
  const brl=n=>n===null||n===undefined?'Custo não informado':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(n));
  // Armazenar somente os centavos digitados; converter para reais ao salvar.
@@ -64,14 +65,14 @@ export default function TestInventory({supabase,role}){
   {error&&<p className="form-message" role="alert">{error}</p>}{message&&<p className="form-message" role="status">{message}</p>}
   <StockAlerts supabase={supabase}/>
   <div className="record-top"><h4>Produtos e saldos</h4><button type="button" className="outline-gold" disabled={loading||busy} onClick={load}>Atualizar</button></div>
-  {!loading&&<p className="inventory-cost-overview">Valor estimado do saldo (lotes com custo): <strong>{brl(knownValue)}</strong>{missingCost&&<span> · Alguns lotes antigos ainda não possuem custo cadastrado.</span>}</p>}
+  {!loading&&showCosts&&<p className="inventory-cost-overview">Valor estimado do saldo (lotes com custo): <strong>{brl(knownValue)}</strong>{missingCost&&<span> · Alguns lotes antigos ainda não possuem custo cadastrado.</span>}</p>}
   {loading?<p>Carregando...</p>:products.length===0?<p className="record-empty">Nenhum produto fictício cadastrado.</p>:<div className="record-list">{products.map(p=><div key={p.id} className="form-section inventory-product">
    <div className="administration-heading"><strong>{p.nome} · {p.tipo_produto==='insumo'?'Insumo':'Medicamento'}</strong><span>{saldo(p.id)} {p.unidade} restantes (todos os lotes)</span></div>
    {doctor&&<div className="inventory-minimum-edit"><label>Alerta quando saldo válido estiver até
       <input type="number" min="0" max="1000000" step="0.001" value={minDraft[p.id]??'5'}
        onChange={e=>setMinDraft(old=>({...old,[p.id]:e.target.value}))}/></label>
      <span>{p.unidade}</span><button type="button" className="outline-gold" disabled={busy||loading} onClick={()=>saveMinimum(p)}>Salvar mínimo</button></div>}
-   {lots.filter(l=>l.produto_id===p.id).map(l=><p key={l.id}>Lote {l.lote} · Validade {l.validade?.split('-').reverse().join('/')} · Saldo {l.saldo} / {l.quantidade_inicial} {p.unidade} · Custo de aquisição: {brl(l.custo_total_aquisicao)} · Custo unitário: {l.custo_total_aquisicao===null?'Não informado':brl(Number(l.custo_total_aquisicao)/Number(l.quantidade_inicial))} · Valor do saldo: {brl(lotValue(l))}</p>)}
+   {lots.filter(l=>l.produto_id===p.id).map(l=><p key={l.id}>Lote {l.lote} · Validade {l.validade?.split('-').reverse().join('/')} · Saldo {l.saldo} / {l.quantidade_inicial} {p.unidade}{showCosts&&<> · Custo de aquisição: {brl(l.custo_total_aquisicao)} · Custo unitário: {l.custo_total_aquisicao===null?'Não informado':brl(Number(l.custo_total_aquisicao)/Number(l.quantidade_inicial))} · Valor do saldo: {brl(lotValue(l))}</>}</p>)}
   </div>)}</div>}
   {canRegister&&<div className="inventory-management">
    <div className="form-section"><h4>Cadastrar produto fictício</h4><form className="clinical-fields" onSubmit={async e=>{e.preventDefault();await call(productType==='insumo'?'criar_insumo_estoque_teste':'criar_produto_estoque_teste',{p_nome:name,p_unidade:unit},'Produto fictício criado.');}}>
