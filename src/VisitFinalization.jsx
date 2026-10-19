@@ -62,7 +62,7 @@ export default function VisitFinalization({supabase,patientId,appointment}){
   <p>Esta conferência consulta registros fictícios já salvos. Uma receita ou documento encontrado não significa que esteja assinado, validado ou entregue. Arquivos de termos anexados não comprovam, isoladamente, consentimento válido.</p>
   {loading?<p>Conferindo registros salvos…</p>:error?<p className="form-message" role="alert">{error}</p>:<>
    <div className="visit-finalization-counters">
-    <div><strong>{summary.clinical}</strong><span>Consulta(s) na data</span></div>
+    <div><strong>{summary.clinical}</strong><span>{day?'Consulta(s) na data':'Consultas no histórico'}</span></div>
     <div><strong>{summary.home}</strong><span>Receita(s) domiciliar(es)</span></div>
     <div><strong>{summary.applications}</strong><span>Prescrição(ões) de aplicação</span></div>
     <div><strong>{summary.documents}</strong><span>Anexo(s) arquivado(s)</span></div>
