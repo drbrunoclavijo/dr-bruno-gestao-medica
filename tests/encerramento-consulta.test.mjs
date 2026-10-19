@@ -51,3 +51,14 @@ test('Erro de encerramento nao esconde controles da revisao e permite nova tenta
  assert.match(src,/\{finishError&&<p className="form-message" role="alert">/);
  assert.match(src,/setFinishError\(''\);/);
 });
+
+test('Confirmacao de encerramento exige retorno consistente do banco',()=>{
+ const src=read('src/VisitFinalization.jsx');
+ const sql=read('supabase/migrations/20261019_consultar_encerramento_consulta_teste.sql');
+ assert.match(src,/consultar_encerramento_consulta_teste/);
+ assert.match(src,/details\.status!=='realizado'/);
+ assert.match(src,/details\.agendamento_id!==appointment\.appointmentId/);
+ assert.match(src,/details\.consulta_id!==linked\[0\]\.id/);
+ assert.match(sql,/e\.medico_id=auth\.uid\(\)/);
+ assert.match(sql,/a\.profissional_id=auth\.uid\(\)/);
+});
