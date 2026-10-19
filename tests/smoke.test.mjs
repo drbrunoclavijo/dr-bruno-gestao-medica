@@ -360,3 +360,24 @@ test('Agenda inicia somente consulta do proprio medico e prepara rascunho sem gr
  assert.match(clinical,/O status da agenda não é alterado automaticamente/);
  assert.ok(!clinical.includes('atualizar_status_agendamento_teste'),'Salvar consulta não deve concluir agenda automaticamente');
 });
+
+test('Fluxo integrado abre os formularios existentes sem concluir nem assinar',()=>{
+ const flow=readFileSync('src/ClinicalWorkflow.jsx','utf8');
+ const app=readFileSync('src/main.jsx','utf8');
+ const clinical=readFileSync('src/ClinicalRecord.jsx','utf8');
+ const home=readFileSync('src/HomePrescriptions.jsx','utf8');
+ const injectable=readFileSync('src/TestPrescriptions.jsx','utf8');
+ assert.match(app,/role==='medico'&&<ClinicalWorkflow/);
+ assert.match(app,/patientId:selectedId,step,sequence:old.sequence\+1/);
+ assert.match(app,/workflowChoice\.patientId===selected\.id/);
+ assert.match(app,/scrollIntoView/);
+ for(const key of ['consulta','domiciliar','aplicacoes','finalizacao'])assert.match(flow,new RegExp("key:'"+key+"'"));
+ for(const target of ['paciente-prontuario','paciente-receitas','paciente-prescricoes','paciente-documentos'])
+  assert.ok(flow.includes(target));
+ assert.match(clinical,/if\(workflowRequest>0&&canWrite\)setShowForm\(true\)/);
+ assert.match(home,/if\(workflowRequest>0\)setOpen\(true\)/);
+ assert.match(injectable,/if\(workflowRequest>0&&canWrite\)setOpen\(true\)/);
+ assert.ok(!flow.includes('supabase.rpc('),'Guia nao modifica o backend');
+ assert.ok(!flow.includes('window.location'),'Fluxo nao deve trocar de pagina');
+ assert.match(flow,/Não há prescrição, salvamento, assinatura, envio ou conclusão automática/);
+});
