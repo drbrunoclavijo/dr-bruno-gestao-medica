@@ -33,3 +33,13 @@ test('Interface encerra consulta vinculada por RPC e não marca como assinada',(
  assert.match(end,/p_consulta_id:linked\[0\]\.id/);
  assert.doesNotMatch(end,/status_assinatura='assinada'/);
 });
+
+test('Vínculo clínico com agenda é validado no servidor antes de salvar',()=>{
+ const sql=read('supabase/migrations/20261019_validar_vinculo_consulta_agenda_teste.sql');
+ assert.match(sql,/BEFORE INSERT ON public\.consultas_teste/);
+ assert.match(sql,/v_ag\.paciente_id IS DISTINCT FROM NEW\.paciente_id/);
+ assert.match(sql,/v_ag\.profissional_id IS DISTINCT FROM NEW\.profissional_id/);
+ assert.match(sql,/v_ag\.tipo NOT IN \('consulta','retorno'\)/);
+ assert.match(sql,/v_ag\.status NOT IN \('agendado','confirmado'\)/);
+ assert.match(sql,/AT TIME ZONE 'America\/Sao_Paulo'/);
+});
