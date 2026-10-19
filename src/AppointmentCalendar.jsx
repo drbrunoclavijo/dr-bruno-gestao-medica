@@ -10,7 +10,7 @@ export const monthGrid=month=>{
  const count=Math.ceil((offset+Number(last.slice(8)))/7)*7;
  return Array.from({length:count},(_,i)=>shiftDay(first,i-offset));
 };
-export default function AppointmentCalendar({supabase,role,onEdit,onRefreshList,refreshSignal}){
+export default function AppointmentCalendar({supabase,role,userId,onOpenClinical,onEdit,onRefreshList,refreshSignal}){
  const today=localDate();
  const [month,setMonth]=useState(today.slice(0,7)),[selected,setSelected]=useState(today);
  const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
@@ -99,8 +99,10 @@ export default function AppointmentCalendar({supabase,role,onEdit,onRefreshList,
       <span>{appointmentTypes[a.tipo]||a.tipo} · {professionalDisplayName(a.profissional_nome)}</span>
       <small>{statuses[a.status]||a.status}</small>
      </div>
+     {role==='medico'&&a.profissional_id===userId&&a.paciente_id&&['consulta','retorno'].includes(a.tipo)&&!['cancelado','faltou'].includes(a.status)&&
+      <button type="button" className="gold-button" onClick={()=>onOpenClinical?.(a)}>Abrir atendimento</button>}
      {['agendado','confirmado','reagendamento_solicitado'].includes(a.status)&&
-      <button type="button" className="outline-gold" onClick={()=>onEdit(a)}>Abrir / Remarcar</button>}
+      <button type="button" className="outline-gold" onClick={()=>onEdit(a)}>Remarcar</button>}
     </div>)}</div>}
   </div>}
   <p className="profile-notice">As datas e horários são apresentados no horário local de Foz do Iguaçu. O calendário não realiza envio de mensagens por si só.</p>
