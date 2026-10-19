@@ -4,7 +4,7 @@ WITH f AS (
  SELECT p.oid,p.proname,pg_get_function_identity_arguments(p.oid) args,
         pg_get_functiondef(p.oid) body
  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
- WHERE n.nspname='public'
+ WHERE n.nspname='public' AND p.prokind IN ('f','p')
 ), dependent AS (
  SELECT proname,args,
    position('estoque_lotes_teste' in body)>0 uses_lots,
