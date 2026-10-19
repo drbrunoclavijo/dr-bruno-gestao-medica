@@ -17,11 +17,18 @@ export default function TestInventory({supabase,role}){
   setLoading(true);setError('');
   const [a,b]=await Promise.all([
    supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto,estoque_minimo').order('nome'),
-   supabase.from('estoque_lotes_teste').select(showCosts?'id,produto_id,lote,validade,saldo,quantidade_inicial,custo_total_aquisicao':'id,produto_id,lote,validade,saldo,quantidade_inicial').order('validade')
+   supabase.from('estoque_lotes_teste').select('id,produto_id,lote,validade,saldo,quantidade_inicial').order('validade')
   ]);
   const first=[a,b].find(r=>r.error);
   if(first){setError('Não foi possível carregar estoque: '+first.error.message);setLoading(false);return;}
-  setProducts(a.data||[]);setLots(b.data||[]);
+  setProducts(a.data||[]);
+  let nextLots=b.data||[];
+  if(showCosts){
+   const r=await supabase.rpc('consultar_custos_lotes_teste');
+   if(r.error)setError('Custos indisponíveis: '+r.error.message);
+   else {const byId=new Map((r.data||[]).map(x=>[x.id,x.custo_total_aquisicao]));nextLots=nextLots.map(l=>({...l,custo_total_aquisicao:byId.get(l.id)??null}));}
+  }
+  setLots(nextLots);
   setMinDraft(Object.fromEntries((a.data||[]).map(p=>[p.id,String(p.estoque_minimo??5)])));
   if(doctor){
    const vl=await supabase.from('estoque_vinculos_teste').select('item_prescricao_id,produto_id,quantidade');
