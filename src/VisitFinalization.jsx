@@ -27,11 +27,12 @@ export default function VisitFinalization({supabase,patientId,appointment}){
  const [confirmed,setConfirmed]=useState({});
  const [finished,setFinished]=useState(false);
  const [closureId,setClosureId]=useState('');
+ const [finishError,setFinishError]=useState('');
  const day=appointment?.date||null;
  const linkedRecords=appointment?.appointmentId?data.clinical.filter(x=>x.agendamento_id===appointment.appointmentId):[];
  const linkedReady=linkedRecords.length===1&&Boolean(String(linkedRecords[0].evolucao||'').trim());
  useEffect(()=>{
-  let active=true;setLoading(true);setError('');setFinished(false);setClosureId('');setConfirmed({});
+  let active=true;setLoading(true);setError('');setFinished(false);setClosureId('');setFinishError('');setConfirmed({});
   async function load(){
    try{
     const [clinical,home,applications,documents]=await Promise.all([
@@ -54,16 +55,17 @@ export default function VisitFinalization({supabase,patientId,appointment}){
  const complete=checks.every(x=>confirmed[x.id]);
  async function finish(){
   if(!complete||loading||busy||error||!summary.clinical||!summary.evolution)return;
+  setFinishError('');
   const linked=linkedRecords;
   if(appointment?.appointmentId){
-   if(linked.length!==1||!String(linked[0].evolucao||'').trim()){setError('É necessária uma consulta salva com evolução, vinculada a este agendamento. Atualize os registros.');return;}
+   if(linked.length!==1||!String(linked[0].evolucao||'').trim()){setFinishError('É necessária uma consulta salva com evolução, vinculada a este agendamento. Atualize os registros.');return;}
    if(!window.confirm('Encerrar este atendimento de TESTE e marcar o agendamento como realizado? Nenhum documento será assinado.'))return;
    setBusy(true);
    try{
     const {data:id,error:rpcError}=await supabase.rpc('encerrar_consulta_teste',{p_agendamento_id:appointment.appointmentId,p_consulta_id:linked[0].id,p_checks:confirmed});
     if(rpcError)throw rpcError;
     setClosureId(id);setFinished(true);
-   }catch(e){setError('Não foi possível encerrar a consulta: '+e.message);}
+   }catch(e){setFinishError('Não foi possível encerrar a consulta: '+e.message);}
    finally{setBusy(false);}
    return;
   }
@@ -94,6 +96,7 @@ export default function VisitFinalization({supabase,patientId,appointment}){
      <span><strong>{item.title}</strong><small>{item.hint}</small></span>
     </label>)}
    </div>
+   {finishError&&<p className="form-message" role="alert">{finishError}</p>}
    {finished?<p className="visit-finalization-finished" role="status">{closureId?'Atendimento de teste encerrado no banco. Registro: '+closureId+'. Nenhum documento foi assinado. Atualize a agenda para visualizar o status.':'Conferência visual registrada apenas nesta tela. O atendimento NÃO foi concluído na agenda e nenhuma informação foi gravada ou assinada. Use “Atualizar registros” para refazer a revisão.'}</p>:
     <button type="button" className="gold-button" disabled={!complete||!summary.clinical||!summary.evolution||loading||busy||Boolean(appointment?.appointmentId&&!linkedReady)} onClick={finish}>{busy?'Processando...':appointment?.appointmentId?'Encerrar atendimento de teste':'Confirmar conferência visual'}</button>}
    <small>Sem agendamento selecionado, a conferência é apenas visual. Com agendamento, o encerramento exige a migração SQL de homologação, consulta explicitamente vinculada e autorização no servidor.</small>
