@@ -36,9 +36,10 @@ function validCPF(value){
 function formatCPF(value){const n=String(value||'').replace(/\D/g,'').slice(0,11);return n.replace(/^(\d{3})(\d)/,'$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})(\d{1,2})$/,'$1-$2');}
 function formatPhone(value){const n=String(value||'').replace(/\D/g,'').slice(0,11);if(!n)return '';if(n.length<3)return '('+n;const d='('+n.slice(0,2)+') ';const rest=n.slice(2);if(rest.length<=4)return d+rest;const split=rest.length>8?5:4;return d+rest.slice(0,split)+(rest.length>split?'-'+rest.slice(split):'');}
 function dateBR(value){if(!value)return 'Não informado';const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:value;}
-function Patients({role}){
+function Patients({role,clinicalTarget,onClearClinicalTarget}){
  const [selectedId,setSelectedId]=useState(()=>{try{return sessionStorage.getItem('majestic-patient-selection')||null;}catch{return null;}});
  useEffect(()=>{try{if(selectedId)sessionStorage.setItem('majestic-patient-selection',selectedId);else sessionStorage.removeItem('majestic-patient-selection');}catch{}},[selectedId]);
+ useEffect(()=>{if(role==='medico'&&clinicalTarget?.patientId)setSelectedId(clinicalTarget.patientId);},[clinicalTarget,role]);
  const [items,setItems]=useState([]),[form,setForm]=useState(emptyPatient),[editing,setEditing]=useState(null),[message,setMessage]=useState(''),[working,setWorking]=useState(false),[search,setSearch]=useState(''),[cepBusy,setCepBusy]=useState(false);
  const set=(field,value)=>setForm(old=>({...old,[field]:field==='cpf'?formatCPF(value):field==='telefone'?formatPhone(value):value}));
  async function load(){
@@ -79,7 +80,7 @@ function Patients({role}){
  const detail=(label,value)=><div className="detail-item"><span>{label}</span><strong>{value||'Não informado'}</strong></div>;
  const addressOf=p=>[p.logradouro,[p.numero,p.complemento].filter(Boolean).join(' - '),p.bairro,[p.cidade,p.uf].filter(Boolean).join(' / ')].filter(Boolean).join(', ');
  if(selected) return <section className="patients-page patient-profile">
-  <div className="profile-toolbar"><button type="button" className="outline-gold" onClick={()=>setSelectedId(null)}>← Voltar para pacientes</button><span className="profile-test-label">FICHA CADASTRAL · AMBIENTE DE TESTES</span></div>
+  <div className="profile-toolbar"><button type="button" className="outline-gold" onClick={()=>{setSelectedId(null);onClearClinicalTarget?.();}}>← Voltar para pacientes</button><span className="profile-test-label">FICHA CADASTRAL · AMBIENTE DE TESTES</span></div>
   <div className="patient-quick-access">
    <div className="patient-quick-access-heading"><strong>Acesso rápido à ficha</strong><small>Escolha uma seção para ir diretamente às informações deste paciente.</small></div>
    <nav className="patient-section-nav" aria-label="Acesso rápido às seções do paciente">
@@ -88,14 +89,14 @@ function Patients({role}){
   </div>
   <PatientJourney key={'journey-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
   <div className="premium-panel" id="paciente-cadastro">
-   <div className="profile-heading"><div className="patient-avatar" aria-hidden="true">♙</div><div className="profile-name"><p className="eyebrow">FICHA DO PACIENTE</p><h3>{selected.nome}</h3><p>Informações cadastrais disponíveis no sistema</p></div><button type="button" className="gold-button" onClick={()=>edit(selected)}>✎ Editar cadastro</button></div>
+   <div className="profile-heading"><div className="patient-avatar" aria-hidden="true">♙</div><div className="profile-name"><p className="eyebrow">FICHA DO PACIENTE</p><h3>{selected.nome}</h3><p>Informações cadastrais disponíveis no sistema</p></div><button type="button" className="gold-button" onClick={()=>{onClearClinicalTarget?.();edit(selected);}}>✎ Editar cadastro</button></div>
    <div className="form-section"><h4>◈ Dados pessoais</h4><div className="detail-grid">{detail('Nome completo',selected.nome)}{detail('Nascimento',dateBR(selected.nascimento))}{detail('CPF',formatCPF(selected.cpf))}</div></div>
    <div className="form-section"><h4>✧ Contato</h4><div className="detail-grid">{detail('Telefone / WhatsApp',formatPhone(selected.telefone))}{detail('E-mail',selected.email)}</div></div>
    <div className="form-section"><h4>⌖ Endereço</h4><div className="detail-grid">{detail('CEP',selected.cep)}{detail('Rua / Avenida',selected.logradouro)}{detail('Número',selected.numero)}{detail('Complemento',selected.complemento)}{detail('Bairro',selected.bairro)}{detail('Cidade',selected.cidade)}{detail('Estado (UF)',selected.uf)}</div></div>
   </div>
   {role==='medico'&&<div id="paciente-prontuario" className="patient-section-label">Prontuário médico</div>}
   <PatientOverview key={'overview-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
-  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
+  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} appointment={clinicalTarget?.patientId===selected.id?clinicalTarget:null} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
   {role==='medico'&&<div id="paciente-documentos" className="patient-section-label">Documentos clínicos</div>}
   {role==='medico'&&<PatientTerms key={'terms-'+selected.id} patient={selected} role={role}/>}
   {role==='medico'&&<TestPatientDocuments key={'docs-'+selected.id} supabase={supabase} patientId={selected.id}/>}
@@ -134,7 +135,7 @@ function Patients({role}){
  {message&&<p className="form-message" role="status">{message}</p>}
  <div className="premium-panel directory-panel"><div className="panel-title"><span className="title-icon" aria-hidden="true">♧</span><div><h3>Pacientes visíveis para seu perfil</h3><p>Busque por nome, CPF ou e-mail para encontrar cadastros.</p></div></div>
  <div className="search-row"><label className="search-label"><span className="sr-only">Buscar por nome, CPF ou e-mail</span><input aria-label="Buscar por nome, CPF ou e-mail" placeholder="⌕  Buscar por nome, CPF ou e-mail..." value={search} onChange={e=>setSearch(e.target.value)}/></label><button type="button" className="outline-gold" onClick={load} disabled={working}>↻ &nbsp; Atualizar lista</button></div>
- {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul className="patient-list">{shown.map(p=><li className="patient-card" key={p.id}><div className="patient-avatar" aria-hidden="true">♙</div><div className="patient-card-content"><div className="patient-card-head"><strong>{p.nome}</strong><div className="patient-actions"><button type="button" className="gold-button" onClick={()=>setSelectedId(p.id)}>Abrir ficha</button><button type="button" className="outline-gold" onClick={()=>edit(p)}>✎ &nbsp; Editar</button></div></div><div className="patient-details"><div><span>Nascimento</span><strong>{dateBR(p.nascimento)}</strong></div><div><span>Telefone</span><strong>{p.telefone||'Não informado'}</strong></div><div><span>E-mail</span><strong>{p.email||'Não informado'}</strong></div></div></div></li>)}</ul>}
+ {working?<p>Carregando...</p>:shown.length===0?<p>Nenhum paciente visível.</p>:<ul className="patient-list">{shown.map(p=><li className="patient-card" key={p.id}><div className="patient-avatar" aria-hidden="true">♙</div><div className="patient-card-content"><div className="patient-card-head"><strong>{p.nome}</strong><div className="patient-actions"><button type="button" className="gold-button" onClick={()=>{onClearClinicalTarget?.();setSelectedId(p.id);}}>Abrir ficha</button><button type="button" className="outline-gold" onClick={()=>edit(p)}>✎ &nbsp; Editar</button></div></div><div className="patient-details"><div><span>Nascimento</span><strong>{dateBR(p.nascimento)}</strong></div><div><span>Telefone</span><strong>{p.telefone||'Não informado'}</strong></div><div><span>E-mail</span><strong>{p.email||'Não informado'}</strong></div></div></div></li>)}</ul>}
  </div>
  </section>;
 }
@@ -211,6 +212,17 @@ function AdministrationsHub({role}){
  </section>;
 }
 function App(){
+ const [clinicalTarget,setClinicalTarget]=useState(null);
+ function openClinicalAppointment(appointment){
+  if(profile?.perfil!=='medico'||!profile.ativo||!session?.user||
+   appointment.profissional_id!==session.user.id||
+   !appointment.paciente_id||!['consulta','retorno'].includes(appointment.tipo)||
+   ['cancelado','faltou'].includes(appointment.status))return;
+  setClinicalTarget({patientId:appointment.paciente_id,appointmentId:appointment.id,
+   date:appointment.inicio_local?.slice(0,10),time:appointment.inicio_local?.slice(11,16),
+   type:appointment.tipo});
+  setTab('Pacientes');
+ }
  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[loading,setLoading]=useState(true);
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[tab,setTab]=useState(()=>{
   try{const saved=sessionStorage.getItem('majestic-current-tab');return modules.includes(saved)?saved:'Visão geral';}catch{return 'Visão geral';}
@@ -266,7 +278,7 @@ function App(){
   return()=>{active=false;subscription.unsubscribe();};
  },[]);
  async function login(e){e.preventDefault();if(!supabase)return;setBusy(true);setError('');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)setError('E-mail ou senha inválidos, ou acesso indisponível.');setBusy(false);}
- async function logout(){setError('');try{sessionStorage.removeItem('majestic-current-tab');sessionStorage.removeItem('majestic-patient-selection');}catch{}setTab('Visão geral');await supabase.auth.signOut();setProfile(null);setSession(null);}
+ async function logout(){setClinicalTarget(null);setError('');try{sessionStorage.removeItem('majestic-current-tab');sessionStorage.removeItem('majestic-patient-selection');}catch{}setTab('Visão geral');await supabase.auth.signOut();setProfile(null);setSession(null);}
  const permitted=profile?.ativo&&access[profile.perfil]||[];
  const activeTab=permitted.includes(tab)?tab:'Visão geral';
  return <main><header><div className="brand-emblem" aria-hidden="true">✦</div><div><h1>Majestic Santé Institute</h1><small>Gestão médica | Acesso restrito</small></div></header>
@@ -275,7 +287,7 @@ function App(){
  !session?<article className="login"><h2>Entrar no sistema</h2><form onSubmit={login}><label>E-mail<input type="email" autoComplete="username" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>Senha<input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/></label><button className="active" disabled={busy}>{busy?'Entrando...':'Entrar'}</button></form>{error&&<p className="error" role="alert">{error}</p>}</article>:
  <><div className="session"><span className="session-user"><span className="user-avatar" aria-hidden="true">BC</span><span>{profile?.nome||session.user.email}<small>{profile?.ativo?profile.perfil:'Acesso restrito'}</small></span></span><button onClick={logout}>Sair</button></div>
  {!profile?.ativo||!access[profile?.perfil]?<article><h2>Acesso não liberado</h2><p>Seu usuário não possui um perfil ativo e autorizado. Solicite a configuração ao administrador.</p>{error&&<p className="error">{error}</p>}</article>:
- <><nav>{permitted.map(m=><button key={m} className={activeTab===m?'active':''} onClick={()=>setTab(m)}>{m}</button>)}</nav><article><h2>{activeTab}</h2>{activeTab==='Visão geral'?<ClinicDashboard supabase={supabase} role={profile.perfil} onNavigate={setTab}/>:activeTab==='Agenda'?<ClinicCalendar supabase={supabase} role={profile.perfil}/>:activeTab==='Pacientes'?<Patients role={profile.perfil}/>:activeTab==='Prescrições'?<PrescriptionsHub role={profile.perfil}/>:activeTab==='Administrações'?<AdministrationsHub role={profile.perfil}/>:activeTab==='Custos'?<TestCostReport supabase={supabase}/>:activeTab==='Auditoria'&&['medico','administrativo'].includes(profile.perfil)?<AuditPanel supabase={supabase}/>:activeTab==='Relatórios'&&['medico','enfermeira'].includes(profile.perfil)?<ManagementReports supabase={supabase} role={profile.perfil}/>:activeTab==='Financeiro'&&['medico','administrativo'].includes(profile.perfil)?<Receivables supabase={supabase} role={profile.perfil}/>:activeTab==='Protocolos'?(profile.perfil==='enfermeira'?<NurseProtocols supabase={supabase}/>:<TestProtocols supabase={supabase}/>):activeTab==='Estoque'?(['medico','enfermeira','equipe','administrativo'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}</article></>}
+ <><nav>{permitted.map(m=><button key={m} className={activeTab===m?'active':''} onClick={()=>{setClinicalTarget(null);setTab(m);}}>{m}</button>)}</nav><article><h2>{activeTab}</h2>{activeTab==='Visão geral'?<ClinicDashboard supabase={supabase} role={profile.perfil} onNavigate={setTab}/>:activeTab==='Agenda'?<ClinicCalendar supabase={supabase} role={profile.perfil} userId={session.user.id} onOpenClinical={openClinicalAppointment}/>:activeTab==='Pacientes'?<Patients role={profile.perfil} clinicalTarget={clinicalTarget} onClearClinicalTarget={()=>setClinicalTarget(null)}/>:activeTab==='Prescrições'?<PrescriptionsHub role={profile.perfil}/>:activeTab==='Administrações'?<AdministrationsHub role={profile.perfil}/>:activeTab==='Custos'?<TestCostReport supabase={supabase}/>:activeTab==='Auditoria'&&['medico','administrativo'].includes(profile.perfil)?<AuditPanel supabase={supabase}/>:activeTab==='Relatórios'&&['medico','enfermeira'].includes(profile.perfil)?<ManagementReports supabase={supabase} role={profile.perfil}/>:activeTab==='Financeiro'&&['medico','administrativo'].includes(profile.perfil)?<Receivables supabase={supabase} role={profile.perfil}/>:activeTab==='Protocolos'?(profile.perfil==='enfermeira'?<NurseProtocols supabase={supabase}/>:<TestProtocols supabase={supabase}/>):activeTab==='Estoque'?(['medico','enfermeira','equipe','administrativo'].includes(profile.perfil)?<TestInventory supabase={supabase} role={profile.perfil}/>:<p>Você não possui acesso ao estoque de testes.</p>):<><p>Área reservada para {profile.nome}.</p><p>O módulo será habilitado após validação das regras de acesso e dos fluxos clínicos.</p></>}</article></>}
  </>}
  <footer>Versão de testes. Não inserir dados de pacientes até a validação de segurança, LGPD e funcionalidades clínicas.</footer></main>;
 }
