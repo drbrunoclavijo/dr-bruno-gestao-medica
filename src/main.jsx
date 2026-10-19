@@ -38,8 +38,8 @@ function formatCPF(value){const n=String(value||'').replace(/\D/g,'').slice(0,11
 function formatPhone(value){const n=String(value||'').replace(/\D/g,'').slice(0,11);if(!n)return '';if(n.length<3)return '('+n;const d='('+n.slice(0,2)+') ';const rest=n.slice(2);if(rest.length<=4)return d+rest;const split=rest.length>8?5:4;return d+rest.slice(0,split)+(rest.length>split?'-'+rest.slice(split):'');}
 function dateBR(value){if(!value)return 'Não informado';const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}/${m[2]}/${m[1]}`:value;}
 function Patients({role,clinicalTarget,onClearClinicalTarget}){
- const [workflowChoice,setWorkflowChoice]=useState({step:'consulta',sequence:0});
- const chooseWorkflow=(step,anchor)=>{setWorkflowChoice(old=>({step,sequence:old.sequence+1}));window.document.getElementById(anchor)?.scrollIntoView({behavior:'smooth',block:'start'});};
+ const [workflowChoice,setWorkflowChoice]=useState({patientId:null,step:'consulta',sequence:0});
+ const chooseWorkflow=(step,anchor)=>{setWorkflowChoice(old=>({patientId:selectedId,step,sequence:old.sequence+1}));window.document.getElementById(anchor)?.scrollIntoView({behavior:'smooth',block:'start'});};
  const [selectedId,setSelectedId]=useState(()=>{try{return sessionStorage.getItem('majestic-patient-selection')||null;}catch{return null;}});
  useEffect(()=>{try{if(selectedId)sessionStorage.setItem('majestic-patient-selection',selectedId);else sessionStorage.removeItem('majestic-patient-selection');}catch{}},[selectedId]);
  useEffect(()=>{if(role==='medico'&&clinicalTarget?.patientId)setSelectedId(clinicalTarget.patientId);},[clinicalTarget,role]);
@@ -97,17 +97,17 @@ function Patients({role,clinicalTarget,onClearClinicalTarget}){
    <div className="form-section"><h4>✧ Contato</h4><div className="detail-grid">{detail('Telefone / WhatsApp',formatPhone(selected.telefone))}{detail('E-mail',selected.email)}</div></div>
    <div className="form-section"><h4>⌖ Endereço</h4><div className="detail-grid">{detail('CEP',selected.cep)}{detail('Rua / Avenida',selected.logradouro)}{detail('Número',selected.numero)}{detail('Complemento',selected.complemento)}{detail('Bairro',selected.bairro)}{detail('Cidade',selected.cidade)}{detail('Estado (UF)',selected.uf)}</div></div>
   </div>
-  {role==='medico'&&<ClinicalWorkflow key={'flow-'+selected.id} patientName={selected.nome} appointment={clinicalTarget?.patientId===selected.id?clinicalTarget:null} activeStep={workflowChoice.step} onChoose={chooseWorkflow}/>}
+  {role==='medico'&&<ClinicalWorkflow key={'flow-'+selected.id} patientName={selected.nome} appointment={clinicalTarget?.patientId===selected.id?clinicalTarget:null} activeStep={workflowChoice.patientId===selected.id?workflowChoice.step:''} onChoose={chooseWorkflow}/>}
   {role==='medico'&&<div id="paciente-prontuario" className="patient-section-label">Prontuário médico</div>}
   <PatientOverview key={'overview-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>
-  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} appointment={clinicalTarget?.patientId===selected.id?clinicalTarget:null} workflowRequest={workflowChoice.step==='consulta'?workflowChoice.sequence:0} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
+  {role==='medico'?<ClinicalRecord key={selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} appointment={clinicalTarget?.patientId===selected.id?clinicalTarget:null} workflowRequest={workflowChoice.patientId===selected.id&&workflowChoice.step==='consulta'?workflowChoice.sequence:0} canWrite={true}/>:<div className="premium-panel"><p className="profile-notice">Prontuário clínico restrito ao perfil médico autorizado. A equipe administrativa visualiza somente os dados cadastrais permitidos.</p></div>}
   {role==='medico'&&<div id="paciente-documentos" className="patient-section-label">Documentos clínicos</div>}
   {role==='medico'&&<PatientTerms key={'terms-'+selected.id} patient={selected} role={role}/>}
   {role==='medico'&&<TestPatientDocuments key={'docs-'+selected.id} supabase={supabase} patientId={selected.id}/>}
   {role==='medico'&&<div id="paciente-receitas" className="patient-section-label">Receita domiciliar</div>}
-  {role==='medico'&&<HomePrescriptions key={'home-rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} workflowRequest={workflowChoice.step==='domiciliar'?workflowChoice.sequence:0}/>}
+  {role==='medico'&&<HomePrescriptions key={'home-rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} workflowRequest={workflowChoice.patientId===selected.id&&workflowChoice.step==='domiciliar'?workflowChoice.sequence:0}/>}
   {role==='medico'&&<div id="paciente-prescricoes" className="patient-section-label">Prescrições para aplicações</div>}
-  {role==='medico'&&<TestPrescriptions key={'rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} workflowRequest={workflowChoice.step==='aplicacoes'?workflowChoice.sequence:0} canWrite={true}/>}
+  {role==='medico'&&<TestPrescriptions key={'rx-'+selected.id} supabase={supabase} patientId={selected.id} patientName={selected.nome} patient={selected} workflowRequest={workflowChoice.patientId===selected.id&&workflowChoice.step==='aplicacoes'?workflowChoice.sequence:0} canWrite={true}/>}
   {(role==='medico'||role==='enfermeira')&&<div id="paciente-administracoes" className="patient-section-label">Administrações e checagens</div>}
   {(role==='medico'||role==='enfermeira')&&<TestAdministrations key={'admin-'+selected.id} supabase={supabase} patientId={selected.id} role={role}/>}
  </section>;
