@@ -78,7 +78,7 @@ export default function ClinicalRecord({supabase,patientId,patientName,patient,a
   else{setRecords(old=>[data,...old].sort((a,b)=>(b.data_consulta||'').localeCompare(a.data_consulta||'')||(b.criado_em||'').localeCompare(a.criado_em||'')));setForm(newForm());setAiNotes('');setAiDraft('');setAiError('');setTemplate('geral');setShowForm(false);setSuccess('Consulta de teste salva.');}
   setBusy(false);
  }
- return <div className="premium-panel clinical-panel">
+ return <div id="paciente-consulta-form" className="premium-panel clinical-panel">
   <div className="panel-title"><span className="title-icon" aria-hidden="true">⌁</span><div><h3>Prontuário médico de testes</h3><p>Consultas e evoluções fictícias, organizadas por data.</p></div></div>
   {!canWrite?<p className="profile-notice">O conteúdo clínico está disponível exclusivamente para o perfil médico autorizado.</p>:<>
    <p className="profile-notice">Ambiente de testes. Não insira informações de pacientes reais. Registros salvos nesta etapa não podem ser alterados ou excluídos pela interface.</p>
