@@ -62,3 +62,11 @@ test('Confirmacao de encerramento exige retorno consistente do banco',()=>{
  assert.match(sql,/e\.medico_id=auth\.uid\(\)/);
  assert.match(sql,/a\.profissional_id=auth\.uid\(\)/);
 });
+
+test('A consulta avisa divergencia de data antes de enviar ao Supabase',()=>{
+ const form=read('src/ClinicalRecord.jsx');
+ assert.match(form,/form\.data_consulta!==appointment\.date/);
+ assert.match(form,/A data da consulta não corresponde à agenda/);
+ const sql=read('supabase/migrations/20261019_validar_vinculo_consulta_agenda_teste.sql');
+ assert.match(sql,/NEW\.data_consulta IS DISTINCT FROM/);
+});
