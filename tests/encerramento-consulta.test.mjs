@@ -43,3 +43,11 @@ test('Vínculo clínico com agenda é validado no servidor antes de salvar',()=>
  assert.match(sql,/v_ag\.status NOT IN \('agendado','confirmado'\)/);
  assert.match(sql,/AT TIME ZONE 'America\/Sao_Paulo'/);
 });
+
+test('Erro de encerramento nao esconde controles da revisao e permite nova tentativa',()=>{
+ const src=read('src/VisitFinalization.jsx');
+ assert.match(src,/\[finishError,setFinishError\]=useState\(''\)/);
+ assert.match(src,/setFinishError\('Não foi possível encerrar a consulta:/);
+ assert.match(src,/\{finishError&&<p className="form-message" role="alert">/);
+ assert.match(src,/setFinishError\(''\);/);
+});
