@@ -15,10 +15,14 @@ export default function ProtocolPricingSimulator({supabase}){
   setStockBusy(true);setStockError('');
   const [a,b]=await Promise.all([
    supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo'),
-   supabase.from('estoque_lotes_teste').select('produto_id,saldo,validade,quantidade_inicial,custo_total_aquisicao')
+   supabase.from('estoque_lotes_teste').select('id,produto_id,saldo,validade,quantidade_inicial')
   ]);
   if(a.error||b.error){setStockError('Não foi possível consultar os custos do estoque com este perfil. Confira as permissões no Supabase.');setProducts([]);}
   else{
+   const costs=await supabase.rpc('consultar_custos_lotes_teste');
+   if(costs.error){setStockError('Não foi possível consultar custos autorizados.');setProducts([]);setStockBusy(false);return;}
+   const byId=new Map((costs.data||[]).map(x=>[x.id,x.custo_total_aquisicao]));
+   b.data=(b.data||[]).map(l=>({...l,custo_total_aquisicao:byId.get(l.id)??null}));
    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
    setProducts((a.data||[]).filter(x=>x.ativo).map(x=>{
     const candidates=(b.data||[]).filter(l=>l.produto_id===x.id&&Number(l.saldo)>0&&Number(l.quantidade_inicial)>0&&l.custo_total_aquisicao!==null&&(!l.validade||l.validade>=today));
