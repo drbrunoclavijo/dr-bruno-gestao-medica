@@ -356,8 +356,9 @@ test('Agenda inicia somente consulta do proprio medico e prepara rascunho sem gr
  assert.match(main,/setTab\('Pacientes'\)/);
  assert.match(main,/clinicalTarget\?\.patientId===selected\.id/);
  assert.match(clinical,/setShowForm\(true\)/);
- assert.match(clinical,/data_consulta:appointment\.date/);
- assert.match(clinical,/O status da agenda não é alterado automaticamente/);
+ assert.match(clinical,/const actualDate=/);
+ assert.match(clinical,/iniciada_em:new Date\(\)\.toISOString\(\)/);
+ assert.match(clinical,/A agenda não é alterada automaticamente/);
  assert.ok(!clinical.includes('atualizar_status_agendamento_teste'),'Salvar consulta não deve concluir agenda automaticamente');
 });
 
