@@ -36,7 +36,7 @@ export function useAppointments(supabase,from,to){
  return {rows,loading,error,refresh};
 }
 const initial=()=>({id:'',patient:'',professional:'',type:'consulta',date:localDate(),hour:'09:00',duration:'30',note:''});
-export default function ClinicCalendar({supabase,role}){
+export default function ClinicCalendar({supabase,role,userId,onOpenClinical}){
  const [calendarRevision,setCalendarRevision]=useState(0);
  const [from,setFrom]=useState(localDate()),[view,setView]=useState('semana'),[filter,setFilter]=useState(''),[term,setTerm]=useState('');
  const to=view==='dia'?from:view==='semana'?shiftDay(from,6):shiftDay(from,29);
@@ -129,7 +129,7 @@ export default function ClinicCalendar({supabase,role}){
     <button type="button" className="gold-button" onClick={()=>{setForm(initial());setOpen(true);setFormError('');}}>+ Novo agendamento</button>
    </div>
   </div>
-  <AppointmentCalendar supabase={supabase} role={role} onEdit={edit} onRefreshList={refresh} refreshSignal={calendarRevision}/>
+  <AppointmentCalendar supabase={supabase} role={role} userId={userId} onOpenClinical={onOpenClinical} onEdit={edit} onRefreshList={refresh} refreshSignal={calendarRevision}/>
   {open&&<div className="premium-panel">
    <h3>{form.id?'Remarcar atendimento':'Novo agendamento'}</h3>
    <form onSubmit={save} className="calendar-tools">
@@ -161,6 +161,7 @@ export default function ClinicCalendar({supabase,role}){
      <div className="calendar-entry-time"><strong>{displayDate(a.inicio_local)}</strong><span>{a.inicio_local.slice(11,16)}–{a.fim_local.slice(11,16)}</span></div>
      <div className="calendar-entry-detail"><strong>{a.paciente_nome}</strong><span>{appointmentTypes[a.tipo]} · {a.profissional_nome}</span><small>{statuses[a.status]||a.status}</small>{a.observacao_administrativa&&<small>{a.observacao_administrativa}</small>}</div>
      <div className="calendar-entry-actions">
+      {role==='medico'&&a.profissional_id===userId&&a.paciente_id&&['consulta','retorno'].includes(a.tipo)&&!['cancelado','faltou'].includes(a.status)&&<button type="button" className="gold-button" onClick={()=>onOpenClinical?.(a)}>Abrir atendimento</button>}
       {['agendado','confirmado','reagendamento_solicitado'].includes(a.status)&&<button className="outline-gold" onClick={()=>edit(a)}>Remarcar</button>}
       {a.status==='agendado'&&<button className="outline-gold" disabled={busy} onClick={()=>status(a,'confirmado')}>Confirmar manualmente</button>}
       {a.status==='agendado'&&<><button className="outline-gold" type="button" disabled={busy} onClick={()=>simulateReply(a,'1')}>Testar resposta 1</button><button className="outline-gold" type="button" disabled={busy} onClick={()=>simulateReply(a,'2')}>Testar resposta 2</button></>}}
