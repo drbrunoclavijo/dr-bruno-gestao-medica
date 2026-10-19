@@ -47,6 +47,7 @@ test('Secretaria cadastra estoque sem acesso a precificacao ou detalhes de custo
 
 test('Consulta da secretaria ao estoque nao solicita colunas de custo',()=>{
  const inventory=readFileSync('src/TestInventory.jsx','utf8');
- assert.match(inventory,/\.select\(showCosts\?'id,produto_id,lote,validade,saldo,quantidade_inicial,custo_total_aquisicao':'id,produto_id,lote,validade,saldo,quantidade_inicial'\)/);
+ assert.match(inventory,/consultar_custos_lotes_teste/);
+ assert.match(inventory,/\.select\('id,produto_id,lote,validade,saldo,quantidade_inicial'\)/);
  assert.match(inventory,/const knownValue=showCosts\?/);
 });
