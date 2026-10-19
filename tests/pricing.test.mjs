@@ -35,3 +35,12 @@ test('Distribuicao separa imposto, taxa, clinica e resultado sem duplicar custos
  assert.equal(v.combinedNet,675);
  assert.equal(splitProtocolRevenue({price:1000,clinicPct:101}),null);
 });
+
+test('Secretaria cadastra estoque sem acesso a precificacao ou detalhes de custos',()=>{
+ const inventory=readFileSync('src/TestInventory.jsx','utf8');
+ const main=readFileSync('src/main.jsx','utf8');
+ assert.match(inventory,/canRegister=\['medico','enfermeira','equipe'\]/);
+ assert.match(inventory,/showCosts=\['medico','enfermeira','administrativo'\]/);
+ assert.match(inventory,/showCosts&&<p className="inventory-cost-overview">/);
+ assert.match(main,/equipe:\['Visão geral','Agenda','Pacientes','Estoque'\]/);
+});
