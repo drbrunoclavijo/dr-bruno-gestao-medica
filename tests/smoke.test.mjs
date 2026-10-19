@@ -109,7 +109,7 @@ test('Protecoes de autenticacao da integração sao so leitura',()=>{
 test('Gerente standby tem financeiro e auditoria sem acesso clinico',()=>{
  const main=readFileSync('src/main.jsx','utf8');
  const sql=readFileSync('supabase/migrations/20261123_perfil_gerente_administrativo_standby_teste.sql','utf8');
- assert.match(main,/administrativo:\['Visão geral','Agenda','Pacientes','Estoque','Financeiro','Auditoria'\]/);
+ assert.match(main,/administrativo:\['Visão geral','Agenda','Pacientes','Estoque','Financeiro','Precificação','Auditoria'\]/);
  assert.match(main,/Auditoria'&&\['medico','administrativo'\]\.includes\(profile\.perfil\)/);
  assert.ok(!main.includes("administrativo:['Prescrições'"));
  assert.match(sql,/perfil IN \('medico','administrativo'\)/);
@@ -356,8 +356,9 @@ test('Agenda inicia somente consulta do proprio medico e prepara rascunho sem gr
  assert.match(main,/setTab\('Pacientes'\)/);
  assert.match(main,/clinicalTarget\?\.patientId===selected\.id/);
  assert.match(clinical,/setShowForm\(true\)/);
- assert.match(clinical,/data_consulta:appointment\.date/);
- assert.match(clinical,/O status da agenda não é alterado automaticamente/);
+ assert.match(clinical,/const actualDate=/);
+ assert.match(clinical,/iniciada_em:new Date\(\)\.toISOString\(\)/);
+ assert.match(clinical,/A agenda não é alterada automaticamente/);
  assert.ok(!clinical.includes('atualizar_status_agendamento_teste'),'Salvar consulta não deve concluir agenda automaticamente');
 });
 
@@ -382,10 +383,11 @@ test('Fluxo integrado abre os formularios existentes sem concluir nem assinar',(
  assert.match(flow,/Não há prescrição, salvamento, assinatura, envio ou conclusão automática/);
 });
 
-test('Finalizacao assistida le registros reais sem registrar fechamento clinico', async()=>{
+test('Finalizacao assistida separa revisao visual e encerramento medico auditado', async()=>{
  const flow=readFileSync('src/ClinicalWorkflow.jsx','utf8');
  const finalization=readFileSync('src/VisitFinalization.jsx','utf8');
  const main=readFileSync('src/main.jsx','utf8');
+ const sql=readFileSync('supabase/migrations/20261019_encerramento_consulta_teste.sql','utf8');
  assert.match(flow,/VisitFinalization supabase=\{supabase\} patientId=\{patientId\}/);
  assert.match(flow,/activeStep==='finalizacao'/);
  assert.match(main,/patientId=\{selected.id\} supabase=\{supabase\} appointment=/);
@@ -394,11 +396,13 @@ test('Finalizacao assistida le registros reais sem registrar fechamento clinico'
  assert.match(finalization,/sameDay\(x.data_consulta,day\)/);
  assert.match(finalization,/sameDay\(x.criado_em,day\)/);
  assert.match(finalization,/checks.every\(x=>confirmed\[x.id\]\)/);
- assert.match(finalization,/!summary.clinical/);
  assert.match(finalization,/status_assinatura!=='assinada'/);
- assert.match(finalization,/NÃO encerra o agendamento/);
- assert.ok(!finalization.includes('supabase.rpc('),'A finalizacao de teste nao grava alteracoes via RPC');
- assert.ok(!finalization.includes('.insert('),'A revisao nao grava documentos');
- assert.ok(!finalization.includes('.update('),'A revisao nao atualiza agendamentos');
+ assert.match(finalization,/appointment\?\.appointmentId/);
+ assert.match(finalization,/linked.length!==1/);
+ assert.match(finalization,/supabase.rpc\('encerrar_consulta_teste'/);
+ assert.match(sql,/v_cons.agendamento_id IS DISTINCT FROM v_ag.id/);
+ assert.match(sql,/INSERT INTO public.agendamentos_auditoria_teste/);
+ assert.ok(!finalization.includes('.insert('),'Interface nao deve inserir fechamento diretamente');
+ assert.ok(!finalization.includes('.update('),'Interface nao deve alterar agendamento diretamente');
  assert.match(finalization,/export function summarizeVisit/);
 });

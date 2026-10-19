@@ -111,3 +111,69 @@ test('Equipe e gerente nao recebem registros clinicos por consultas REST',{skip:
   }finally{await api.auth.signOut();}
  }
 });
+
+test('Encerramento: perfis nao medicos sao negados no servidor (sem gravar dados)',{skip:!threeReady},async()=>{
+ // UUID reservado a este teste, sem agendamento correspondente.
+ // Consulta a RPC deve retornar erro antes de executar qualquer escrita.
+ const nonexistent='00000000-0000-4000-8000-000000000000';
+ const checks={evolucao:true,tratamento:true,retorno:true,documentos:true};
+ for(const role of ['medico','enfermeira','equipe',...(managerReady?['administrativo']:[])]){
+  const api=await createLoggedClient(role);
+  try{
+   const {data,error}=await api.rpc('encerrar_consulta_teste',{
+    p_agendamento_id:nonexistent,p_consulta_id:nonexistent,p_checks:checks
+   });
+   assert.ok(error,'Agendamento inexistente deve falhar para '+role);
+   assert.equal(data,null,'Nenhum encerramento retornado para '+role);
+   if(role==='medico'){
+    assert.match(error.message,/Agendamento nao encontrado/i);
+   }else{
+    assert.match(error.message,/Somente medico autenticado/i,role+' nao deve passar da validacao de permissao');
+   }
+  }finally{await api.auth.signOut();}
+ }
+});
+
+test('Encerramento recusa checklists incompletos sem alterar dados',{skip:!threeReady},async()=>{
+ const api=await createLoggedClient('medico');
+ try{
+  const invalid='00000000-0000-4000-8000-000000000000';
+  const {data,error}=await api.rpc('encerrar_consulta_teste',{
+   p_agendamento_id:invalid,p_consulta_id:invalid,
+   p_checks:{evolucao:true,tratamento:false,retorno:true,documentos:true}
+  });
+  assert.ok(error,'Checklist incompleto deve ser recusado');
+  assert.match(error.message,/Conferencia obrigatoria ausente: tratamento/i);
+  assert.equal(data,null);
+ }finally{await api.auth.signOut();}
+});
+
+test('Encerramento nao permite chamada anonima',{skip:!Boolean(URL&&KEY)},async()=>{
+ const api=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ const invalid='00000000-0000-4000-8000-000000000000';
+ const {data,error}=await api.rpc('encerrar_consulta_teste',{
+  p_agendamento_id:invalid,p_consulta_id:invalid,
+  p_checks:{evolucao:true,tratamento:true,retorno:true,documentos:true}
+ });
+ assert.ok(error);
+ assert.equal(data,null);
+});
+
+test('Custos do estoque: perfis permitidos e secretaria sem leitura historica',{
+ skip:!Boolean(threeReady&&env.TEST_STOCK_COST_RLS_READY==='true')
+},async()=>{
+ for(const role of ['medico','enfermeira','equipe',...(managerReady?['administrativo']:[])]){
+  const api=await createLoggedClient(role);
+  try{
+   const publicStock=await api.from('estoque_lotes_teste')
+    .select('id,produto_id,lote,validade,saldo,quantidade_inicial').limit(1);
+   assert.ifError(publicStock.error,role+' deve consultar saldos sem custo');
+   const restricted=await api.from('estoque_lotes_teste')
+    .select('custo_total_aquisicao').limit(1);
+   assert.ok(restricted.error,role+' nao deve ler a coluna de custo diretamente');
+   const commercial=await api.rpc('consultar_custos_lotes_teste');
+   if(role==='equipe')assert.ok(commercial.error,'Secretaria nao pode consultar custo via RPC');
+   else assert.ifError(commercial.error,role+' pode consultar custo via RPC');
+  }finally{await api.auth.signOut();}
+ }
+});

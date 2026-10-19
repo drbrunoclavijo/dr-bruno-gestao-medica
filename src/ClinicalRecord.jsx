@@ -1,7 +1,8 @@
 import React,{useEffect,useState} from 'react';
 import DocumentPreparation from './DocumentPreparation.jsx';
 // O cliente Supabase autenticado é recebido do componente principal.
-const newForm=()=>({data_consulta:[new Date().getFullYear(),String(new Date().getMonth()+1).padStart(2,'0'),String(new Date().getDate()).padStart(2,'0')].join('-'),iniciada_em:new Date().toISOString(),motivo:'',queixa_principal:'',historia_atual:'',antecedentes:'',medicamentos:'',alergias:'',habitos:'',exame_fisico:'',peso_kg:'',altura_cm:'',pressao_arterial:'',frequencia_cardiaca:'',diagnostico:'',conduta:'',evolucao:'',retorno:''});
+const actualDate=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const newForm=()=>({data_consulta:actualDate(),iniciada_em:new Date().toISOString(),motivo:'',queixa_principal:'',historia_atual:'',antecedentes:'',medicamentos:'',alergias:'',habitos:'',exame_fisico:'',peso_kg:'',altura_cm:'',pressao_arterial:'',frequencia_cardiaca:'',diagnostico:'',conduta:'',evolucao:'',retorno:''});
 const groups=[
  ['Consulta',[['data_consulta','Data da consulta','date'],['motivo','Motivo da consulta','text'],['queixa_principal','Queixa principal','textarea'],['historia_atual','História da doença atual','textarea']]],
  ['Anamnese',[['antecedentes','Antecedentes','textarea'],['medicamentos','Medicamentos em uso','textarea'],['alergias','Alergias','textarea'],['habitos','Hábitos de vida','textarea']]],
@@ -24,7 +25,7 @@ export default function ClinicalRecord({supabase,patientId,patientName,patient,a
  useEffect(()=>{if(workflowRequest>0&&canWrite)setShowForm(true);},[workflowRequest,canWrite]);
  useEffect(()=>{
   if(!canWrite||!appointment||appointment.patientId!==patientId||!appointment.appointmentId)return;
-  setForm({...newForm(),data_consulta:appointment.date||newForm().data_consulta,
+  setForm({...newForm(),
    motivo:appointment.type==='retorno'?'Retorno agendado':'Consulta agendada'});
   setTemplate('geral');setShowForm(true);setError('');setSuccess('');
  },[appointment?.appointmentId,patientId,canWrite]);
@@ -72,6 +73,7 @@ export default function ClinicalRecord({supabase,patientId,patientName,patient,a
   const {data:{user},error:authError}=await supabase.auth.getUser();
   if(authError||!user){setError('Sessão expirada. Faça login novamente.');setBusy(false);return;}
   const payload={paciente_id:patientId,profissional_id:user.id};
+  if(appointment?.appointmentId&&appointment.patientId===patientId)payload.agendamento_id=appointment.appointmentId;
   for(const [k,v] of Object.entries(form))payload[k]=v===''?null:(k==='motivo'?v.trim():v);
   const {data,error}=await supabase.from('consultas_teste').insert(payload).select('*').single();
   if(error)setError('Não foi possível salvar consulta: '+error.message);
@@ -88,7 +90,7 @@ export default function ClinicalRecord({supabase,patientId,patientName,patient,a
    {appointment?.patientId===patientId&&<div className="clinical-appointment-context" role="status">
     <strong>Atendimento aberto pela agenda</strong>
     <span>Data: {brDate(appointment.date)} · Horário: {appointment.time||'não informado'} · {appointment.type==='retorno'?'Retorno':'Consulta'}</span>
-    <small>Os campos foram preparados para revisão. A consulta só é registrada ao clicar em “Salvar consulta de teste”. O status da agenda não é alterado automaticamente.</small>
+    <small>O agendamento é apenas referência. A data e o horário registrados correspondem ao início real desta ficha, mesmo em caso de atraso. A agenda não é alterada automaticamente.</small>
    </div>}
    <div className="record-top"><h4>Histórico de consultas</h4><button type="button" disabled={tableMissing} className="gold-button" onClick={()=>{if(!showForm)setForm(newForm());setShowForm(v=>!v);}}>{showForm?'Fechar formulário':'+ Nova consulta'}</button></div>
    {showForm&&<form onSubmit={save} className="clinical-form">
