@@ -52,7 +52,7 @@ export default function VisitFinalization({supabase,patientId,appointment}){
   load();
   return()=>{active=false;};
  },[supabase,patientId,day,refreshKey]);
- const summary=useMemo(()=>summarizeVisit(data,day),[data,day]);
+ const summary=useMemo(()=>summarizeVisit(data,appointment?.appointmentId?null:day),[data,day,appointment?.appointmentId]);
  const complete=checks.every(x=>confirmed[x.id]);
  async function finish(){
   if(!complete||loading||busy||error||!summary.clinical||!summary.evolution)return;
@@ -77,7 +77,7 @@ export default function VisitFinalization({supabase,patientId,appointment}){
  }
  return <section className="visit-finalization" aria-label="Finalização assistida de consulta de teste">
   <div className="visit-finalization-top">
-   <div><h4>Conferência de registros</h4><small>{day?'Somente registros datados de '+day.split('-').reverse().join('/'):'Sem consulta selecionada: histórico de até 100 registros por categoria deste paciente'}</small></div>
+   <div><h4>Conferência de registros</h4><small>{day?'Agendamento previsto para '+day.split('-').reverse().join('/')+'; conferência clínica considera o atendimento vinculado, inclusive se começou em outra data:'Sem consulta selecionada: histórico de até 100 registros por categoria deste paciente'}</small></div>
    <button className="outline-gold" type="button" disabled={loading} onClick={()=>setRefreshKey(n=>n+1)}>Atualizar registros</button>
   </div>
   <p>Esta conferência consulta registros fictícios já salvos. Uma receita ou documento encontrado não significa que esteja assinado, validado ou entregue. Arquivos de termos anexados não comprovam, isoladamente, consentimento válido.</p>
