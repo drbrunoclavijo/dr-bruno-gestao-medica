@@ -25,3 +25,10 @@ test('Aba de precificacao inclui simulador sem acesso ao banco',()=>{
  assert.match(protocol,/supabase\.from\('estoque_lotes_teste'\)/);
  assert.match(protocol,/rateForPayment/);
 });
+
+test('Produto com lote sem custo nao aparece como precificado automaticamente',()=>{
+ const src=readFileSync('src/ProtocolPricingSimulator.jsx','utf8');
+ assert.match(src,/missingCost:/);
+ assert.match(src,/products\.filter\(x=>x\.cost!==null&&!x\.missingCost\)/);
+ assert.match(src,/unitCost:product\?\.cost\?\?0/);
+});
