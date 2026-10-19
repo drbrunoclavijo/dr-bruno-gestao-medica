@@ -5,7 +5,7 @@ import ProtocolPricingSimulator from './ProtocolPricingSimulator.jsx';
 
 const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n||0);
 const initial={name:'',materials:0,minutes:45,hourCost:0,fixedMonthly:0,appointmentsMonthly:100,otherFixed:0,taxPct:0,feePct:0,commissionPct:0,marginPct:25,marketPrice:0,clinicPct:30};
-export default function PricingCalculator({role}){
+export default function PricingCalculator({role,supabase}){
  const allowed=['medico','enfermeira','administrativo'].includes(role);
  const [form,setForm]=useState(initial),[brand,setBrand]=useState('visa'),[tier,setTier]=useState('inicial'),[plan,setPlan]=useState('dia'),[installments,setInstallments]=useState(1),[method,setMethod]=useState('pix');
  const paymentRate=useMemo(()=>rateForPayment(method,installments,brand,tier,plan),[method,installments,brand,tier,plan]);
@@ -25,7 +25,7 @@ export default function PricingCalculator({role}){
    {field('fixedMonthly','Despesas fixas mensais a ratear (R$)')}
    {field('appointmentsMonthly','Atendimentos mensais usados no rateio','1')}
    {field('otherFixed','Outros custos diretos por atendimento (R$)')}
-   {field('taxPct','Impostos sobre preço de venda (%)')}
+   {field('taxPct','Alíquota efetiva total de tributos (%) informada pelo contador')}
    {field('commissionPct','Repasses/comissões sobre preço de venda (%)')}
    {field('marginPct','Margem desejada sobre venda (%)')}
    {field('marketPrice','Preço atual ou preço para comparação (R$)')}
@@ -61,7 +61,7 @@ export default function PricingCalculator({role}){
    <p className="profile-notice">Modelo de simulação: os custos diretos informados são descontados apenas uma vez no resultado total. A parcela da clínica é calculada sobre o valor após impostos e taxas, e não representa lucro líquido. Defina o contrato real de repasse antes de usar estes números para decisões.</p>
   </div>}
   {!split&&<p className="form-message" role="alert">Confira os percentuais de divisão de receita.</p>}
-  <ProtocolPricingSimulator/>
+  <ProtocolPricingSimulator supabase={supabase}/>
   <button type="button" className="outline-gold" onClick={()=>{setForm(initial);setMethod('pix');setInstallments(1);}}>Limpar simulação</button>
  </section>;
 }
