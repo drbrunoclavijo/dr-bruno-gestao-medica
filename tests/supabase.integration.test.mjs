@@ -158,3 +158,22 @@ test('Encerramento nao permite chamada anonima',{skip:!Boolean(URL&&KEY)},async(
  assert.ok(error);
  assert.equal(data,null);
 });
+
+test('Custos do estoque: perfis permitidos e secretaria sem leitura historica',{
+ skip:!Boolean(threeReady&&env.TEST_STOCK_COST_RLS_READY==='true')
+},async()=>{
+ for(const role of ['medico','enfermeira','equipe',...(managerReady?['administrativo']:[])]){
+  const api=await createLoggedClient(role);
+  try{
+   const publicStock=await api.from('estoque_lotes_teste')
+    .select('id,produto_id,lote,validade,saldo,quantidade_inicial').limit(1);
+   assert.ifError(publicStock.error,role+' deve consultar saldos sem custo');
+   const restricted=await api.from('estoque_lotes_teste')
+    .select('custo_total_aquisicao').limit(1);
+   assert.ok(restricted.error,role+' nao deve ler a coluna de custo diretamente');
+   const commercial=await api.rpc('consultar_custos_lotes_teste');
+   if(role==='equipe')assert.ok(commercial.error,'Secretaria nao pode consultar custo via RPC');
+   else assert.ifError(commercial.error,role+' pode consultar custo via RPC');
+  }finally{await api.auth.signOut();}
+ }
+});
