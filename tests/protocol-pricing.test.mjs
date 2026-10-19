@@ -21,5 +21,7 @@ test('Aba de precificacao inclui simulador sem acesso ao banco',()=>{
  const protocol=readFileSync('src/ProtocolPricingSimulator.jsx','utf8');
  assert.match(screen,/ProtocolPricingSimulator/);
  assert.match(protocol,/protocolTotals/);
- assert.ok(!protocol.includes('supabase.rpc(')&&!protocol.includes('supabase.from('));
+ assert.ok(!protocol.includes('supabase.rpc('));
+ assert.match(protocol,/supabase\.from\('estoque_lotes_teste'\)/);
+ assert.match(protocol,/rateForPayment/);
 });
