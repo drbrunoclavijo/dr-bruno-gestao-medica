@@ -17,7 +17,7 @@ export default function TestInventory({supabase,role}){
   setLoading(true);setError('');
   const [a,b]=await Promise.all([
    supabase.from('estoque_produtos_teste').select('id,nome,unidade,ativo,tipo_produto,estoque_minimo').order('nome'),
-   supabase.from('estoque_lotes_teste').select('id,produto_id,lote,validade,saldo,quantidade_inicial,custo_total_aquisicao').order('validade')
+   supabase.from('estoque_lotes_teste').select(showCosts?'id,produto_id,lote,validade,saldo,quantidade_inicial,custo_total_aquisicao':'id,produto_id,lote,validade,saldo,quantidade_inicial').order('validade')
   ]);
   const first=[a,b].find(r=>r.error);
   if(first){setError('Não foi possível carregar estoque: '+first.error.message);setLoading(false);return;}
@@ -49,8 +49,8 @@ export default function TestInventory({supabase,role}){
  }
  const saldo=id=>lots.filter(l=>l.produto_id===id).reduce((n,l)=>n+Number(l.saldo),0);
  const lotValue=l=>l.custo_total_aquisicao===null?null:Number(l.custo_total_aquisicao)*Number(l.saldo)/Number(l.quantidade_inicial);
- const knownValue=lots.reduce((sum,l)=>sum+(lotValue(l)??0),0);
- const missingCost=lots.some(l=>l.custo_total_aquisicao===null);
+ const knownValue=showCosts?lots.reduce((sum,l)=>sum+(lotValue(l)??0),0):0;
+ const missingCost=showCosts&&lots.some(l=>l.custo_total_aquisicao===null);
  const unlinked=items.filter(i=>!links.some(l=>l.item_prescricao_id===i.id));
  async function saveMinimum(product){
   const value=Number(minDraft[product.id]);
