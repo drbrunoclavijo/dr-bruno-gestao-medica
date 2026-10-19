@@ -7,10 +7,10 @@ const steps=[
  {key:'consulta',number:'01',name:'Consulta e evolução',detail:'Revisar anamnese, exame, evolução e salvar quando estiver pronto.',anchor:'paciente-consulta-form'},
  {key:'domiciliar',number:'02',name:'Receita domiciliar',detail:'Preparar medicamentos para uso em casa, se indicados.',anchor:'paciente-receitas'},
  {key:'aplicacoes',number:'03',name:'Prescrição de aplicações',detail:'Prescrever itens de teste e conferir vínculos com o estoque.',anchor:'paciente-prescricoes'},
- {key:'finalizacao',number:'04',name:'Revisão e documentos',detail:'Revisar registros salvos, termos, PDFs e planejar o retorno.',anchor:'paciente-documentos'}
+ {key:'finalizacao',number:'04',name:'Revisão e documentos',detail:'Revisar registros salvos, termos, PDFs e planejar o retorno.',anchor:'paciente-fluxo-atendimento'}
 ];
 export default function ClinicalWorkflow({patientName,patientId,supabase,appointment,activeStep,onChoose}){
- return <section className="premium-panel clinical-workflow" aria-label="Fluxo de atendimento médico de teste">
+ return <section id="paciente-fluxo-atendimento" className="premium-panel clinical-workflow" aria-label="Fluxo de atendimento médico de teste">
   <div className="panel-title"><span className="title-icon" aria-hidden="true">✧</span><div>
    <h3>Atendimento integrado</h3><p>{patientName} · uma sequência de trabalho sem sair da ficha</p>
   </div></div>
