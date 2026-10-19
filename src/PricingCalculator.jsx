@@ -1,14 +1,15 @@
 import React,{useMemo,useState} from 'react';
-import {pricingQuote} from './PricingMath.js';
+import {pricingQuote,splitProtocolRevenue} from './PricingMath.js';
 import {rateForPayment,tiers} from './PaymentRates.js';
 
 const brl=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n||0);
-const initial={name:'',materials:0,minutes:45,hourCost:0,fixedMonthly:0,appointmentsMonthly:100,otherFixed:0,taxPct:0,feePct:0,commissionPct:0,marginPct:25,marketPrice:0};
+const initial={name:'',materials:0,minutes:45,hourCost:0,fixedMonthly:0,appointmentsMonthly:100,otherFixed:0,taxPct:0,feePct:0,commissionPct:0,marginPct:25,marketPrice:0,clinicPct:30};
 export default function PricingCalculator({role}){
  const allowed=['medico','enfermeira','administrativo'].includes(role);
  const [form,setForm]=useState(initial),[brand,setBrand]=useState('visa'),[tier,setTier]=useState('inicial'),[plan,setPlan]=useState('dia'),[installments,setInstallments]=useState(1),[method,setMethod]=useState('pix');
  const paymentRate=useMemo(()=>rateForPayment(method,installments,brand,tier,plan),[method,installments,brand,tier,plan]);
  const quote=useMemo(()=>pricingQuote({...form,feePct:paymentRate}),[form,paymentRate]);
+ const split=useMemo(()=>splitProtocolRevenue({price:form.marketPrice,materials:form.materials,professionalCost:Number(form.minutes)*Number(form.hourCost)/60,otherCost:form.otherFixed,taxPct:form.taxPct,paymentPct:paymentRate,clinicPct:form.clinicPct}),[form,paymentRate]);
  if(!allowed)return <div className="premium-panel"><p>Acesso não autorizado.</p></div>;
  const edit=(key,value)=>setForm(v=>({...v,[key]:key==='name'?value:Number(value)}));
  const field=(key,label,step='0.01')=><label key={key}>{label}<input type="number" min="0" step={step} value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>;
@@ -27,6 +28,7 @@ export default function PricingCalculator({role}){
    {field('commissionPct','Repasses/comissões sobre preço de venda (%)')}
    {field('marginPct','Margem desejada sobre venda (%)')}
    {field('marketPrice','Preço atual ou preço para comparação (R$)')}
+   {field('clinicPct','Parcela da clínica sobre valor após impostos e taxas (%)')}
   </div>
   <div className="form-section"><h4>Forma de recebimento</h4><div className="clinical-fields">
    <label>Pagamento<select value={method} onChange={e=>setMethod(e.target.value)}>
@@ -48,6 +50,16 @@ export default function PricingCalculator({role}){
    </div>
    <p className="profile-notice">Custo: materiais {brl(quote.breakdown.materials)} + tempo profissional {brl(quote.breakdown.labor)} + rateio {brl(quote.breakdown.fixed)} + outros {brl(quote.breakdown.other)}. Margem é percentual sobre a venda, não acréscimo sobre custo. Os valores são estimativas gerenciais, não orientação tributária.</p>
   </>}
+  {split&&Number(form.marketPrice)>0&&<div className="form-section"><h4>Distribuição estimada do preço informado</h4>
+   <div className="detail-grid">
+    <div className="detail-item"><span>Receita após impostos e taxa do pagamento</span><strong>{brl(split.afterDeductions)}</strong></div>
+    <div className="detail-item"><span>Parcela da clínica, antes dos custos diretos</span><strong>{brl(split.clinicShare)}</strong></div>
+    <div className="detail-item"><span>Parcela destinada ao profissional, antes de eventuais custos próprios</span><strong>{brl(split.professionalShare)}</strong></div>
+    <div className="detail-item"><span>Resultado total após custos diretos</span><strong>{brl(split.combinedNet)}</strong></div>
+   </div>
+   <p className="profile-notice">Modelo de simulação: os custos diretos informados são descontados apenas uma vez no resultado total. A parcela da clínica é calculada sobre o valor após impostos e taxas, e não representa lucro líquido. Defina o contrato real de repasse antes de usar estes números para decisões.</p>
+  </div>}
+  {!split&&<p className="form-message" role="alert">Confira os percentuais de divisão de receita.</p>}
   <button type="button" className="outline-gold" onClick={()=>{setForm(initial);setMethod('pix');setInstallments(1);}}>Limpar simulação</button>
  </section>;
 }
