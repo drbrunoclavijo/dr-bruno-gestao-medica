@@ -5,9 +5,19 @@ BEGIN;
 REVOKE SELECT ON TABLE public.estoque_lotes_teste FROM authenticated;
 -- Remove grants por coluna antigos, se existirem, e impede acesso via PUBLIC/anon.
 REVOKE SELECT ON TABLE public.estoque_lotes_teste FROM PUBLIC,anon;
+-- REVOKE em tabela não elimina permissões específicas concedidas por coluna.
+REVOKE SELECT (custo_total_aquisicao) ON public.estoque_lotes_teste FROM authenticated,anon,PUBLIC;
 -- IMPORTANTE: auditar grants adicionais e funcoes SECURITY DEFINER antes de executar.
 GRANT SELECT (id,produto_id,lote,validade,saldo,quantidade_inicial,cadastrado_por,criado_em)
  ON public.estoque_lotes_teste TO authenticated;
+-- Interrompa a transação se alguma concessão ainda permitir ler diretamente o custo.
+DO $check$
+BEGIN
+ IF has_column_privilege('authenticated','public.estoque_lotes_teste','custo_total_aquisicao','SELECT')
+ OR has_column_privilege('anon','public.estoque_lotes_teste','custo_total_aquisicao','SELECT')
+ THEN RAISE EXCEPTION 'A coluna de custo continua legivel diretamente; revisar GRANTs antes de prosseguir'; END IF;
+END;
+$check$;
 -- Acesso separado e autenticado ao custo, com verificação do perfil NO SERVIDOR.
 CREATE OR REPLACE FUNCTION public.consultar_custos_lotes_teste()
 RETURNS TABLE (id uuid,custo_total_aquisicao numeric)
