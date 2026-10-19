@@ -3,7 +3,7 @@ import React from 'react';
 // Guia visual do atendimento: aciona formulários já existentes na MESMA ficha.
 // Não altera status de agenda e não registra documentos automaticamente.
 const steps=[
- {key:'consulta',number:'01',name:'Consulta e evolução',detail:'Revisar anamnese, exame, evolução e salvar quando estiver pronto.',anchor:'paciente-prontuario'},
+ {key:'consulta',number:'01',name:'Consulta e evolução',detail:'Revisar anamnese, exame, evolução e salvar quando estiver pronto.',anchor:'paciente-consulta-form'},
  {key:'domiciliar',number:'02',name:'Receita domiciliar',detail:'Preparar medicamentos para uso em casa, se indicados.',anchor:'paciente-receitas'},
  {key:'aplicacoes',number:'03',name:'Prescrição de aplicações',detail:'Prescrever itens de teste e conferir vínculos com o estoque.',anchor:'paciente-prescricoes'},
  {key:'finalizacao',number:'04',name:'Revisão e documentos',detail:'Revisar registros salvos, termos, PDFs e planejar o retorno.',anchor:'paciente-documentos'}
