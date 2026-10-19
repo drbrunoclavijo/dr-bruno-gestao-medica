@@ -17,10 +17,11 @@ const templates={
 };
 function brTime(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}).format(d);}
 function brDate(v){if(!v)return 'Sem data';const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+'/'+m[2]+'/'+m[1]:v;}
-export default function ClinicalRecord({supabase,patientId,patientName,patient,appointment,canWrite}){
+export default function ClinicalRecord({supabase,patientId,patientName,patient,appointment,workflowRequest=0,canWrite}){
  const [template,setTemplate]=useState('geral');
  const [records,setRecords]=useState([]),[form,setForm]=useState(newForm),[error,setError]=useState(''),[success,setSuccess]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[tableMissing,setTableMissing]=useState(false),[showForm,setShowForm]=useState(false);
  const [aiNotes,setAiNotes]=useState(''),[aiDraft,setAiDraft]=useState(''),[aiError,setAiError]=useState('');
+ useEffect(()=>{if(workflowRequest>0&&canWrite)setShowForm(true);},[workflowRequest,canWrite]);
  useEffect(()=>{
   if(!canWrite||!appointment||appointment.patientId!==patientId||!appointment.appointmentId)return;
   setForm({...newForm(),data_consulta:appointment.date||newForm().data_consulta,
