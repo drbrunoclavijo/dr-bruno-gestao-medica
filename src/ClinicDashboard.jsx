@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {useAppointments,localDate,shiftDay,displayDate,appointmentTypes,statuses} from './ClinicCalendar.jsx';
 import StockAlerts from './StockAlerts.jsx';
+import CRMAlerts from './CRMAlerts.jsx';
 
 // Apenas dados fictícios: nenhum custo, valor de protocolo ou medicamento à equipe administrativa.
 const tz='America/Sao_Paulo';
@@ -130,6 +131,7 @@ export default function ClinicDashboard({supabase,role,onNavigate}){
    <p className="profile-notice">Resultado após taxas = recebimento registrado menos despesas pagas e taxas de pagamentos com cartão registradas no sistema. Não é lucro líquido contábil. Não lance a taxa da operadora também em Despesas.</p>
   </div>}
   <StockAlerts supabase={supabase} onNavigate={onNavigate} compact/>
+  <CRMAlerts supabase={supabase} onNavigate={onNavigate}/>
   {!clinical?<><div className="premium-panel dashboard-appointments">
    <div className="dashboard-agenda-title"><div><h3>Reagendamentos — Atendimento administrativo</h3>
     <p>Pedidos feitos por pacientes fictícios na simulação de confirmação.</p></div>

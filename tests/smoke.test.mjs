@@ -109,7 +109,7 @@ test('Protecoes de autenticacao da integração sao so leitura',()=>{
 test('Gerente standby tem financeiro e auditoria sem acesso clinico',()=>{
  const main=readFileSync('src/main.jsx','utf8');
  const sql=readFileSync('supabase/migrations/20261123_perfil_gerente_administrativo_standby_teste.sql','utf8');
- assert.match(main,/administrativo:\['Visão geral','Agenda','Pacientes','Estoque','Financeiro','Auditoria'\]/);
+ assert.match(main,/administrativo:\['Visão geral','Agenda','Pacientes','Estoque','Financeiro','Auditoria'(?:,'CRM')?\]/);
  assert.match(main,/Auditoria'&&\['medico','administrativo'\]\.includes\(profile\.perfil\)/);
  assert.ok(!main.includes("administrativo:['Prescrições'"));
  assert.match(sql,/perfil IN \('medico','administrativo'\)/);

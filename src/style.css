@@ -901,3 +901,42 @@ footer{font-size:12px;color:#81868b;margin:25px 0}
 .visit-finalization-finished{border:1px solid #b8a477;background:#23291f;color:#e8d5a7;padding:12px;border-radius:9px}
 .visit-finalization>small{color:#cec0aa}
 @media(max-width:680px){.visit-finalization-counters{grid-template-columns:repeat(2,minmax(0,1fr))}.visit-finalization-top button{width:100%}}
+
+
+/* CRM: campos empilhados e controles seguros no Safari do iPhone */
+.crm-page,.crm-page *{box-sizing:border-box}
+.crm-page .crm-form{display:flex;flex-direction:column;gap:16px;min-width:0}
+.crm-page .crm-form>label,.crm-page .crm-notes>label,.crm-page .patient-grid>label,
+.crm-page .patient-follow-up-entry label{display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:0;width:100%;line-height:1.4}
+.crm-page .crm-form input:not([type="checkbox"]),.crm-page .crm-form select,
+.crm-page .crm-form textarea,.crm-page .patient-follow-up-entry input[type="date"],
+.crm-page .search-row input,.crm-page .search-row select{
+ display:block;width:100%;min-width:0;max-width:100%;margin:0;
+ font-size:16px;line-height:1.4;min-height:48px;box-sizing:border-box;
+}
+.crm-page .crm-form textarea{min-height:105px;height:auto;resize:vertical}
+.crm-page .crm-form label.crm-consent{
+ display:grid;grid-template-columns:20px minmax(0,1fr);
+ align-items:start;column-gap:11px;line-height:1.5;
+ white-space:normal;overflow-wrap:anywhere;font-size:14px;
+}
+.crm-page .crm-consent input[type="checkbox"]{
+ width:20px;height:20px;min-width:20px;min-height:20px;
+ margin:2px 0 0;accent-color:#d6ad6c;
+}
+.crm-page .crm-form .patient-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.crm-page .crm-form .form-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;min-width:0}
+.crm-page .crm-form .form-actions button{max-width:100%;white-space:normal;min-height:46px}
+.crm-page .patient-follow-up-entry{min-width:0;overflow-wrap:anywhere}
+.crm-page .patient-follow-up-entry .form-actions{display:flex;flex-wrap:wrap;gap:9px;min-width:0}
+.crm-page .patient-follow-up-entry .form-actions label{flex:1 1 170px}
+.crm-page .search-row{display:flex;flex-wrap:wrap;gap:10px;min-width:0}
+.crm-page .search-row input,.crm-page .search-row select{flex:1 1 190px}
+@media(max-width:700px){
+ .crm-page .crm-form .patient-grid{grid-template-columns:minmax(0,1fr)}
+ .crm-page .crm-form{gap:18px}
+ .crm-page .crm-form .form-actions,.crm-page .patient-follow-up-entry .form-actions{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+ .crm-page .crm-form .form-actions button,.crm-page .patient-follow-up-entry .form-actions button,.crm-page .patient-follow-up-entry .form-actions a{width:100%;max-width:100%;min-height:46px}
+ .crm-page .search-row{display:grid;grid-template-columns:minmax(0,1fr)}
+ .crm-page input[type="date"]{-webkit-appearance:none;appearance:none;min-width:0;width:100%;padding-right:10px}
+}
