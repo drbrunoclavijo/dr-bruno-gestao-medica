@@ -15,6 +15,7 @@ export default function CRMRelacionamento({supabase,role}){
  const [search,setSearch]=useState(''),[filter,setFilter]=useState('todos'),[taskContact,setTaskContact]=useState('');
  const [taskTitle,setTaskTitle]=useState('Retomar contato'),[taskDate,setTaskDate]=useState(localToday());
  const [reschedules,setReschedules]=useState({});
+ const [historyContact,setHistoryContact]=useState(''),[historyType,setHistoryType]=useState('whatsapp'),[historyText,setHistoryText]=useState(''),[history,setHistory]=useState([]),[historyError,setHistoryError]=useState('');
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const canWrite=['equipe','administrativo','medico','enfermeira'].includes(role);
  async function reload(){
@@ -28,6 +29,16 @@ export default function CRMRelacionamento({supabase,role}){
   setBusy(false);
  }
  useEffect(()=>{reload();},[supabase]);
+ useEffect(()=>{
+  if(!historyContact){setHistory([]);setHistoryError('');return;}
+  let active=true;
+  supabase.from('crm_interacoes_teste').select('id,tipo,resumo,criado_em').eq('contato_id',historyContact).order('criado_em',{ascending:false}).limit(100).then(({data,error})=>{
+   if(!active)return;
+   if(error){setHistoryError('Histórico indisponível. Execute a segunda migração SQL do CRM.');setHistory([]);}
+   else {setHistoryError('');setHistory(data||[]);}
+  });
+  return ()=>{active=false;};
+ },[supabase,historyContact]);
  const pending=tarefas.filter(t=>t.situacao==='pendente');
  const today=localToday();
  const due=crmDueTasks(pending,today);
@@ -65,6 +76,16 @@ export default function CRMRelacionamento({supabase,role}){
   if(err){setError('Não foi possível reagendar: '+err.message);setBusy(false);return;}
   setNotice('Lembrete reagendado.');setReschedules(old=>({...old,[t.id]:undefined}));await reload();
  }
+ async function addHistory(e){
+  e.preventDefault();setError('');setNotice('');
+  if(!historyContact||historyText.trim().length<2){setError('Selecione o contato e escreva um resumo administrativo.');return;}
+  setBusy(true);
+  const {error:err}=await supabase.from('crm_interacoes_teste').insert({contato_id:historyContact,tipo:historyType,resumo:historyText.trim()});
+  if(err){setError('Não foi possível registrar a interação: '+err.message);setBusy(false);return;}
+  const {data,error:readError}=await supabase.from('crm_interacoes_teste').select('id,tipo,resumo,criado_em').eq('contato_id',historyContact).order('criado_em',{ascending:false}).limit(100);
+  if(readError)setHistoryError(readError.message);else {setHistory(data||[]);setHistoryError('');}
+  setHistoryText('');setNotice('Interação registrada.');setBusy(false);
+ }
  function editContact(c){setEditing(c.id);setForm({nome:c.nome,telefone:c.telefone,origem:c.origem,interesse:c.interesse,responsavel:c.responsavel,etapa:c.etapa,observacao:c.observacao||'',permite_contato:c.permite_contato});window.scrollTo({top:0,behavior:'smooth'});}
  const label=(title,child)=><label>{title}{child}</label>;
  return <section className="patients-page crm-page">
@@ -99,6 +120,17 @@ export default function CRMRelacionamento({supabase,role}){
    <div className="panel-title"><div><h3>Lembretes pendentes</h3><p>Prioridade para tarefas de hoje e anteriores.</p></div></div>
    {pending.length===0?<p>Nenhum lembrete pendente.</p>:<div className="patient-follow-up-list">{pending.map(t=>{const c=contatos.find(c=>c.id===t.contato_id);return <div className="patient-follow-up-entry" key={t.id}><strong>{t.vencimento.split('-').reverse().join('/')} · {c?.nome||'Contato indisponível'}</strong><span>{t.titulo}{t.vencimento<=today?' · Precisa de atenção':''}</span><div className="form-actions"><label>Nova data<input aria-label={"Nova data para "+(c?.nome||"contato")} type="date" value={reschedules[t.id]||t.vencimento} onChange={e=>setReschedules(old=>({...old,[t.id]:e.target.value}))}/></label><button type="button" className="outline-gold" disabled={busy} onClick={()=>rescheduleTask(t)}>Reagendar</button><button type="button" className="gold-button" disabled={busy} onClick={()=>finishTask(t.id)}>Concluir</button></div></div>})}</div>}
   </div>
+  <form className="premium-panel crm-form" onSubmit={addHistory}>
+   <div className="panel-title"><div><h3>Histórico de relacionamento</h3><p>Registre chamadas e conversas administrativas, sem informações médicas ou dados sensíveis.</p></div></div>
+   <div className="patient-grid contact-grid">
+    {label('Contato',<select value={historyContact} required onChange={e=>setHistoryContact(e.target.value)}><option value="">Selecione</option>{contatos.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select>)}
+    {label('Canal',<select value={historyType} onChange={e=>setHistoryType(e.target.value)}><option value="whatsapp">WhatsApp</option><option value="ligacao">Ligação</option><option value="presencial">Presencial</option><option value="outro">Outro</option></select>)}
+   </div>
+   <div className="crm-notes">{label('Resumo administrativo',<textarea required minLength={2} maxLength={500} rows={3} value={historyText} onChange={e=>setHistoryText(e.target.value)} placeholder="Exemplo: Pediu para retornar o contato na próxima semana."/>)}</div>
+   <div className="form-actions"><button type="submit" className="gold-button" disabled={busy||!historyContact}>Registrar interação</button></div>
+   {historyError&&<p role="alert" className="form-message">{historyError}</p>}
+   {historyContact&&(history.length===0?<p className="record-empty">Nenhuma interação registrada.</p>:<div className="patient-follow-up-list">{history.map(item=><div className="patient-follow-up-entry" key={item.id}><strong>{({whatsapp:'WhatsApp',ligacao:'Ligação',presencial:'Presencial',outro:'Outro'})[item.tipo]} · {new Date(item.criado_em).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</strong><span>{item.resumo}</span></div>)}</div>)}
+  </form>
   <div className="premium-panel directory-panel">
    <div className="panel-title"><div><h3>Contatos cadastrados</h3><p>Abertura do WhatsApp é manual e não envia mensagens.</p></div></div>
    <div className="search-row"><input type="search" aria-label="Buscar contato" placeholder="Buscar nome, telefone ou interesse" value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Filtrar etapa" value={filter} onChange={e=>setFilter(e.target.value)}><option value="todos">Todas as etapas</option>{Object.entries(stages).map(([id,n])=><option key={id} value={id}>{n}</option>)}</select><button type="button" className="outline-gold" disabled={busy} onClick={reload}>Atualizar</button></div>
