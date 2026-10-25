@@ -1,16 +1,14 @@
 import React,{useEffect,useMemo,useState} from 'react';
+import {crmToday,crmPhoneDigits,crmValidBrazilianPhone,crmWhatsAppUrl,crmDueTasks} from './crmUtils.js';
 
 const origins={instagram:'Instagram',google:'Google',whatsapp:'WhatsApp',indicacao:'Indicação',outro:'Outro'};
 const interests={emagrecimento:'Emagrecimento',saude_hormonal:'Saúde hormonal',botox:'Botox',preenchimento:'Preenchimento',bioestimulador:'Bioestimulador',outro:'Outro'};
 const stages={novo:'Novo contato',conversa:'Em conversa',agendado:'Agendado',atendido:'Atendido',encerrado:'Encerrado'};
 const initial={nome:'',telefone:'',origem:'whatsapp',interesse:'outro',responsavel:'amanda',etapa:'novo',observacao:'',permite_contato:false};
-const localToday=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
-const phoneDigits=v=>String(v||'').replace(/\D/g,'');
-const validPhone=v=>phoneDigits(v).length===10||phoneDigits(v).length===11;
-function whatsappUrl(v){
- const digits=phoneDigits(v);
- return validPhone(v)?'https://wa.me/55'+digits:null;
-}
+const localToday=crmToday;
+const phoneDigits=crmPhoneDigits;
+const validPhone=crmValidBrazilianPhone;
+const whatsappUrl=crmWhatsAppUrl;
 export default function CRMRelacionamento({supabase,role}){
  const [contatos,setContatos]=useState([]),[tarefas,setTarefas]=useState([]);
  const [form,setForm]=useState(initial),[editing,setEditing]=useState(null);
@@ -32,7 +30,7 @@ export default function CRMRelacionamento({supabase,role}){
  useEffect(()=>{reload();},[supabase]);
  const pending=tarefas.filter(t=>t.situacao==='pendente');
  const today=localToday();
- const due=pending.filter(t=>t.vencimento<=today);
+ const due=crmDueTasks(pending,today);
  const metrics=[['Novos contatos',contatos.filter(c=>c.etapa==='novo').length],['Em conversa',contatos.filter(c=>c.etapa==='conversa').length],['Agendados',contatos.filter(c=>c.etapa==='agendado').length],['Lembretes vencidos/hoje',due.length]];
  const filtered=useMemo(()=>contatos.filter(c=>(filter==='todos'||c.etapa===filter)&&[c.nome,c.telefone,interests[c.interesse]].join(' ').toLowerCase().includes(search.toLowerCase())),[contatos,filter,search]);
  async function saveContact(e){
