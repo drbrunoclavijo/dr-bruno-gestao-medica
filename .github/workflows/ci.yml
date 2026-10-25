@@ -1,0 +1,23 @@
+name: Validar CRM e aplicativo
+on:
+  push:
+    branches: [feature/crm-relacionamento-inicial]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Executar testes locais
+        run: npm test
+      - name: Verificar compilação
+        run: npm run build
