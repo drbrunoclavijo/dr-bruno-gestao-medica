@@ -1,0 +1,101 @@
+import React,{useEffect,useMemo,useState} from 'react';
+
+const origins={instagram:'Instagram',google:'Google',whatsapp:'WhatsApp',indicacao:'Indicação',outro:'Outro'};
+const interests={emagrecimento:'Emagrecimento',saude_hormonal:'Saúde hormonal',botox:'Botox',preenchimento:'Preenchimento',bioestimulador:'Bioestimulador',outro:'Outro'};
+const stages={novo:'Novo contato',conversa:'Em conversa',agendado:'Agendado',atendido:'Atendido',encerrado:'Encerrado'};
+const initial={nome:'',telefone:'',origem:'whatsapp',interesse:'outro',responsavel:'amanda',etapa:'novo',observacao:'',permite_contato:false};
+const localToday=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+const phoneDigits=v=>String(v||'').replace(/\D/g,'');
+const validPhone=v=>phoneDigits(v).length===10||phoneDigits(v).length===11;
+function whatsappUrl(v){
+ const digits=phoneDigits(v);
+ return validPhone(v)?'https://wa.me/55'+digits:null;
+}
+export default function CRMRelacionamento({supabase,role}){
+ const [contatos,setContatos]=useState([]),[tarefas,setTarefas]=useState([]);
+ const [form,setForm]=useState(initial),[editing,setEditing]=useState(null);
+ const [search,setSearch]=useState(''),[filter,setFilter]=useState('todos'),[taskContact,setTaskContact]=useState('');
+ const [taskTitle,setTaskTitle]=useState('Retomar contato'),[taskDate,setTaskDate]=useState(localToday());
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const canWrite=['equipe','administrativo','medico','enfermeira'].includes(role);
+ async function reload(){
+  setBusy(true);setError('');
+  const [a,b]=await Promise.all([
+   supabase.from('crm_contatos_teste').select('*').order('created_at',{ascending:false}).limit(500),
+   supabase.from('crm_tarefas_teste').select('*').order('vencimento',{ascending:true}).limit(500)
+  ]);
+  if(a.error||b.error)setError('CRM ainda indisponível. Verifique se a migração SQL foi aplicada no Supabase e as permissões estão corretas. '+(a.error?.message||b.error?.message||''));
+  else {setContatos(a.data||[]);setTarefas(b.data||[]);}
+  setBusy(false);
+ }
+ useEffect(()=>{reload();},[supabase]);
+ const pending=tarefas.filter(t=>t.situacao==='pendente');
+ const today=localToday();
+ const due=pending.filter(t=>t.vencimento<=today);
+ const metrics=[['Novos contatos',contatos.filter(c=>c.etapa==='novo').length],['Em conversa',contatos.filter(c=>c.etapa==='conversa').length],['Agendados',contatos.filter(c=>c.etapa==='agendado').length],['Lembretes vencidos/hoje',due.length]];
+ const filtered=useMemo(()=>contatos.filter(c=>(filter==='todos'||c.etapa===filter)&&[c.nome,c.telefone,interests[c.interesse]].join(' ').toLowerCase().includes(search.toLowerCase())),[contatos,filter,search]);
+ async function saveContact(e){
+  e.preventDefault();setError('');setNotice('');
+  if(!validPhone(form.telefone)){setError('Informe telefone com DDD brasileiro, com 10 ou 11 dígitos.');return;}
+  if(!form.nome.trim()){setError('Informe o nome.');return;}
+  setBusy(true);
+  const value={...form,nome:form.nome.trim(),telefone:phoneDigits(form.telefone),observacao:form.observacao.trim(),updated_at:new Date().toISOString()};
+  const result=editing?await supabase.from('crm_contatos_teste').update(value).eq('id',editing):await supabase.from('crm_contatos_teste').insert(value);
+  if(result.error){setError('Não foi possível salvar: '+result.error.message);setBusy(false);return;}
+  setForm(initial);setEditing(null);setNotice('Contato salvo.');await reload();
+ }
+ async function addTask(e){
+  e.preventDefault();setError('');setNotice('');
+  if(!taskContact||!taskTitle.trim()||!taskDate){setError('Selecione um contato, descreva a tarefa e escolha uma data.');return;}
+  setBusy(true);
+  const {error:err}=await supabase.from('crm_tarefas_teste').insert({contato_id:taskContact,titulo:taskTitle.trim(),vencimento:taskDate});
+  if(err){setError('Não foi possível criar o lembrete: '+err.message);setBusy(false);return;}
+  setTaskTitle('Retomar contato');setNotice('Lembrete criado.');await reload();
+ }
+ async function finishTask(id){
+  setBusy(true);setError('');
+  const {error:err}=await supabase.from('crm_tarefas_teste').update({situacao:'concluida'}).eq('id',id);
+  if(err){setError('Não foi possível concluir a tarefa: '+err.message);setBusy(false);return;}
+  setNotice('Lembrete concluído.');await reload();
+ }
+ function editContact(c){setEditing(c.id);setForm({nome:c.nome,telefone:c.telefone,origem:c.origem,interesse:c.interesse,responsavel:c.responsavel,etapa:c.etapa,observacao:c.observacao||'',permite_contato:c.permite_contato});window.scrollTo({top:0,behavior:'smooth'});}
+ const label=(title,child)=><label>{title}{child}</label>;
+ return <section className="patients-page crm-page">
+  <div className="page-intro"><div><p className="eyebrow">MAJESTIC SANTÉ · RELACIONAMENTO</p><p className="muted">Ambiente de testes. Use apenas contatos fictícios. Nenhuma mensagem é enviada automaticamente.</p></div></div>
+  <div className="patient-follow-up-metrics">{metrics.map(([title,value])=><div key={title}><small>{title}</small><strong>{busy?'…':value}</strong></div>)}</div>
+  {error&&<p className="form-message" role="alert">{error}</p>}
+  {notice&&<p className="form-message" role="status">{notice}</p>}
+  <form className="premium-panel registration-panel" onSubmit={saveContact}>
+   <div className="panel-title"><div><h3>{editing?'Editar interessado':'Novo interessado'}</h3><p>Cadastro administrativo, sem informações clínicas sensíveis.</p></div></div>
+   <div className="patient-grid contact-grid">
+    {label('Nome',<input required maxLength={150} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})}/>)}
+    {label('Telefone com DDD',<input required type="tel" maxLength={20} placeholder="(45) 99999-9999" value={form.telefone} onChange={e=>setForm({...form,telefone:e.target.value})}/>)}
+    {label('Origem',<select value={form.origem} onChange={e=>setForm({...form,origem:e.target.value})}>{Object.entries(origins).map(([id,n])=><option key={id} value={id}>{n}</option>)}</select>)}
+    {label('Interesse',<select value={form.interesse} onChange={e=>setForm({...form,interesse:e.target.value})}>{Object.entries(interests).map(([id,n])=><option key={id} value={id}>{n}</option>)}</select>)}
+    {label('Responsável',<select value={form.responsavel} onChange={e=>setForm({...form,responsavel:e.target.value})}><option value="amanda">Amanda</option><option value="bruno">Dr. Bruno</option><option value="carol">Dra. Carol</option></select>)}
+    {label('Etapa',<select value={form.etapa} onChange={e=>setForm({...form,etapa:e.target.value})}>{Object.entries(stages).map(([id,n])=><option key={id} value={id}>{n}</option>)}</select>)}
+   </div>
+   {label('Observação administrativa (não inserir dados clínicos)',<textarea maxLength={1000} rows={2} value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}/>)}
+   <label><input type="checkbox" checked={form.permite_contato} onChange={e=>setForm({...form,permite_contato:e.target.checked})}/> Contato autorizou mensagens de acompanhamento (registre autorização verificável antes de uso real)</label>
+   <div className="form-actions">{editing&&<button type="button" className="outline-gold" onClick={()=>{setEditing(null);setForm(initial);}}>Cancelar</button>}<button type="submit" className="gold-button" disabled={busy||!canWrite}>{busy?'Salvando...':'Salvar contato'}</button></div>
+  </form>
+  <form className="premium-panel" onSubmit={addTask}>
+   <div className="panel-title"><div><h3>Criar lembrete</h3><p>O lembrete aparece nesta tela, sem disparar WhatsApp.</p></div></div>
+   <div className="patient-grid contact-grid">
+    {label('Contato',<select required value={taskContact} onChange={e=>setTaskContact(e.target.value)}><option value="">Selecione</option>{contatos.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select>)}
+    {label('Lembrar em',<input type="date" required value={taskDate} onChange={e=>setTaskDate(e.target.value)}/>)}
+    {label('Tarefa',<input required maxLength={150} value={taskTitle} onChange={e=>setTaskTitle(e.target.value)}/>)}
+   </div>
+   <div className="form-actions"><button type="submit" className="gold-button" disabled={busy||!canWrite}>Criar lembrete</button></div>
+  </form>
+  <div className="premium-panel">
+   <div className="panel-title"><div><h3>Lembretes pendentes</h3><p>Prioridade para tarefas de hoje e anteriores.</p></div></div>
+   {pending.length===0?<p>Nenhum lembrete pendente.</p>:<div className="patient-follow-up-list">{pending.map(t=>{const c=contatos.find(c=>c.id===t.contato_id);return <div className="patient-follow-up-entry" key={t.id}><strong>{t.vencimento.split('-').reverse().join('/')} · {c?.nome||'Contato indisponível'}</strong><span>{t.titulo}{t.vencimento<=today?' · Precisa de atenção':''}</span><button type="button" className="outline-gold" disabled={busy} onClick={()=>finishTask(t.id)}>Concluir</button></div>})}</div>}
+  </div>
+  <div className="premium-panel directory-panel">
+   <div className="panel-title"><div><h3>Contatos cadastrados</h3><p>Abertura do WhatsApp é manual e não envia mensagens.</p></div></div>
+   <div className="search-row"><input type="search" aria-label="Buscar contato" placeholder="Buscar nome, telefone ou interesse" value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Filtrar etapa" value={filter} onChange={e=>setFilter(e.target.value)}><option value="todos">Todas as etapas</option>{Object.entries(stages).map(([id,n])=><option key={id} value={id}>{n}</option>)}</select><button type="button" className="outline-gold" disabled={busy} onClick={reload}>Atualizar</button></div>
+   {filtered.length===0?<p>Nenhum contato encontrado.</p>:<div className="patient-follow-up-list">{filtered.map(c=><div className="patient-follow-up-entry" key={c.id}><strong>{c.nome} · {stages[c.etapa]}</strong><span>{interests[c.interesse]} · {origins[c.origem]} · {c.telefone}</span><div className="form-actions"><button type="button" className="outline-gold" onClick={()=>editContact(c)}>Editar</button>{c.permite_contato&&whatsappUrl(c.telefone)&&<a className="gold-button" href={whatsappUrl(c.telefone)} target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>}</div></div>)}</div>}
+  </div>
+ </section>;
+}
