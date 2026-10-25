@@ -72,7 +72,7 @@ export default function CRMRelacionamento({supabase,role}){
   <div className="patient-follow-up-metrics">{metrics.map(([title,value])=><div key={title}><small>{title}</small><strong>{busy?'…':value}</strong></div>)}</div>
   {error&&<p className="form-message" role="alert">{error}</p>}
   {notice&&<p className="form-message" role="status">{notice}</p>}
-  <form className="premium-panel registration-panel" onSubmit={saveContact}>
+  <form className="premium-panel registration-panel crm-form" onSubmit={saveContact}>
    <div className="panel-title"><div><h3>{editing?'Editar interessado':'Novo interessado'}</h3><p>Cadastro administrativo, sem informações clínicas sensíveis.</p></div></div>
    <div className="patient-grid contact-grid">
     {label('Nome',<input required maxLength={150} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})}/>)}
@@ -82,11 +82,11 @@ export default function CRMRelacionamento({supabase,role}){
     {label('Responsável',<select value={form.responsavel} onChange={e=>setForm({...form,responsavel:e.target.value})}><option value="amanda">Amanda</option><option value="bruno">Dr. Bruno</option><option value="carol">Dra. Carol</option></select>)}
     {label('Etapa',<select value={form.etapa} onChange={e=>setForm({...form,etapa:e.target.value})}>{Object.entries(stages).map(([id,n])=><option key={id} value={id}>{n}</option>)}</select>)}
    </div>
-   {label('Observação administrativa (não inserir dados clínicos)',<textarea maxLength={1000} rows={2} value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}/>)}
-   <label><input type="checkbox" checked={form.permite_contato} onChange={e=>setForm({...form,permite_contato:e.target.checked})}/> Contato autorizou mensagens de acompanhamento (registre autorização verificável antes de uso real)</label>
+   <div className="crm-notes">{label('Observação administrativa (não inserir dados clínicos)',<textarea maxLength={1000} rows={2} value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}/>)}</div>
+   <label className="crm-consent"><input type="checkbox" checked={form.permite_contato} onChange={e=>setForm({...form,permite_contato:e.target.checked})}/> Contato autorizou mensagens de acompanhamento (registre autorização verificável antes de uso real)</label>
    <div className="form-actions">{editing&&<button type="button" className="outline-gold" onClick={()=>{setEditing(null);setForm(initial);}}>Cancelar</button>}<button type="submit" className="gold-button" disabled={busy||!canWrite}>{busy?'Salvando...':'Salvar contato'}</button></div>
   </form>
-  <form className="premium-panel" onSubmit={addTask}>
+  <form className="premium-panel crm-form" onSubmit={addTask}>
    <div className="panel-title"><div><h3>Criar lembrete</h3><p>O lembrete aparece nesta tela, sem disparar WhatsApp.</p></div></div>
    <div className="patient-grid contact-grid">
     {label('Contato',<select required value={taskContact} onChange={e=>setTaskContact(e.target.value)}><option value="">Selecione</option>{contatos.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select>)}
