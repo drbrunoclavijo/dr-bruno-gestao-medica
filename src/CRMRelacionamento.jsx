@@ -4,13 +4,14 @@ import {crmToday,crmPhoneDigits,crmValidBrazilianPhone,crmWhatsAppUrl,crmDueTask
 const origins={instagram:'Instagram',google:'Google',whatsapp:'WhatsApp',indicacao:'Indicação',outro:'Outro'};
 const interests={emagrecimento:'Emagrecimento',saude_hormonal:'Saúde hormonal',botox:'Botox',preenchimento:'Preenchimento',bioestimulador:'Bioestimulador',outro:'Outro'};
 const stages={novo:'Novo contato',conversa:'Em conversa',agendado:'Agendado',atendido:'Atendido',encerrado:'Encerrado'};
-const initial={nome:'',telefone:'',origem:'whatsapp',interesse:'outro',responsavel:'amanda',etapa:'novo',observacao:'',permite_contato:false};
+const initial={paciente_id:'',nome:'',telefone:'',origem:'whatsapp',interesse:'outro',responsavel:'amanda',etapa:'novo',observacao:'',permite_contato:false};
 const localToday=crmToday;
 const phoneDigits=crmPhoneDigits;
 const validPhone=crmValidBrazilianPhone;
 const whatsappUrl=crmWhatsAppUrl;
 export default function CRMRelacionamento({supabase,role}){
  const [contatos,setContatos]=useState([]),[tarefas,setTarefas]=useState([]);
+ const [patients,setPatients]=useState([]),[agenda,setAgenda]=useState([]),[agendaError,setAgendaError]=useState('');
  const [form,setForm]=useState(initial),[editing,setEditing]=useState(null);
  const [search,setSearch]=useState(''),[filter,setFilter]=useState('todos'),[taskContact,setTaskContact]=useState('');
  const [taskTitle,setTaskTitle]=useState('Retomar contato'),[taskDate,setTaskDate]=useState(localToday());
@@ -20,12 +21,14 @@ export default function CRMRelacionamento({supabase,role}){
  const canWrite=['equipe','administrativo','medico','enfermeira'].includes(role);
  async function reload(){
   setBusy(true);setError('');
-  const [a,b]=await Promise.all([
+  const [a,b,p]=await Promise.all([
    supabase.from('crm_contatos_teste').select('*').order('created_at',{ascending:false}).limit(500),
-   supabase.from('crm_tarefas_teste').select('*').order('vencimento',{ascending:true}).limit(500)
+   supabase.from('crm_tarefas_teste').select('*').order('vencimento',{ascending:true}).limit(500),
+   supabase.from('pacientes').select('id,nome').order('nome').limit(300)
   ]);
   if(a.error||b.error)setError('CRM ainda indisponível. Verifique se a migração SQL foi aplicada no Supabase e as permissões estão corretas. '+(a.error?.message||b.error?.message||''));
   else {setContatos(a.data||[]);setTarefas(b.data||[]);}
+  if(p.error)setAgendaError('Lista de pacientes indisponível para este perfil.');else setPatients(p.data||[]);
   setBusy(false);
  }
  useEffect(()=>{reload();},[supabase]);
@@ -49,7 +52,7 @@ export default function CRMRelacionamento({supabase,role}){
   if(!validPhone(form.telefone)){setError('Informe telefone com DDD brasileiro, com 10 ou 11 dígitos.');return;}
   if(!form.nome.trim()){setError('Informe o nome.');return;}
   setBusy(true);
-  const value={...form,nome:form.nome.trim(),telefone:phoneDigits(form.telefone),observacao:form.observacao.trim(),updated_at:new Date().toISOString()};
+  const value={...form,paciente_id:form.paciente_id||null,nome:form.nome.trim(),telefone:phoneDigits(form.telefone),observacao:form.observacao.trim(),updated_at:new Date().toISOString()};
   const result=editing?await supabase.from('crm_contatos_teste').update(value).eq('id',editing):await supabase.from('crm_contatos_teste').insert(value);
   if(result.error){setError('Não foi possível salvar: '+result.error.message);setBusy(false);return;}
   setForm(initial);setEditing(null);setNotice('Contato salvo.');await reload();
@@ -86,7 +89,19 @@ export default function CRMRelacionamento({supabase,role}){
   if(readError)setHistoryError(readError.message);else {setHistory(data||[]);setHistoryError('');}
   setHistoryText('');setNotice('Interação registrada.');setBusy(false);
  }
- function editContact(c){setEditing(c.id);setForm({nome:c.nome,telefone:c.telefone,origem:c.origem,interesse:c.interesse,responsavel:c.responsavel,etapa:c.etapa,observacao:c.observacao||'',permite_contato:c.permite_contato});window.scrollTo({top:0,behavior:'smooth'});}
+ async function loadAgenda(patientId){
+  setAgenda([]);setAgendaError('');
+  if(!patientId)return;
+  const now=crmToday();const start=new Date(now+'T12:00:00Z');start.setUTCDate(start.getUTCDate()-90);
+  const end=new Date(now+'T12:00:00Z');end.setUTCDate(end.getUTCDate()+180);
+  const ranges=[{p_de:start.toISOString().slice(0,10),p_ate:now},{p_de:now,p_ate:end.toISOString().slice(0,10)}];
+  const responses=await Promise.all(ranges.map(params=>supabase.rpc('listar_agendamentos_teste',params)));
+  if(responses.some(x=>x.error)){setAgendaError('Não foi possível consultar agendamentos. Verifique a permissão da agenda.');return;}
+  const unique=new Map();
+  for(const response of responses)for(const a of response.data||[])if(a.paciente_id===patientId)unique.set(a.id,a);
+  setAgenda([...unique.values()].sort((a,b)=>String(b.inicio_local).localeCompare(String(a.inicio_local))));
+ }
+ function editContact(c){setEditing(c.id);setForm({nome:c.nome,telefone:c.telefone,origem:c.origem,interesse:c.interesse,responsavel:c.responsavel,etapa:c.etapa,observacao:c.observacao||'',permite_contato:c.permite_contato,paciente_id:c.paciente_id||''});window.scrollTo({top:0,behavior:'smooth'});}
  const label=(title,child)=><label>{title}{child}</label>;
  return <section className="patients-page crm-page">
   <div className="page-intro"><div><p className="eyebrow">MAJESTIC SANTÉ · RELACIONAMENTO</p><p className="muted">Ambiente de testes. Use apenas contatos fictícios. Nenhuma mensagem é enviada automaticamente.</p></div></div>
@@ -96,6 +111,7 @@ export default function CRMRelacionamento({supabase,role}){
   <form className="premium-panel registration-panel crm-form" onSubmit={saveContact}>
    <div className="panel-title"><div><h3>{editing?'Editar interessado':'Novo interessado'}</h3><p>Cadastro administrativo, sem informações clínicas sensíveis.</p></div></div>
    <div className="patient-grid contact-grid">
+    {label('Paciente cadastrado (vínculo opcional)',<select value={form.paciente_id} onChange={e=>setForm({...form,paciente_id:e.target.value})}><option value="">Não vincular</option>{patients.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select>)}
     {label('Nome',<input required maxLength={150} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})}/>)}
     {label('Telefone com DDD',<input required type="tel" maxLength={20} placeholder="(45) 99999-9999" value={form.telefone} onChange={e=>setForm({...form,telefone:e.target.value})}/>)}
     {label('Origem',<select value={form.origem} onChange={e=>setForm({...form,origem:e.target.value})}>{Object.entries(origins).map(([id,n])=><option key={id} value={id}>{n}</option>)}</select>)}
@@ -119,6 +135,13 @@ export default function CRMRelacionamento({supabase,role}){
   <div className="premium-panel">
    <div className="panel-title"><div><h3>Lembretes pendentes</h3><p>Prioridade para tarefas de hoje e anteriores.</p></div></div>
    {pending.length===0?<p>Nenhum lembrete pendente.</p>:<div className="patient-follow-up-list">{pending.map(t=>{const c=contatos.find(c=>c.id===t.contato_id);return <div className="patient-follow-up-entry" key={t.id}><strong>{t.vencimento.split('-').reverse().join('/')} · {c?.nome||'Contato indisponível'}</strong><span>{t.titulo}{t.vencimento<=today?' · Precisa de atenção':''}</span><div className="form-actions"><label>Nova data<input aria-label={"Nova data para "+(c?.nome||"contato")} type="date" value={reschedules[t.id]||t.vencimento} onChange={e=>setReschedules(old=>({...old,[t.id]:e.target.value}))}/></label><button type="button" className="outline-gold" disabled={busy} onClick={()=>rescheduleTask(t)}>Reagendar</button><button type="button" className="gold-button" disabled={busy} onClick={()=>finishTask(t.id)}>Concluir</button></div></div>})}</div>}
+  </div>
+  <div className="premium-panel crm-form">
+   <div className="panel-title"><div><h3>Agenda vinculada ao CRM</h3><p>Selecione um contato previamente vinculado a um cadastro de paciente. O vínculo é manual, sem identificação por telefone.</p></div></div>
+   <label>Contato<select defaultValue="" onChange={e=>{const c=contatos.find(x=>x.id===e.target.value);loadAgenda(c?.paciente_id);}}><option value="">Selecione</option>{contatos.filter(c=>c.paciente_id).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>
+   {agendaError&&<p className="form-message" role="alert">{agendaError}</p>}
+   {agenda.length===0?<p className="record-empty">Nenhum atendimento encontrado no intervalo consultado, ou nenhum contato selecionado.</p>:<div className="patient-follow-up-list">{agenda.map(a=><div className="patient-follow-up-entry" key={a.id}><strong>{String(a.inicio_local).slice(0,10).split('-').reverse().join('/')} · {String(a.inicio_local).slice(11,16)}</strong><span>{a.tipo} · {a.status} · {a.profissional_nome}</span></div>)}</div>}
+   <p className="profile-notice">Somente agendamentos administrativos já autorizados pela agenda. A atualização é manual nesta fase; não altera horários ou prontuários.</p>
   </div>
   <form className="premium-panel crm-form" onSubmit={addHistory}>
    <div className="panel-title"><div><h3>Histórico de relacionamento</h3><p>Registre chamadas e conversas administrativas, sem informações médicas ou dados sensíveis.</p></div></div>
