@@ -16,6 +16,7 @@ export default function CRMRelacionamento({supabase,role}){
  const [form,setForm]=useState(initial),[editing,setEditing]=useState(null);
  const [search,setSearch]=useState(''),[filter,setFilter]=useState('todos'),[taskContact,setTaskContact]=useState('');
  const [taskTitle,setTaskTitle]=useState('Retomar contato'),[taskDate,setTaskDate]=useState(localToday());
+ const [reschedules,setReschedules]=useState({});
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const canWrite=['equipe','administrativo','medico','enfermeira'].includes(role);
  async function reload(){
@@ -58,6 +59,14 @@ export default function CRMRelacionamento({supabase,role}){
   if(err){setError('Não foi possível concluir a tarefa: '+err.message);setBusy(false);return;}
   setNotice('Lembrete concluído.');await reload();
  }
+ async function rescheduleTask(t){
+  const date=reschedules[t.id]||t.vencimento;
+  if(!date){setError('Escolha uma nova data.');return;}
+  setBusy(true);setError('');
+  const {error:err}=await supabase.from('crm_tarefas_teste').update({vencimento:date}).eq('id',t.id);
+  if(err){setError('Não foi possível reagendar: '+err.message);setBusy(false);return;}
+  setNotice('Lembrete reagendado.');setReschedules(old=>({...old,[t.id]:undefined}));await reload();
+ }
  function editContact(c){setEditing(c.id);setForm({nome:c.nome,telefone:c.telefone,origem:c.origem,interesse:c.interesse,responsavel:c.responsavel,etapa:c.etapa,observacao:c.observacao||'',permite_contato:c.permite_contato});window.scrollTo({top:0,behavior:'smooth'});}
  const label=(title,child)=><label>{title}{child}</label>;
  return <section className="patients-page crm-page">
@@ -90,7 +99,7 @@ export default function CRMRelacionamento({supabase,role}){
   </form>
   <div className="premium-panel">
    <div className="panel-title"><div><h3>Lembretes pendentes</h3><p>Prioridade para tarefas de hoje e anteriores.</p></div></div>
-   {pending.length===0?<p>Nenhum lembrete pendente.</p>:<div className="patient-follow-up-list">{pending.map(t=>{const c=contatos.find(c=>c.id===t.contato_id);return <div className="patient-follow-up-entry" key={t.id}><strong>{t.vencimento.split('-').reverse().join('/')} · {c?.nome||'Contato indisponível'}</strong><span>{t.titulo}{t.vencimento<=today?' · Precisa de atenção':''}</span><button type="button" className="outline-gold" disabled={busy} onClick={()=>finishTask(t.id)}>Concluir</button></div>})}</div>}
+   {pending.length===0?<p>Nenhum lembrete pendente.</p>:<div className="patient-follow-up-list">{pending.map(t=>{const c=contatos.find(c=>c.id===t.contato_id);return <div className="patient-follow-up-entry" key={t.id}><strong>{t.vencimento.split('-').reverse().join('/')} · {c?.nome||'Contato indisponível'}</strong><span>{t.titulo}{t.vencimento<=today?' · Precisa de atenção':''}</span><div className="form-actions"><label>Nova data<input aria-label={"Nova data para "+(c?.nome||"contato")} type="date" value={reschedules[t.id]||t.vencimento} onChange={e=>setReschedules(old=>({...old,[t.id]:e.target.value}))}/></label><button type="button" className="outline-gold" disabled={busy} onClick={()=>rescheduleTask(t)}>Reagendar</button><button type="button" className="gold-button" disabled={busy} onClick={()=>finishTask(t.id)}>Concluir</button></div></div>})}</div>}
   </div>
   <div className="premium-panel directory-panel">
    <div className="panel-title"><div><h3>Contatos cadastrados</h3><p>Abertura do WhatsApp é manual e não envia mensagens.</p></div></div>
