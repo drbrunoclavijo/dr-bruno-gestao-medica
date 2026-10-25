@@ -1,9 +1,6 @@
 import React,{useEffect,useState} from 'react';
-const localISO=()=>{
- const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
- const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));
- return p.year+'-'+p.month+'-'+p.day;
-};
+import {crmToday,crmDueTasks} from './crmUtils.js';
+const localISO=crmToday;
 export default function CRMAlerts({supabase,onNavigate}){
  const [items,setItems]=useState([]),[contacts,setContacts]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  async function refresh(){
@@ -17,7 +14,7 @@ export default function CRMAlerts({supabase,onNavigate}){
   setLoading(false);
  }
  useEffect(()=>{refresh();},[supabase]);
- const now=localISO(),due=items.filter(t=>t.vencimento<=now),names=new Map(contacts.map(c=>[c.id,c.nome]));
+ const now=localISO(),due=crmDueTasks(items,now),names=new Map(contacts.map(c=>[c.id,c.nome]));
  return <div className="premium-panel dashboard-appointments">
   <div className="dashboard-agenda-title"><div><h3>CRM · Pendências do atendimento</h3><p>Contatos e lembretes para acompanhar hoje.</p></div><button type="button" className="gold-button" onClick={()=>onNavigate('CRM')}>Abrir CRM →</button></div>
   {error&&<p className="form-message" role="status">{error}</p>}
